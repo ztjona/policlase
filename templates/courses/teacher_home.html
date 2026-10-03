@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Mis cursos" %}{% endblock %}
+{% block main %}
+<div class="spread">
+  <h1>{% translate "Mis cursos" %}</h1>
+  <a class="btn" href="{% url 'course_create' %}">{% translate "Nuevo curso" %}</a>
+</div>
+{% if rows %}
+  <div class="grid">
+    {% for row in rows %}
+      <a class="card" href="{% url 'course_manage' row.course.pk %}" style="text-decoration:none;color:inherit">
+        <div class="muted small mono">{{ row.course.code }}</div>
+        <h3 style="margin:.2rem 0 .6rem">{{ row.course.name }}</h3>
+        <div class="row small">
+          <span class="chip ok">{% blocktranslate count n=row.approved %}{{ n }} inscrito{% plural %}{{ n }} inscritos{% endblocktranslate %}</span>
+          {% if row.pending %}<span class="chip warn">{% blocktranslate count n=row.pending %}{{ n }} por aprobar{% plural %}{{ n }} por aprobar{% endblocktranslate %}</span>{% endif %}
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="card">
+    <p>{% translate "Aún no tiene cursos. Cree uno y comparta su código de inscripción con los estudiantes." %}</p>
+    <a class="btn" href="{% url 'course_create' %}">{% translate "Crear el primer curso" %}</a>
+  </div>
+{% endif %}
+{% endblock %}

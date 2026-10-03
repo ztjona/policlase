@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Configuración" %} · {{ course.name }}{% endblock %}
+{% block main %}
+<div class="muted small"><a href="{% url 'course_manage' course.pk %}">← {{ course.name }}</a></div>
+<div class="spread">
+  <h1>{% translate "Configuración del curso" %}</h1>
+  <a href="{% url 'course_detail' course.pk %}" class="small">{% translate "Ver como estudiante" %}</a>
+</div>
+
+<div class="grid">
+  <section class="card" aria-labelledby="codigo">
+    <h2 id="codigo">{% translate "Código de inscripción" %}</h2>
+    <div class="joincode" aria-label="{% translate 'código' %}">{{ course.join_code_display }}</div>
+    <p class="small muted">
+      {% if course.accepting %}{% translate "Los estudiantes lo ingresan en «Inscribirse en un curso» y usted aprueba cada solicitud." %}
+      {% else %}<strong>{% translate "Inscripción cerrada:" %}</strong> {% translate "el código no admite solicitudes nuevas." %}{% endif %}
+    </p>
+    <form method="post" action="{% url 'join_code_action' course.pk %}" class="row">
+      {% csrf_token %}
+      <button name="action" value="toggle" class="secondary">{% if course.accepting %}{% translate "Cerrar inscripción" %}{% else %}{% translate "Abrir inscripción" %}{% endif %}</button>
+      <button name="action" value="regenerate" class="secondary"
+              onclick="return confirm('{% translate "El código actual dejará de funcionar. ¿Continuar?" as msg %}{{ msg|escapejs }}')">{% translate "Generar otro código" %}</button>
+    </form>
+  </section>
+
+  <section class="card" aria-labelledby="datos">
+    <h2 id="datos">{% translate "Datos del curso" %}</h2>
+    <form method="post">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button type="submit">{% translate "Guardar" %}</button>
+    </form>
+  </section>
+</div>
+
+<h2>{% translate "Inscritos" %} <span class="chip ok">{{ approved|length }}</span></h2>
+{% if approved %}
+  <div class="card table-wrap">
+    <table>
+      <thead><tr><th>{% translate "Estudiante" %}</th><th>{% translate "Cédula" %}</th><th>{% translate "Correo" %}</th><th>{% translate "Aprobado" %}</th><th></th></tr></thead>
+      <tbody>
+        {% for e in approved %}
+          <tr>
+            <td>{{ e.student.last_name }}, {{ e.student.first_name }}</td>
+            <td class="mono">{{ e.student.student_id }}</td>
+            <td class="small">{{ e.student.email }}</td>
+            <td class="small muted">{{ e.decided_at|date:"d M" }}</td>
+            <td>
+              <form method="post" action="{% url 'enrollment_remove' course.pk e.pk %}"
+                    onsubmit="return confirm('{% blocktranslate with name=e.student.display_name asvar msg %}¿Retirar a {{ name }} del curso?{% endblocktranslate %}{{ msg|escapejs }}')">
+                {% csrf_token %}<button class="danger small" style="padding:4px 10px">{% translate "Retirar" %}</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p class="muted">{% translate "Aún no hay estudiantes aprobados." %}</p>
+{% endif %}
+
+{% if rejected %}
+  <h2>{% translate "Rechazadas" %} <span class="chip danger">{{ rejected|length }}</span></h2>
+  <form method="post" action="{% url 'enrollment_decide' course.pk %}" class="card">
+    {% csrf_token %}
+    <input type="hidden" name="back" value="settings">
+    <ul style="margin:0;padding-left:0;list-style:none" class="stack">
+      {% for e in rejected %}
+        <li class="row"><input type="checkbox" name="enrollment" value="{{ e.pk }}" id="rej{{ e.pk }}">
+          <label for="rej{{ e.pk }}" style="margin:0;font-weight:400">{{ e.student.last_name }}, {{ e.student.first_name }} · <span class="mono small">{{ e.student.student_id }}</span></label></li>
+      {% endfor %}
+    </ul>
+    <button name="action" value="approve" class="secondary" style="margin-top:10px">{% translate "Aprobar seleccionadas" %}</button>
+  </form>
+{% endif %}
+{% endblock %}

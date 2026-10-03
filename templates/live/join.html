@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Clase en vivo" %}{% endblock %}
+{% block page_class %}narrow{% endblock %}
+{% block main %}
+<h1>{% translate "Clase en vivo" %}</h1>
+<form method="post" class="card stack">
+  {% csrf_token %}
+  <label for="pin">{% translate "PIN que muestra el proyector" %}</label>
+  <input id="pin" name="pin" class="big-input mono" inputmode="numeric" pattern="[0-9 ]*" maxlength="7" autocomplete="off" required autofocus>
+  <button type="submit" class="big">{% translate "Entrar" %}</button>
+</form>
+<p class="muted small">{% translate "Solo puede entrar a clases de cursos en los que su inscripción está aprobada." %}</p>
+{% endblock %}

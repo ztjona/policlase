@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Inscribirse en un curso" %}{% endblock %}
+{% block page_class %}narrow{% endblock %}
+{% block main %}
+<h1>{% translate "Inscribirse en un curso" %}</h1>
+<section class="card">
+  <p class="muted small">{% translate "Ingrese el código que le dio su docente. Su solicitud queda pendiente hasta que la apruebe." %}</p>
+  {% include "courses/_join_form.html" %}
+</section>
+{% endblock %}

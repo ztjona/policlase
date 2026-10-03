@@ -1,0 +1,1057 @@
+# Traducción al inglés de policlase. El español es el idioma fuente.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: policlase\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-03 15:56-0500\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: apps/accounts/forms.py:22
+msgid "Nombres"
+msgstr "First names"
+
+#: apps/accounts/forms.py:23
+msgid "Apellidos"
+msgstr "Last names"
+
+#: apps/accounts/forms.py:25
+msgid "Cédula o pasaporte"
+msgstr "National ID or passport"
+
+#: apps/accounts/forms.py:26
+msgid "La usamos para identificarle ante sus docentes y en las actas de notas."
+msgstr "We use it to identify you to your teachers and on grade reports."
+
+#: apps/accounts/forms.py:35
+msgid "Use solo letras, números o guiones (5 a 20 caracteres)."
+msgstr "Use only letters, numbers or hyphens (5 to 20 characters)."
+
+#: apps/accounts/forms.py:53
+msgid "Idioma"
+msgstr "Language"
+
+#: apps/accounts/forms.py:54
+msgid "Zona horaria"
+msgstr "Time zone"
+
+#: apps/accounts/models.py:16 templates/courses/course_manage.html:30
+#: templates/courses/course_settings.html:41 templates/live/results.html:11
+msgid "Estudiante"
+msgstr "Student"
+
+#: apps/accounts/models.py:17
+msgid "Docente"
+msgstr "Teacher"
+
+#: apps/accounts/models.py:19
+msgid "correo electrónico"
+msgstr "email address"
+
+#: apps/accounts/models.py:20
+msgid "rol"
+msgstr "role"
+
+#: apps/accounts/models.py:23
+msgid "cédula o pasaporte"
+msgstr "national ID or passport"
+
+#: apps/accounts/models.py:25
+msgid "idioma"
+msgstr "language"
+
+#: apps/accounts/models.py:26
+msgid "zona horaria"
+msgstr "time zone"
+
+#: apps/accounts/views.py:69
+msgid "Preferencias guardadas."
+msgstr "Preferences saved."
+
+#: apps/courses/access.py:18
+msgid "Solo docentes."
+msgstr "Teachers only."
+
+#: apps/courses/forms.py:16 templates/courses/_join_form.html:5
+msgid "Código del curso"
+msgstr "Course code"
+
+#: apps/courses/models.py:27 templates/base.html:31
+msgid "docente"
+msgstr "teacher"
+
+#: apps/courses/models.py:28
+msgid "nombre"
+msgstr "name"
+
+#: apps/courses/models.py:29 templates/courses/course_settings.html:14
+msgid "código"
+msgstr "code"
+
+#: apps/courses/models.py:29
+msgid "p. ej. MN-2026-2"
+msgstr "e.g. MN-2026-2"
+
+#: apps/courses/models.py:30
+msgid "descripción"
+msgstr "description"
+
+#: apps/courses/models.py:32
+msgid "código de inscripción"
+msgstr "enrollment code"
+
+#: apps/courses/models.py:34
+msgid "acepta solicitudes"
+msgstr "accepts requests"
+
+#: apps/courses/models.py:60
+msgid "Pendiente"
+msgstr "Pending"
+
+#: apps/courses/models.py:61
+msgid "Aprobada"
+msgstr "Approved"
+
+#: apps/courses/models.py:62
+msgid "Rechazada"
+msgstr "Rejected"
+
+#: apps/courses/views.py:54
+msgid "Las cuentas de docente no se inscriben en cursos."
+msgstr "Teacher accounts can't enroll in courses."
+
+#: apps/courses/views.py:64
+msgid ""
+"Ese código no corresponde a ningún curso abierto. Revíselo con su docente."
+msgstr "That code doesn't match any open course. Check it with your teacher."
+
+#: apps/courses/views.py:74
+#, python-format
+msgid "Solicitud enviada a %(course)s. Su docente debe aprobarla."
+msgstr "Request sent to %(course)s. Your teacher needs to approve it."
+
+#: apps/courses/views.py:77
+#, python-format
+msgid "Ya está inscrito en %(course)s."
+msgstr "You're already enrolled in %(course)s."
+
+#: apps/courses/views.py:79
+#, python-format
+msgid "Su solicitud a %(course)s sigue pendiente de aprobación."
+msgstr "Your request to %(course)s is still waiting for approval."
+
+#: apps/courses/views.py:82
+#, python-format
+msgid "Su solicitud a %(course)s fue rechazada. Hable con su docente."
+msgstr "Your request to %(course)s was rejected. Talk to your teacher."
+
+#: apps/courses/views.py:122 apps/courses/views.py:160
+msgid "Ya tiene un curso con ese código."
+msgstr "You already have a course with that code."
+
+#: apps/courses/views.py:124
+#, python-format
+msgid ""
+"Curso creado. Comparta el código de inscripción %(code)s con sus "
+"estudiantes; también está en la configuración del curso."
+msgstr "Course created. Share the enrollment code %(code)s with your students; you'll also find it in the course settings."
+
+#: apps/courses/views.py:162
+msgid "Datos del curso guardados."
+msgstr "Course details saved."
+
+#: apps/courses/views.py:187
+msgid "Acción desconocida."
+msgstr "Unknown action."
+
+#: apps/courses/views.py:200
+msgid "No había solicitudes seleccionadas."
+msgstr "No requests were selected."
+
+#: apps/courses/views.py:202
+#, python-format
+msgid "%(count)d solicitud aprobada."
+msgid_plural "%(count)d solicitudes aprobadas."
+msgstr[0] "%(count)d request approved."
+msgstr[1] "%(count)d requests approved."
+
+#: apps/courses/views.py:205
+#, python-format
+msgid "%(count)d solicitud rechazada."
+msgid_plural "%(count)d solicitudes rechazadas."
+msgstr[0] "%(count)d request rejected."
+msgstr[1] "%(count)d requests rejected."
+
+#: apps/courses/views.py:217
+#, python-format
+msgid ""
+"%(name)s fue retirado del curso. Puede volver a solicitar con el código."
+msgstr "%(name)s was removed from the course. They can request again with the code."
+
+#: apps/courses/views.py:229
+#, python-format
+msgid "Nuevo código: %(code)s. El anterior dejó de funcionar."
+msgstr "New code: %(code)s. The previous one no longer works."
+
+#: apps/courses/views.py:234
+msgid "El curso acepta solicitudes."
+msgstr "The course is accepting requests."
+
+#: apps/courses/views.py:235
+msgid "El curso ya no acepta solicitudes."
+msgstr "The course no longer accepts requests."
+
+#: apps/live/engine.py:31 templates/live/_present_stage.html:55
+#: templates/live/deck_view.html:30
+msgctxt "inicial de verdadero"
+msgid "V"
+msgstr "T"
+
+#: apps/live/engine.py:31 templates/live/_present_stage.html:55
+#: templates/live/deck_view.html:30
+msgctxt "inicial de falso"
+msgid "F"
+msgstr "F"
+
+#: apps/live/engine.py:52
+msgid "La clase ya terminó."
+msgstr "The class has already ended."
+
+#: apps/live/engine.py:65
+msgid "La clase ya empezó."
+msgstr "The class has already started."
+
+#: apps/live/engine.py:71
+msgid "Inicie la clase primero."
+msgstr "Start the class first."
+
+#: apps/live/engine.py:73
+msgid "Cierre la pregunta antes de cambiar de diapositiva."
+msgstr "Close the question before changing slides."
+
+#: apps/live/engine.py:76
+msgid "No hay más diapositivas en esa dirección."
+msgstr "There are no more slides in that direction."
+
+#: apps/live/engine.py:83
+msgid "Esta diapositiva no tiene una pregunta lista para abrir."
+msgstr "This slide has no question ready to open."
+
+#: apps/live/engine.py:91
+msgid "La pregunta no está abierta."
+msgstr "The question isn't open."
+
+#: apps/live/engine.py:98
+msgid "Cierre la pregunta antes de mostrar resultados."
+msgstr "Close the question before showing results."
+
+#: apps/live/engine.py:107
+#, python-format
+msgid "Acción desconocida: %(action)s"
+msgstr "Unknown action: %(action)s"
+
+#: apps/live/engine.py:144
+msgid "La pregunta ya no recibe respuestas."
+msgstr "The question no longer accepts answers."
+
+#: apps/live/engine.py:146
+msgid "Se acabó el tiempo."
+msgstr "Time's up."
+
+#: apps/live/engine.py:163
+msgid "Ya respondió esta pregunta."
+msgstr "You already answered this question."
+
+#: apps/live/models.py:15
+msgid "título"
+msgstr "title"
+
+#: apps/live/models.py:58
+msgid "Sala de espera"
+msgstr "Lobby"
+
+#: apps/live/models.py:59
+msgid "En curso"
+msgstr "In progress"
+
+#: apps/live/models.py:60
+msgid "Terminada"
+msgstr "Ended"
+
+#: apps/live/models.py:63
+msgid "Contenido"
+msgstr "Content"
+
+#: apps/live/models.py:64
+msgid "Pregunta lista"
+msgstr "Question ready"
+
+#: apps/live/models.py:65
+msgid "Respondiendo"
+msgstr "Answering"
+
+#: apps/live/models.py:66
+msgid "Cerrada"
+msgstr "Closed"
+
+#: apps/live/models.py:67 templates/courses/course_manage.html:90
+#: templates/live/results.html:3
+msgid "Resultados"
+msgstr "Results"
+
+#: apps/live/views.py:70
+msgid "El archivo supera 512 KB."
+msgstr "The file is larger than 512 KB."
+
+#: apps/live/views.py:83
+#, python-format
+msgid ""
+"Presentación «%(title)s» guardada: %(slides)d diapositivas, %(questions)d "
+"preguntas."
+msgstr "Presentation “%(title)s” saved: %(slides)d slides, %(questions)d questions."
+
+#: apps/live/views.py:88
+msgid "La presentación tiene errores; no se guardó."
+msgstr "The presentation has errors; it wasn't saved."
+
+#: apps/live/views.py:108
+msgid ""
+"Presentación eliminada. Las clases ya dictadas conservan sus resultados."
+msgstr "Presentation deleted. Classes already taught keep their results."
+
+#: apps/live/views.py:123
+msgid "Ya hay una clase en vivo en este curso; se abrió esa."
+msgstr "This course already has a live class; that one was opened."
+
+#: apps/live/views.py:136
+msgid "No se pudo generar un PIN libre. Intente de nuevo."
+msgstr "Couldn't generate a free PIN. Try again."
+
+#: apps/live/views.py:233
+msgid "No hay una clase en vivo con ese PIN en sus cursos."
+msgstr "There's no live class with that PIN in your courses."
+
+#: templates/account/preferences.html:3 templates/account/preferences.html:6
+#: templates/base.html:43
+msgid "Idioma y zona horaria"
+msgstr "Language and time zone"
+
+#: templates/account/preferences.html:16
+msgid ""
+"Se detectó automáticamente desde su navegador. Las horas de clases y "
+"solicitudes se muestran en esta zona."
+msgstr "Detected automatically from your browser. Class and request times are shown in this time zone."
+
+#: templates/account/preferences.html:18
+#: templates/courses/course_settings.html:32
+msgid "Guardar"
+msgstr "Save"
+
+#: templates/account/signup.html:4 templates/account/signup.html:6
+msgid "Crear cuenta de docente"
+msgstr "Create a teacher account"
+
+#: templates/account/signup.html:4 templates/account/signup.html:25
+#: templates/base.html:53
+msgid "Crear cuenta"
+msgstr "Sign up"
+
+#: templates/account/signup.html:6
+msgid "Crear cuenta de estudiante"
+msgstr "Create a student account"
+
+#: templates/account/signup.html:10
+msgid ""
+"Tendrá su propio espacio: sus cursos, estudiantes y clases solo los ve usted."
+msgstr "You'll get your own workspace: only you can see your courses, students and classes."
+
+#: templates/account/signup.html:11
+#, python-format
+msgid ""
+"¿Es estudiante? <a href=\"%(student_url)s\">Cree su cuenta de estudiante</a>."
+msgstr "Are you a student? <a href=\"%(student_url)s\">Create a student account</a>."
+
+#: templates/account/signup.html:13
+#, python-format
+msgid "¿Es docente? <a href=\"%(teacher_url)s\">Cree su cuenta de docente</a>."
+msgstr "Are you a teacher? <a href=\"%(teacher_url)s\">Create a teacher account</a>."
+
+#: templates/account/signup.html:15
+#, python-format
+msgid "¿Ya tiene cuenta? <a href=\"%(login_url)s\">Inicie sesión</a>."
+msgstr "Already have an account? <a href=\"%(login_url)s\">Log in</a>."
+
+#: templates/base.html:26
+msgid "principal"
+msgstr "main"
+
+#: templates/base.html:28 templates/courses/student_home.html:3
+#: templates/courses/student_home.html:5 templates/courses/teacher_home.html:3
+#: templates/courses/teacher_home.html:6
+msgid "Mis cursos"
+msgstr "My courses"
+
+#: templates/base.html:33
+msgid "Menú de usuario"
+msgstr "User menu"
+
+#: templates/base.html:37 templates/courses/course_form.html:3
+#: templates/courses/course_form.html:6 templates/courses/teacher_home.html:7
+msgid "Nuevo curso"
+msgstr "New course"
+
+#: templates/base.html:39
+msgid "Entrar a clase en vivo"
+msgstr "Join a live class"
+
+#: templates/base.html:40 templates/courses/join.html:3
+#: templates/courses/join.html:6 templates/courses/student_home.html:16
+msgid "Inscribirse en un curso"
+msgstr "Enroll in a course"
+
+#: templates/base.html:44
+msgid "Contraseña"
+msgstr "Password"
+
+#: templates/base.html:45 templates/courses/course_manage.html:30
+#: templates/courses/course_settings.html:41
+msgid "Correo"
+msgstr "Email"
+
+#: templates/base.html:46
+msgid "Administración"
+msgstr "Administration"
+
+#: templates/base.html:48
+msgid "Cerrar sesión"
+msgstr "Log out"
+
+#: templates/base.html:52
+msgid "Iniciar sesión"
+msgstr "Log in"
+
+#: templates/courses/_join_form.html:8
+msgid "Solicitar inscripción"
+msgstr "Request enrollment"
+
+#: templates/courses/course_detail.html:11
+#: templates/courses/course_manage.html:17
+#: templates/courses/student_home.html:37
+msgid "EN VIVO"
+msgstr "LIVE"
+
+#: templates/courses/course_detail.html:13
+msgid "Ir al proyector"
+msgstr "Go to projector"
+
+#: templates/courses/course_detail.html:15
+msgid "Entrar a la clase"
+msgstr "Join the class"
+
+#: templates/courses/course_detail.html:19
+msgid "No hay ninguna clase en vivo en este momento."
+msgstr "There's no live class right now."
+
+#: templates/courses/course_detail.html:23
+msgid "Acerca del curso"
+msgstr "About the course"
+
+#: templates/courses/course_form.html:10
+msgid "Crear curso"
+msgstr "Create course"
+
+#: templates/courses/course_manage.html:8
+#: templates/courses/course_settings.html:7
+msgid "Configuración del curso"
+msgstr "Course settings"
+
+#: templates/courses/course_manage.html:11
+#, python-format
+msgid "%(n)s estudiante inscrito"
+msgid_plural "%(n)s estudiantes inscritos"
+msgstr[0] "%(n)s student enrolled"
+msgstr[1] "%(n)s students enrolled"
+
+#: templates/courses/course_manage.html:12
+msgid "inscripción cerrada"
+msgstr "enrollment closed"
+
+#: templates/courses/course_manage.html:18
+msgid "Volver al proyector"
+msgstr "Back to projector"
+
+#: templates/courses/course_manage.html:23
+msgid "Solicitudes pendientes"
+msgstr "Pending requests"
+
+#: templates/courses/course_manage.html:29
+msgid "seleccionar todas"
+msgstr "select all"
+
+#: templates/courses/course_manage.html:30
+#: templates/courses/course_settings.html:41
+msgid "Cédula"
+msgstr "ID"
+
+#: templates/courses/course_manage.html:30
+msgid "Solicitó"
+msgstr "Requested"
+
+#: templates/courses/course_manage.html:35
+#, python-format
+msgid "seleccionar %(name)s"
+msgstr "select %(name)s"
+
+#: templates/courses/course_manage.html:46
+#, python-format
+msgid "Aprobar todas (%(n)s)"
+msgstr "Approve all (%(n)s)"
+
+#: templates/courses/course_manage.html:47
+#: templates/courses/course_settings.html:75
+msgid "Aprobar seleccionadas"
+msgstr "Approve selected"
+
+#: templates/courses/course_manage.html:48
+msgid "Rechazar seleccionadas"
+msgstr "Reject selected"
+
+#: templates/courses/course_manage.html:53
+msgid "Presentaciones"
+msgstr "Presentations"
+
+#: templates/courses/course_manage.html:53 templates/live/deck_edit.html:3
+#: templates/live/deck_edit.html:6
+msgid "Nueva presentación"
+msgstr "New presentation"
+
+#: templates/courses/course_manage.html:61 templates/live/deck_view.html:13
+#, python-format
+msgid "%(n)s diapositiva"
+msgid_plural "%(n)s diapositivas"
+msgstr[0] "%(n)s slide"
+msgstr[1] "%(n)s slides"
+
+#: templates/courses/course_manage.html:62 templates/live/deck_view.html:13
+#, python-format
+msgid "%(n)s pregunta"
+msgid_plural "%(n)s preguntas"
+msgstr[0] "%(n)s question"
+msgstr[1] "%(n)s questions"
+
+#: templates/courses/course_manage.html:63
+#, python-format
+msgid "editada %(when)s"
+msgstr "edited %(when)s"
+
+#: templates/courses/course_manage.html:67 templates/live/deck_view.html:9
+msgid "Editar"
+msgstr "Edit"
+
+#: templates/courses/course_manage.html:69
+#: templates/live/_present_stage.html:101 templates/live/deck_view.html:10
+msgid "Iniciar clase"
+msgstr "Start class"
+
+#: templates/courses/course_manage.html:76
+msgid ""
+"Todavía no hay presentaciones. Cree una para dictar su primera clase en vivo."
+msgstr "No presentations yet. Create one to teach your first live class."
+
+#: templates/courses/course_manage.html:80
+msgid "Clases dictadas"
+msgstr "Past classes"
+
+#: templates/courses/course_manage.html:83
+msgid "Clase"
+msgstr "Class"
+
+#: templates/courses/course_manage.html:83
+msgid "Fecha"
+msgstr "Date"
+
+#: templates/courses/course_manage.html:83
+msgid "Participantes"
+msgstr "Participants"
+
+#: templates/courses/course_settings.html:3
+msgid "Configuración"
+msgstr "Settings"
+
+#: templates/courses/course_settings.html:8
+msgid "Ver como estudiante"
+msgstr "View as student"
+
+#: templates/courses/course_settings.html:13
+msgid "Código de inscripción"
+msgstr "Enrollment code"
+
+#: templates/courses/course_settings.html:16
+msgid ""
+"Los estudiantes lo ingresan en «Inscribirse en un curso» y usted aprueba "
+"cada solicitud."
+msgstr "Students enter it under “Enroll in a course” and you approve each request."
+
+#: templates/courses/course_settings.html:17
+msgid "Inscripción cerrada:"
+msgstr "Enrollment closed:"
+
+#: templates/courses/course_settings.html:17
+msgid "el código no admite solicitudes nuevas."
+msgstr "the code doesn't accept new requests."
+
+#: templates/courses/course_settings.html:21
+msgid "Cerrar inscripción"
+msgstr "Close enrollment"
+
+#: templates/courses/course_settings.html:21
+msgid "Abrir inscripción"
+msgstr "Open enrollment"
+
+#: templates/courses/course_settings.html:23
+msgid "El código actual dejará de funcionar. ¿Continuar?"
+msgstr "The current code will stop working. Continue?"
+
+#: templates/courses/course_settings.html:23
+msgid "Generar otro código"
+msgstr "Generate a new code"
+
+#: templates/courses/course_settings.html:28
+msgid "Datos del curso"
+msgstr "Course details"
+
+#: templates/courses/course_settings.html:37
+msgid "Inscritos"
+msgstr "Enrolled"
+
+#: templates/courses/course_settings.html:41
+msgid "Aprobado"
+msgstr "Approved"
+
+#: templates/courses/course_settings.html:51
+#, python-format
+msgid "¿Retirar a %(name)s del curso?"
+msgstr "Remove %(name)s from the course?"
+
+#: templates/courses/course_settings.html:52
+msgid "Retirar"
+msgstr "Remove"
+
+#: templates/courses/course_settings.html:61
+msgid "Aún no hay estudiantes aprobados."
+msgstr "No approved students yet."
+
+#: templates/courses/course_settings.html:65
+msgid "Rechazadas"
+msgstr "Rejected"
+
+#: templates/courses/join.html:8 templates/courses/student_home.html:17
+msgid ""
+"Ingrese el código que le dio su docente. Su solicitud queda pendiente hasta "
+"que la apruebe."
+msgstr "Enter the code your teacher gave you. Your request stays pending until they approve it."
+
+#: templates/courses/student_home.html:9
+#, python-format
+msgid ""
+"Su solicitud a <strong>%(course)s</strong> fue rechazada. Si cree que es un "
+"error, hable con %(teacher)s."
+msgstr "Your request to <strong>%(course)s</strong> was rejected. If you think this is a mistake, talk to %(teacher)s."
+
+#: templates/courses/student_home.html:10
+msgid "Entendido"
+msgstr "Got it"
+
+#: templates/courses/student_home.html:37 templates/live/join.html:11
+msgid "Entrar"
+msgstr "Join"
+
+#: templates/courses/student_home.html:39
+msgid "Pendiente de aprobación"
+msgstr "Waiting for approval"
+
+#: templates/courses/teacher_home.html:16
+#, python-format
+msgid "%(n)s inscrito"
+msgid_plural "%(n)s inscritos"
+msgstr[0] "%(n)s enrolled"
+msgstr[1] "%(n)s enrolled"
+
+#: templates/courses/teacher_home.html:17
+#, python-format
+msgid "%(n)s por aprobar"
+msgid_plural "%(n)s por aprobar"
+msgstr[0] "%(n)s to approve"
+msgstr[1] "%(n)s to approve"
+
+#: templates/courses/teacher_home.html:24
+msgid ""
+"Aún no tiene cursos. Cree uno y comparta su código de inscripción con los "
+"estudiantes."
+msgstr "You don't have any courses yet. Create one and share its enrollment code with your students."
+
+#: templates/courses/teacher_home.html:25
+msgid "Crear el primer curso"
+msgstr "Create your first course"
+
+#: templates/live/_present_stage.html:6
+#, python-format
+msgid "Entre a <strong>%(join_host)s/en-vivo</strong> e ingrese el PIN"
+msgstr "Go to <strong>%(join_host)s/en-vivo</strong> and enter the PIN"
+
+#: templates/live/_present_stage.html:8
+#, python-format
+msgid "%(n)s estudiante conectado"
+msgid_plural "%(n)s estudiantes conectados"
+msgstr[0] "%(n)s student connected"
+msgstr[1] "%(n)s students connected"
+
+#: templates/live/_present_stage.html:8
+msgid "también pueden entrar desde la página del curso"
+msgstr "they can also join from the course page"
+
+#: templates/live/_present_stage.html:12 templates/live/_student_stage.html:14
+msgid "Clase terminada"
+msgstr "Class ended"
+
+#: templates/live/_present_stage.html:14
+msgid "Mejores puntajes"
+msgstr "Top scores"
+
+#: templates/live/_present_stage.html:17
+msgid "Ver resultados completos"
+msgstr "See full results"
+
+#: templates/live/_present_stage.html:18 templates/live/_student_stage.html:18
+msgid "Volver al curso"
+msgstr "Back to the course"
+
+#: templates/live/_present_stage.html:35 templates/live/_present_stage.html:71
+#: templates/live/deck_view.html:28
+msgid "correcta"
+msgstr "correct"
+
+#: templates/live/_present_stage.html:48
+msgid "Puede marcar varias."
+msgstr "You can pick several."
+
+#: templates/live/_present_stage.html:60
+msgid "Porcentaje que acertó cada afirmación."
+msgstr "Percentage who got each statement right."
+
+#: templates/live/_present_stage.html:81 templates/live/deck_view.html:32
+msgid "Respuesta:"
+msgstr "Answer:"
+
+#: templates/live/_present_stage.html:85
+msgid "Pregunta lista — ábrala cuando todos la hayan leído."
+msgstr "Question ready — open it once everyone has read it."
+
+#: templates/live/_present_stage.html:86
+#, python-format
+msgid "%(answered)s de %(participants)s respondieron."
+msgstr "%(answered)s of %(participants)s answered."
+
+#: templates/live/_present_stage.html:87
+#, python-format
+msgid "Cerrada: %(answered)s respuestas, %(correct)s correctas."
+msgstr "Closed: %(answered)s answers, %(correct)s correct."
+
+#: templates/live/_present_stage.html:88
+#, python-format
+msgid "%(correct)s de %(answered)s acertaron."
+msgstr "%(correct)s of %(answered)s got it right."
+
+#: templates/live/_present_stage.html:97 templates/live/deck_view.html:35
+msgid "Notas:"
+msgstr "Notes:"
+
+#: templates/live/_present_stage.html:103
+msgid "Flecha izquierda"
+msgstr "Left arrow"
+
+#: templates/live/_present_stage.html:103
+msgid "Anterior"
+msgstr "Previous"
+
+#: templates/live/_present_stage.html:105
+#: templates/live/_present_stage.html:106
+#: templates/live/_present_stage.html:107
+msgid "Espacio"
+msgstr "Space"
+
+#: templates/live/_present_stage.html:105
+msgid "Abrir pregunta"
+msgstr "Open question"
+
+#: templates/live/_present_stage.html:106
+msgid "Cerrar ya"
+msgstr "Close now"
+
+#: templates/live/_present_stage.html:107
+msgid "Mostrar respuesta"
+msgstr "Show answer"
+
+#: templates/live/_present_stage.html:108
+msgid "Flecha derecha"
+msgstr "Right arrow"
+
+#: templates/live/_present_stage.html:108
+msgid "Siguiente"
+msgstr "Next"
+
+#: templates/live/_present_stage.html:109
+msgid "¿Terminar la clase? Los estudiantes ya no podrán responder."
+msgstr "End the class? Students won't be able to answer anymore."
+
+#: templates/live/_present_stage.html:109
+msgid "Terminar"
+msgstr "End"
+
+#: templates/live/_student_stage.html:8
+msgid "Ya estás dentro"
+msgstr "You're in"
+
+#: templates/live/_student_stage.html:9
+#, python-format
+msgid "Espera a que tu docente inicie <strong>%(title)s</strong>."
+msgstr "Wait for your teacher to start <strong>%(title)s</strong>."
+
+#: templates/live/_student_stage.html:15
+#, python-format
+msgid "Tu puntaje: <strong>%(total)s</strong> de %(max)s"
+msgstr "Your score: <strong>%(total)s</strong> out of %(max)s"
+
+#: templates/live/_student_stage.html:15 templates/live/_student_stage.html:93
+#, python-format
+msgid "puesto %(my_rank)s"
+msgstr "rank %(my_rank)s"
+
+#: templates/live/_student_stage.html:22
+msgid "Mira el proyector. Las preguntas aparecerán aquí."
+msgstr "Watch the projector. Questions will appear here."
+
+#: templates/live/_student_stage.html:32
+msgid "Prepárate…"
+msgstr "Get ready…"
+
+#: templates/live/_student_stage.html:32
+msgid "La pregunta se abrirá en un momento."
+msgstr "The question will open in a moment."
+
+#: templates/live/_student_stage.html:47
+msgid "Marca todas las correctas. Cada marca incorrecta resta."
+msgstr "Mark all the correct ones. Each wrong mark subtracts points."
+
+#: templates/live/_student_stage.html:52
+#, python-format
+msgid "Afirmación %(n)s"
+msgstr "Statement %(n)s"
+
+#: templates/live/_student_stage.html:55
+msgid "Verdadero"
+msgstr "True"
+
+#: templates/live/_student_stage.html:56
+msgid "Falso"
+msgstr "False"
+
+#: templates/live/_student_stage.html:62 templates/live/_student_stage.html:64
+msgid "Respuesta"
+msgstr "Answer"
+
+#: templates/live/_student_stage.html:64
+msgid "Número"
+msgstr "Number"
+
+#: templates/live/_student_stage.html:67
+msgid "Enviar respuesta"
+msgstr "Submit answer"
+
+#: templates/live/_student_stage.html:71
+msgid "Respuesta enviada"
+msgstr "Answer submitted"
+
+#: templates/live/_student_stage.html:71
+msgid "Espera a que se cierre la pregunta."
+msgstr "Wait for the question to close."
+
+#: templates/live/_student_stage.html:75
+msgid "Tiempo terminado"
+msgstr "Time's up"
+
+#: templates/live/_student_stage.html:76
+msgid "Tu respuesta quedó registrada."
+msgstr "Your answer was recorded."
+
+#: templates/live/_student_stage.html:76
+msgid "No alcanzaste a responder."
+msgstr "You didn't answer in time."
+
+#: templates/live/_student_stage.html:83
+msgid "¡Correcto!"
+msgstr "Correct!"
+
+#: templates/live/_student_stage.html:83
+msgid "Parcialmente correcto"
+msgstr "Partially correct"
+
+#: templates/live/_student_stage.html:83
+msgid "Incorrecto"
+msgstr "Incorrect"
+
+#: templates/live/_student_stage.html:84
+msgid "punto"
+msgstr "point"
+
+#: templates/live/_student_stage.html:84
+msgid "puntos"
+msgstr "points"
+
+#: templates/live/_student_stage.html:86
+msgid "Respondiste:"
+msgstr "You answered:"
+
+#: templates/live/_student_stage.html:88
+msgid "Sin respuesta"
+msgstr "No answer"
+
+#: templates/live/_student_stage.html:91
+msgid "Respuesta correcta:"
+msgstr "Correct answer:"
+
+#: templates/live/_student_stage.html:93
+#, python-format
+msgid "Tu total: <strong>%(total)s</strong>"
+msgstr "Your total: <strong>%(total)s</strong>"
+
+#: templates/live/deck_edit.html:3
+#, python-format
+msgid "Editar %(title)s"
+msgstr "Edit %(title)s"
+
+#: templates/live/deck_edit.html:6
+#, python-format
+msgid "Editar «%(title)s»"
+msgstr "Edit “%(title)s”"
+
+#: templates/live/deck_edit.html:11
+#, python-format
+msgid "línea %(line)s"
+msgstr "line %(line)s"
+
+#: templates/live/deck_edit.html:19
+msgid "Arrastre aquí un archivo <code>.yaml</code> o"
+msgstr "Drag a <code>.yaml</code> file here or"
+
+#: templates/live/deck_edit.html:20
+msgid "elíjalo"
+msgstr "choose it"
+
+#: templates/live/deck_edit.html:22
+msgid "— se valida al guardar."
+msgstr "— it's validated when you save."
+
+#: templates/live/deck_edit.html:24
+msgid "Fuente (formato <code>policlase.deck/v1</code>)"
+msgstr "Source (<code>policlase.deck/v1</code> format)"
+
+#: templates/live/deck_edit.html:27
+msgid "Validar y guardar"
+msgstr "Validate and save"
+
+#: templates/live/deck_edit.html:28
+msgid "Cancelar"
+msgstr "Cancel"
+
+#: templates/live/deck_edit.html:33
+msgid "Referencia rápida del formato"
+msgstr "Format quick reference"
+
+#: templates/live/deck_edit.html:35
+msgid ""
+"Cada diapositiva es <code>markdown:</code> (contenido) o <code>item:</code> "
+"(una pregunta)."
+msgstr "Each slide is <code>markdown:</code> (content) or <code>item:</code> (a question)."
+
+#: templates/live/deck_edit.html:36
+msgid "Tipos en vivo:"
+msgstr "Live question types:"
+
+#: templates/live/deck_edit.html:37
+msgid ""
+"Matemáticas con <code>$…$</code> y <code>$$…$$</code>. Tiempo por pregunta:"
+msgstr "Math with <code>$…$</code> and <code>$$…$$</code>. Time per question:"
+
+#: templates/live/deck_edit.html:38
+msgid "Referencia completa:"
+msgstr "Full reference:"
+
+#: templates/live/deck_view.html:19
+#, python-format
+msgid "Diapositiva %(n)s"
+msgstr "Slide %(n)s"
+
+#: templates/live/deck_view.html:41
+msgid ""
+"¿Eliminar esta presentación? Las clases ya dictadas conservan sus resultados."
+msgstr "Delete this presentation? Classes already taught keep their results."
+
+#: templates/live/deck_view.html:42
+msgid "Eliminar presentación"
+msgstr "Delete presentation"
+
+#: templates/live/join.html:3 templates/live/join.html:6
+msgid "Clase en vivo"
+msgstr "Live class"
+
+#: templates/live/join.html:9
+msgid "PIN que muestra el proyector"
+msgstr "PIN shown on the projector"
+
+#: templates/live/join.html:13
+msgid ""
+"Solo puede entrar a clases de cursos en los que su inscripción está aprobada."
+msgstr "You can only join classes in courses where your enrollment is approved."
+
+#: templates/live/present.html:3
+msgid "proyector"
+msgstr "projector"
+
+#: templates/live/present.html:12 templates/live/student.html:11
+msgid "conectando…"
+msgstr "connecting…"
+
+#: templates/live/present.html:15 templates/live/student.html:13
+msgid "Cargando…"
+msgstr "Loading…"
+
+#: templates/live/results.html:7
+#, python-format
+msgid "máximo %(max)s puntos"
+msgstr "maximum %(max)s points"
+
+#: templates/live/results.html:7
+msgid "categoría <em>participación</em>"
+msgstr "category <em>participation</em>"
+
+#: templates/live/results.html:12
+msgctxt "abreviatura de pregunta"
+msgid "P"
+msgstr "Q"
+
+#: templates/live/results.html:13
+msgid "Total"
+msgstr "Total"
+
+#: templates/live/results.html:18
+msgid "ausente"
+msgstr "absent"
+
+#: templates/live/results.html:24
+msgid "Sin estudiantes inscritos."
+msgstr "No enrolled students."

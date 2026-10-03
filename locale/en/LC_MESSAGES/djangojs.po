@@ -1,0 +1,56 @@
+# Traducción al inglés de policlase. El español es el idioma fuente.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: policlase\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: static/js/deck-editor.js:11
+msgid "El archivo supera 512 KB."
+msgstr "The file is larger than 512 KB."
+
+#: static/js/deck-editor.js:15
+#, javascript-format
+msgid "Cargado: %s — revise y pulse «Validar y guardar»."
+msgstr "Loaded: %s — review it and click “Validate and save”."
+
+#: static/js/live.js:68
+msgid "Sin acceso a esta clase."
+msgstr "No access to this class."
+
+#: static/js/live.js:72
+msgid "sin conexión"
+msgstr "offline"
+
+#: static/js/live.js:88
+msgid "en vivo"
+msgstr "live"
+
+#: static/js/live.js:89
+msgid "reconectando…"
+msgstr "reconnecting…"
+
+#: static/js/live.js:94
+msgid "clase terminada"
+msgstr "class ended"
+
+#: static/js/live.js:120
+#, javascript-format
+msgid "No se pudo aplicar la acción (%s)."
+msgstr "Couldn't apply the action (%s)."
+
+#: static/js/live.js:154
+msgid "Enviando…"
+msgstr "Sending…"
+
+#: static/js/live.js:159
+msgid "Enviar respuesta"
+msgstr "Submit answer"
+
+#: static/js/live.js:160
+msgid "No se pudo enviar. Revise su conexión e intente de nuevo."
+msgstr "Couldn't send. Check your connection and try again."

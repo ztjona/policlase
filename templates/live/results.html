@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Resultados" %} · {{ session.title }}{% endblock %}
+{% block main %}
+<div class="muted small"><a href="{% url 'course_manage' course.pk %}">{{ course.name }}</a></div>
+<h1>{{ session.title }}</h1>
+<p class="muted">{{ session.started_at|default:session.created_at|date:"DATETIME_FORMAT" }} · {% blocktranslate with max=max_points|floatformat:"-1" %}máximo {{ max }} puntos{% endblocktranslate %} · {% translate "categoría <em>participación</em>" %}</p>
+<div class="card table-wrap">
+  <table>
+    <thead><tr>
+      <th>{% translate "Estudiante" %}</th>
+      {% for i, s in questions %}<th class="num" title="{{ s.item_id }}">{% translate "P" context "abreviatura de pregunta" %}{{ forloop.counter }}</th>{% endfor %}
+      <th class="num">{% translate "Total" %}</th><th class="num">%</th>
+    </tr></thead>
+    <tbody>
+      {% for r in rows %}
+        <tr>
+          <td>{{ r.student.last_name }}, {{ r.student.first_name }}{% if not r.joined %} <span class="chip">{% translate "ausente" %}</span>{% endif %}</td>
+          {% for c in r.cells %}<td class="num">{% if c %}<span class="{% if c.correct %}chip ok{% elif c.points %}chip warn{% else %}chip danger{% endif %}">{{ c.points|floatformat:"-1" }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>{% endfor %}
+          <td class="num"><strong>{{ r.total|floatformat:"-1" }}</strong></td>
+          <td class="num">{{ r.percent }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="99" class="muted">{% translate "Sin estudiantes inscritos." %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

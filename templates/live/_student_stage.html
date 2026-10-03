@@ -1,0 +1,96 @@
+{% load policlase i18n %}
+<div class="phone" data-status="{{ session.status }}" data-phase="{{ session.phase }}">
+  {% if error %}<ul class="messages"><li class="error">{{ error }}</li></ul>{% endif %}
+
+  {% if session.status == "lobby" %}
+    <div class="card status-card">
+      <div class="emoji" aria-hidden="true">✓</div>
+      <h2>{% translate "Ya estás dentro" %}</h2>
+      <p class="muted">{% blocktranslate with title=session.title %}Espera a que tu docente inicie <strong>{{ title }}</strong>.{% endblocktranslate %}</p>
+    </div>
+
+  {% elif session.status == "ended" %}
+    <div class="card status-card">
+      <h2>{% translate "Clase terminada" %}</h2>
+      <p>{% blocktranslate with total=my_total|floatformat:"-1" max=session.max_points|floatformat:"-1" %}Tu puntaje: <strong>{{ total }}</strong> de {{ max }}{% endblocktranslate %}{% if my_rank %} · {% blocktranslate %}puesto {{ my_rank }}{% endblocktranslate %}{% endif %}</p>
+    </div>
+    {% if leaderboard %}<ol class="board">{% for r in leaderboard %}<li><span>{{ forloop.counter }}. {{ r.name }}</span><strong>{{ r.total|floatformat:"-1" }}</strong></li>{% endfor %}</ol>{% endif %}
+    <a class="btn secondary" href="{% url 'course_detail' session.course_id %}">{% translate "Volver al curso" %}</a>
+
+  {% elif slide.kind == "content" %}
+    <div class="card">{{ slide.markdown|md }}</div>
+    <p class="muted small">{% translate "Mira el proyector. Las preguntas aparecerán aquí." %}</p>
+
+  {% else %}
+    {% if session.phase == "open" and not mine %}
+      <div class="timer" data-closes-at="{{ session.closes_at|date:'c' }}" data-server-now="{{ now|date:'c' }}">–</div>
+    {% endif %}
+    {% if slide.stem %}<div>{{ slide.stem|md }}</div>{% endif %}
+    <div class="prompt">{{ slide.question.prompt|md }}</div>
+
+    {% if session.phase == "ready" %}
+      <div class="card status-card"><h3>{% translate "Prepárate…" %}</h3><p class="muted">{% translate "La pregunta se abrirá en un momento." %}</p></div>
+
+    {% elif session.phase == "open" and not mine %}
+      <form method="post" action="{% url 'student_answer' session.pk %}" data-answer-form class="stack">
+        {% csrf_token %}
+        {% with q=slide.question %}
+          {% if q.type == "choice" or q.type == "multi_choice" %}
+            <div class="answer-grid" role="{% if q.type == 'choice' %}radiogroup{% else %}group{% endif %}">
+              {% for o in q.options %}
+                <label class="option o{{ forloop.counter0 }}">
+                  <input type="{% if q.type == 'choice' %}radio{% else %}checkbox{% endif %}" name="choice" value="{{ o.key }}" {% if q.type == 'choice' %}required{% endif %}>
+                  <span class="tag">{{ forloop.counter0|letter }}</span><span>{{ o.text|md_inline }}</span>
+                </label>
+              {% endfor %}
+            </div>
+            {% if q.type == "multi_choice" %}<p class="small muted">{% translate "Marca todas las correctas. Cada marca incorrecta resta." %}</p>{% endif %}
+          {% elif q.type == "true_false" %}
+            <div class="tf">
+              {% for s in q.statements %}
+                <fieldset class="tf-row">
+                  <legend class="sr-only">{% blocktranslate with n=forloop.counter %}Afirmación {{ n }}{% endblocktranslate %}</legend>
+                  <div>{{ s.text|md_inline }}</div>
+                  <div class="choices">
+                    <label><input type="radio" name="tf_{{ s.key }}" value="1" required>{% translate "Verdadero" %}</label>
+                    <label><input type="radio" name="tf_{{ s.key }}" value="0" required>{% translate "Falso" %}</label>
+                  </div>
+                </fieldset>
+              {% endfor %}
+            </div>
+          {% else %}
+            <label for="answer-value" class="sr-only">{% translate "Respuesta" %}</label>
+            <input id="answer-value" name="value" class="big-input" autocomplete="off" required
+                   {% if q.type == "numeric" %}inputmode="decimal" placeholder="{% translate 'Número' %}"{% else %}placeholder="{% translate 'Respuesta' %}"{% endif %}>
+          {% endif %}
+        {% endwith %}
+        <button type="submit" class="big">{% translate "Enviar respuesta" %}</button>
+      </form>
+
+    {% elif session.phase == "open" %}
+      <div class="card status-card"><h3>{% translate "Respuesta enviada" %}</h3><p class="muted">{% translate "Espera a que se cierre la pregunta." %}</p></div>
+
+    {% elif session.phase == "closed" %}
+      <div class="card status-card">
+        <h3>{% translate "Tiempo terminado" %}</h3>
+        <p class="muted">{% if mine %}{% translate "Tu respuesta quedó registrada." %}{% else %}{% translate "No alcanzaste a responder." %}{% endif %}</p>
+      </div>
+
+    {% elif session.phase == "results" %}
+      {% if mine %}
+        <div class="card status-card {% if mine.correct %}ok{% elif mine.points > 0 %}{% else %}bad{% endif %}">
+          <div class="emoji" aria-hidden="true">{% if mine.correct %}✓{% elif mine.points > 0 %}≈{% else %}✗{% endif %}</div>
+          <h2>{% if mine.correct %}{% translate "¡Correcto!" %}{% elif mine.points > 0 %}{% translate "Parcialmente correcto" %}{% else %}{% translate "Incorrecto" %}{% endif %}</h2>
+          <p>+{{ mine.points|floatformat:"-1" }} {% if mine.points == 1 %}{% translate "punto" %}{% else %}{% translate "puntos" %}{% endif %}</p>
+        </div>
+        <p class="small">{% translate "Respondiste:" %} {% for a in mine_display %}{{ a|md_inline }}{% if not forloop.last %} · {% endif %}{% endfor %}</p>
+      {% else %}
+        <div class="card status-card bad"><h2>{% translate "Sin respuesta" %}</h2></div>
+      {% endif %}
+      {% if correct_display %}
+        <p><strong>{% translate "Respuesta correcta:" %}</strong> {% for c in correct_display %}{{ c|md_inline }}{% if not forloop.last %} · {% endif %}{% endfor %}</p>
+      {% endif %}
+      <p class="small muted">{% blocktranslate with total=my_total|floatformat:"-1" %}Tu total: <strong>{{ total }}</strong>{% endblocktranslate %}{% if my_rank %} · {% blocktranslate %}puesto {{ my_rank }}{% endblocktranslate %}{% endif %}</p>
+    {% endif %}
+  {% endif %}
+</div>

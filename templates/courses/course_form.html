@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Nuevo curso" %}{% endblock %}
+{% block page_class %}narrow{% endblock %}
+{% block main %}
+<h1>{% translate "Nuevo curso" %}</h1>
+<form method="post" class="card">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit">{% translate "Crear curso" %}</button>
+</form>
+{% endblock %}

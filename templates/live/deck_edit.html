@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load static i18n %}
+{% block title %}{% if deck %}{% blocktranslate with title=deck.title %}Editar {{ title }}{% endblocktranslate %}{% else %}{% translate "Nueva presentación" %}{% endif %}{% endblock %}
+{% block main %}
+<div class="muted small"><a href="{% url 'course_manage' course.pk %}">{{ course.name }}</a></div>
+<h1>{% if deck %}{% blocktranslate with title=deck.title %}Editar «{{ title }}»{% endblocktranslate %}{% else %}{% translate "Nueva presentación" %}{% endif %}</h1>
+
+{% if diagnostics %}
+  <ul class="diag">
+    {% for d in diagnostics %}
+      <li class="{{ d.severity }}"><code>{{ d.code }}</code> {{ d.message }}{% if d.line %} · {% blocktranslate with line=d.line %}línea {{ line }}{% endblocktranslate %}{% endif %}{% if d.where %} · {{ d.where }}{% endif %}</li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" class="stack" id="deck-form">
+  {% csrf_token %}
+  <div class="dropzone" id="dropzone">
+    {% translate "Arrastre aquí un archivo <code>.yaml</code> o" %}
+    <label for="file" style="display:inline;font-weight:600;color:var(--accent);cursor:pointer">{% translate "elíjalo" %}</label>
+    <input type="file" id="file" name="file" accept=".yaml,.yml,text/yaml" class="sr-only">
+    {% translate "— se valida al guardar." %}
+  </div>
+  <label for="source">{% translate "Fuente (formato <code>policlase.deck/v1</code>)" %}</label>
+  <textarea id="source" name="source" class="code" spellcheck="false">{{ source }}</textarea>
+  <div class="row">
+    <button type="submit">{% translate "Validar y guardar" %}</button>
+    <a class="btn secondary" href="{% if deck %}{% url 'deck_view' course.pk deck.pk %}{% else %}{% url 'course_manage' course.pk %}{% endif %}">{% translate "Cancelar" %}</a>
+  </div>
+</form>
+
+<details class="card small" style="margin-top:18px">
+  <summary><strong>{% translate "Referencia rápida del formato" %}</strong></summary>
+  <ul>
+    <li>{% translate "Cada diapositiva es <code>markdown:</code> (contenido) o <code>item:</code> (una pregunta)." %}</li>
+    <li>{% translate "Tipos en vivo:" %} <code>choice</code>, <code>multi_choice</code>, <code>true_false</code>, <code>numeric</code>, <code>text</code>.</li>
+    <li>{% translate "Matemáticas con <code>$…$</code> y <code>$$…$$</code>. Tiempo por pregunta:" %} <code>lecture: {% templatetag openbrace %} time_limit_s: 20 {% templatetag closebrace %}</code>.</li>
+    <li>{% translate "Referencia completa:" %} <code>policlase-gen/docs/schema.md</code> §9.</li>
+  </ul>
+</details>
+{% endblock %}
+{% block scripts %}<script defer src="{% static 'js/deck-editor.js' %}"></script>{% endblock %}

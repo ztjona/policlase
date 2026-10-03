@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load static i18n %}
+{% block title %}{{ session.title }}{% endblock %}
+{% block chrome %}
+<div class="live-shell">
+  <div class="live-bar">
+    <a class="brand" href="{% url 'course_detail' course.pk %}">poli<span>clase</span></a>
+    <span class="muted small">{{ course.code }}</span>
+    <span class="spacer"></span>
+    <span class="small">{{ user.display_name }}</span>
+    <span class="conn" id="conn">{% translate "conectando…" %}</span>
+  </div>
+  <div class="stage" id="stage" aria-live="polite"><div class="phone"><p class="muted">{% translate "Cargando…" %}</p></div></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script defer src="{% static 'js/live.js' %}"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    PoliclaseLive.student({
+      events: "{% url 'live_events' session.pk %}",
+      fragment: "{% url 'student_fragment' session.pk %}",
+    });
+  });
+</script>
+{% endblock %}

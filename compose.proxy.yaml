@@ -1,0 +1,14 @@
+# Publicación detrás del nginx existente del servidor (/home/ubuntu/automat).
+#   docker compose -f compose.yaml -f compose.proxy.yaml up -d
+# Une el contenedor web a la red de ese nginx, que así lo alcanza como `policlase-web:8000`.
+services:
+  web:
+    networks:
+      default:
+      edge:
+        aliases: [policlase-web]
+
+networks:
+  edge:
+    name: automat_n8n-network
+    external: true

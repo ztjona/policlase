@@ -1,0 +1,41 @@
+# policlase — producción y prototipo.
+#   docker compose up -d --build
+# Los datos viven fuera del contenedor, en POLICLASE_DATA (por defecto /mnt/mydrive/policlase).
+
+name: policlase
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: policlase
+      POSTGRES_USER: policlase
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD en .env}
+    volumes:
+      - ${POLICLASE_DATA:-/mnt/mydrive/policlase}/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U policlase -d policlase"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  web:
+    build:
+      context: .
+      additional_contexts:
+        gen: ../policlase-gen
+    image: policlase-web:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://policlase:${POSTGRES_PASSWORD}@db:5432/policlase
+      POLICLASE_MEDIA_ROOT: /data/media
+    volumes:
+      - ${POLICLASE_DATA:-/mnt/mydrive/policlase}/media:/data/media
+    depends_on:
+      db:
+        condition: service_healthy
+    # Solo en localhost: el acceso público entra por el nginx del servidor (docs/deploy.md).
+    ports:
+      - "127.0.0.1:${POLICLASE_PORT:-8100}:8000"

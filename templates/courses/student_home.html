@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Mis cursos" %}{% endblock %}
+{% block main %}
+<h1>{% translate "Mis cursos" %}</h1>
+
+{% for e in rejected %}
+  <div class="notice" role="alert">
+    <span>{% blocktranslate with course=e.course.name teacher=e.course.owner.display_name %}Su solicitud a <strong>{{ course }}</strong> fue rechazada. Si cree que es un error, hable con {{ teacher }}.{% endblocktranslate %}</span>
+    <form method="post" action="{% url 'enrollment_dismiss' e.pk %}">{% csrf_token %}<button class="secondary small">{% translate "Entendido" %}</button></form>
+  </div>
+{% endfor %}
+
+{% if join_form %}
+  <section class="card" aria-labelledby="unirse">
+    <h2 id="unirse">{% translate "Inscribirse en un curso" %}</h2>
+    <p class="muted small">{% translate "Ingrese el código que le dio su docente. Su solicitud queda pendiente hasta que la apruebe." %}</p>
+    {% include "courses/_join_form.html" %}
+  </section>
+{% endif %}
+
+{% if enrollments %}
+  <div class="stack">
+    {% for e in enrollments %}
+      <div class="card spread">
+        <div>
+          <div class="muted small mono">{{ e.course.code }}</div>
+          {% if e.status == "approved" %}
+            <a href="{% url 'course_detail' e.course.pk %}"><strong>{{ e.course.name }}</strong></a>
+          {% else %}
+            <strong>{{ e.course.name }}</strong>
+          {% endif %}
+          <div class="muted small">{{ e.course.owner.display_name }}</div>
+        </div>
+        <div class="row">
+          {% if e.course_id in live_ids %}
+            <a class="btn" href="{% url 'course_detail' e.course.pk %}"><span class="chip live">{% translate "EN VIVO" %}</span> {% translate "Entrar" %}</a>
+          {% endif %}
+          {% if e.status == "pending" %}<span class="chip warn">{% translate "Pendiente de aprobación" %}</span>{% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,91 @@
+{% load static i18n %}<!DOCTYPE html>
+{% get_current_language as LANG %}
+<html lang="{{ LANG }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>{% block title %}policlase{% endblock %} · policlase</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <link rel="stylesheet" href="{% static 'vendor/katex/katex.min.css' %}">
+  <script>
+    // Zona horaria del navegador: el servidor la usa por defecto (apps.accounts.middleware).
+    (function () {
+      try {
+        var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (tz) document.cookie = "policlase_tz=" + encodeURIComponent(tz) + "; path=/; max-age=31536000; SameSite=Lax";
+      } catch (e) {}
+    })();
+  </script>
+  {% block head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+{% block chrome %}
+  <header class="topbar">
+    <a class="brand" href="{% url 'home' %}">poli<span>clase</span></a>
+    <nav aria-label="{% translate 'principal' %}">
+      {% if user.is_authenticated %}
+        <a href="{% url 'home' %}">{% translate "Mis cursos" %}</a>
+        <details class="usermenu">
+          <summary>
+            <span class="whoami">{{ user.display_name }}{% if user.is_teacher %} · {% translate "docente" %}{% endif %}</span>
+            <svg class="gear" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.48.48 0 0 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61zM12 15.6a3.6 3.6 0 1 1 0-7.2 3.6 3.6 0 0 1 0 7.2z"/></svg>
+            <span class="sr-only">{% translate "Menú de usuario" %}</span>
+          </summary>
+          <div class="menu" role="menu">
+            {% if user.is_teacher %}
+              <a role="menuitem" href="{% url 'course_create' %}">{% translate "Nuevo curso" %}</a>
+            {% else %}
+              <a role="menuitem" href="{% url 'live_join' %}">{% translate "Entrar a clase en vivo" %}</a>
+              <a role="menuitem" href="{% url 'course_join' %}">{% translate "Inscribirse en un curso" %}</a>
+            {% endif %}
+            <hr>
+            <a role="menuitem" href="{% url 'account_preferences' %}">{% translate "Idioma y zona horaria" %}</a>
+            <a role="menuitem" href="{% url 'account_change_password' %}">{% translate "Contraseña" %}</a>
+            <a role="menuitem" href="{% url 'account_email' %}">{% translate "Correo" %}</a>
+            {% if user.is_staff %}<a role="menuitem" href="{% url 'admin:index' %}">{% translate "Administración" %}</a>{% endif %}
+            <hr>
+            <a role="menuitem" href="{% url 'account_logout' %}">{% translate "Cerrar sesión" %}</a>
+          </div>
+        </details>
+      {% else %}
+        <a href="{% url 'account_login' %}">{% translate "Iniciar sesión" %}</a>
+        <a href="{% url 'account_signup' %}">{% translate "Crear cuenta" %}</a>
+        <form method="post" action="{% url 'set_language' %}" class="langswitch">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          {% if LANG == "en" %}
+            <button name="language" value="es" class="link" lang="es">Español</button>
+          {% else %}
+            <button name="language" value="en" class="link" lang="en">English</button>
+          {% endif %}
+        </form>
+      {% endif %}
+    </nav>
+  </header>
+  <main class="page {% block page_class %}{% endblock %}">
+    {% if messages %}
+      <ul class="messages" role="status">
+        {% for message in messages %}<li class="{{ message.tags }}">{{ message }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+    {% block main %}{% endblock %}
+  </main>
+{% endblock %}
+<script src="{% url 'javascript-catalog' %}"></script>
+<script defer src="{% static 'vendor/katex/katex.min.js' %}"></script>
+<script defer src="{% static 'js/math.js' %}"></script>
+<script>
+  // Cerrar el menú de usuario al hacer clic fuera o con Escape.
+  document.addEventListener("click", function (e) {
+    document.querySelectorAll("details.usermenu[open]").forEach(function (d) {
+      if (!d.contains(e.target)) d.removeAttribute("open");
+    });
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") document.querySelectorAll("details.usermenu[open]").forEach(function (d) { d.removeAttribute("open"); });
+  });
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

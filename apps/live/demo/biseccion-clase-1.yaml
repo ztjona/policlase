@@ -1,0 +1,85 @@
+# Presentación para clase en vivo: el profesor avanza, los estudiantes responden en su teléfono.
+schema: policlase.deck/v1
+title: "Bisección — clase 1"
+defaults: { time_limit_s: 30 }
+
+slides:
+  - markdown: |
+      # Raíces de ecuaciones
+
+      Buscamos $x^*$ tal que $f(x^*) = 0$.
+
+      **Teorema de Bolzano.** Si $f$ es continua en $[a,b]$ y $f(a)\,f(b) < 0$,
+      existe al menos un $c \in (a,b)$ con $f(c) = 0$.
+    notes: "Preguntar primero si alguien recuerda el teorema del valor intermedio."
+
+  - item:
+      id: L01-bolzano
+      tags: [unidad-01, biseccion]
+      points: 1
+      lecture: { time_limit_s: 20 }
+      questions:
+        - id: q1
+          type: choice
+          points: 1
+          prompt: "¿Qué garantiza el teorema de Bolzano?"
+          options:
+            - { text: "Existe al menos una raíz en el intervalo.", correct: true }
+            - { text: "La raíz es única." }
+            - { text: "El método converge en menos de 10 iteraciones." }
+            - { text: "$f$ es derivable en $(a,b)$." }
+
+  - markdown: |
+      ## Iteración de la bisección
+
+      $$c_k = \frac{a_k + b_k}{2}$$
+
+      Tras $n$ pasos el error es a lo sumo $\dfrac{b-a}{2^{n}}$.
+
+  - item:
+      id: L01-iteraciones
+      tags: [unidad-01, biseccion]
+      points: 2
+      questions:
+        - id: q1
+          type: numeric
+          points: 2
+          prompt: |
+            Con $[a,b] = [0, 1]$, ¿cuántas iteraciones garantizan un error menor que $10^{-3}$?
+          solution: 10
+          grading: { integer: true }
+
+  - item:
+      id: L01-condiciones
+      tags: [unidad-01, biseccion]
+      points: 2
+      questions:
+        - id: q1
+          type: multi_choice
+          points: 2
+          prompt: "¿Qué condiciones requiere la bisección?"
+          options:
+            - { text: "$f$ continua en $[a,b]$.", correct: true }
+            - { text: "$f(a)$ y $f(b)$ con signos opuestos.", correct: true }
+            - { text: "$f$ derivable en $[a,b]$." }
+          grading: { partial: per_option, penalty: 1.0, floor: 0 }
+
+  - item:
+      id: L01-vf
+      tags: [unidad-01, biseccion]
+      points: 2
+      lecture: { time_limit_s: 40 }
+      questions:
+        - id: q1
+          type: true_false
+          points: 2
+          prompt: "Marque verdadero o falso."
+          statements:
+            - { text: "La bisección converge linealmente.", answer: true }
+            - { text: "Newton-Raphson garantiza convergencia global.", answer: false }
+          grading: { partial: per_statement, penalty: 1.0, floor: 0 }
+          sample: { shuffle: none }
+
+  - markdown: |
+      # ¡Gracias!
+      Próxima clase: **método de Newton-Raphson**.

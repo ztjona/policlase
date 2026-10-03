@@ -1,0 +1,10 @@
+# Desarrollo: el código se monta en vivo y el correo se imprime en los logs.
+#   docker compose -f compose.yaml -f compose.dev.yaml up --build
+services:
+  web:
+    environment:
+      DJANGO_DEBUG: "1"
+      POLICLASE_EMAIL_BACKEND: console
+    volumes:
+      - ./:/app
+    command: ["sh", "-c", "python manage.py migrate --noinput && python manage.py sync_site && exec uvicorn config.asgi:application --host 0.0.0.0 --port 8000 --reload"]

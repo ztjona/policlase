@@ -1,15 +1,54 @@
 # policlase
 
-Aula virtual autoalojada para cursos universitarios con carga matemática: gestión de cursos y
-matrícula, actividades con fechas relativas al calendario de clases, entregas, libro de
-calificaciones y evaluaciones con preguntas instanciadas por estudiante.
+Aula virtual autoalojada para cursos universitarios con carga matemática.
 
-Las preguntas se escriben en el formato de [`policlase-gen`](../policlase-gen), que esta plataforma
-importa como dependencia.
+**Estado: prototipo.** Funciona de punta a punta:
 
-## Estado
+- **Cuentas** con usuario y contraseña (django-allauth): registro, verificación obligatoria del
+  correo, recuperación y cambio de contraseña, límites de intentos, contraseñas con Argon2.
+- **Docentes** se registran solos en `/cuenta/registro-docente/`. Cada uno tiene su espacio: ningún
+  docente ve ni modifica cursos, estudiantes, presentaciones ni resultados de otro.
+- **Cursos** del docente con **código de inscripción**. Cualquiera crea su cuenta; para entrar a un
+  curso ingresa el código y el docente **aprueba** (todas de una vez, o selecciona y rechaza).
+  Solo los aprobados ven el curso.
+- **Clases en vivo** al estilo Kahoot: el docente proyecta y avanza, los estudiantes responden desde
+  el teléfono, con cuenta regresiva, cierre automático, resultados y marcador. Las presentaciones
+  se escriben en YAML (`policlase.deck/v1`) y se validan con [`policlase-gen`](../policlase-gen).
 
-En planificación. Nada implementado todavía; ver `docs/`.
+## Arranque
+
+```bash
+cp .env.example .env                  # complete DJANGO_SECRET_KEY y POSTGRES_PASSWORD
+docker compose up -d --build          # http://127.0.0.1:8100
+# docentes: http://127.0.0.1:8100/cuenta/registro-docente/  (o desde el servidor:)
+docker compose exec web python manage.py create_teacher --username profe --email profe@ejemplo.ec
+docker compose exec web python manage.py seed_demo       # opcional: datos de demostración
+```
+
+Los datos viven en `POLICLASE_DATA` (por defecto `/mnt/mydrive/policlase`).
+
+## Desarrollo
+
+```bash
+DEV="docker compose -f compose.yaml -f compose.dev.yaml"
+$DEV up                                # recarga en caliente, correos en los logs
+$DEV run --rm web python manage.py test apps
+```
+
+## Idiomas
+
+Español (idioma fuente) e inglés. Cada usuario elige idioma y zona horaria en el menú de usuario;
+la zona horaria se detecta del navegador. Tras cambiar textos:
+
+```bash
+$DEV run --rm web sh -c "python manage.py makemessages -l en --ignore 'staticfiles/*' --ignore 'tests/*' \
+  && python manage.py makemessages -d djangojs -l en --ignore 'staticfiles/*'"
+# traduzca lo nuevo en locale/en/LC_MESSAGES/*.po; la imagen compila los .mo al construirse
+```
+
+## Publicación con dominio propio
+
+Ver [`docs/deploy.md`](docs/deploy.md).
 
 ## Licencia
 

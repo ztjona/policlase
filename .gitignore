@@ -13,3 +13,5 @@ build/
 /media/
 /staticfiles/
 db.sqlite3
+# traducciones compiladas: las genera `compilemessages` al construir la imagen
+*.mo

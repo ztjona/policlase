@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% load static i18n %}
+{% block title %}{{ session.title }} · {% translate "proyector" %}{% endblock %}
+{% block chrome %}
+<div class="live-shell">
+  <div class="live-bar">
+    <a class="brand" href="{% url 'course_manage' course.pk %}">poli<span>clase</span></a>
+    <strong>{{ session.title }}</strong>
+    <span class="muted">{{ course.code }}</span>
+    <span class="spacer"></span>
+    <span>PIN <strong class="mono">{{ session.pin }}</strong></span>
+    <span class="conn" id="conn">{% translate "conectando…" %}</span>
+  </div>
+  {% csrf_token %}
+  <div class="stage" id="stage" aria-live="polite"><p class="slide muted">{% translate "Cargando…" %}</p></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script defer src="{% static 'js/live.js' %}"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    PoliclaseLive.teacher({
+      events: "{% url 'live_events' session.pk %}",
+      fragment: "{% url 'present_fragment' session.pk %}",
+      action: "{% url 'present_action' session.pk %}",
+    });
+  });
+</script>
+{% endblock %}

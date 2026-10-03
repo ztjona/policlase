@@ -1,0 +1,112 @@
+{% load policlase i18n %}
+<div class="projector" data-status="{{ session.status }}" data-phase="{{ session.phase }}">
+  {% if session.status == "lobby" %}
+    <div class="slide lobby">
+      <h1>{{ session.title }}</h1>
+      <p class="url">{% blocktranslate %}Entre a <strong>{{ join_host }}/en-vivo</strong> e ingrese el PIN{% endblocktranslate %}</p>
+      <div class="pin" aria-label="PIN">{{ session.pin }}</div>
+      <p class="meter">{% blocktranslate count n=participants %}{{ n }} estudiante conectado{% plural %}{{ n }} estudiantes conectados{% endblocktranslate %} · {% translate "también pueden entrar desde la página del curso" %}</p>
+    </div>
+  {% elif session.status == "ended" %}
+    <div class="slide">
+      <h1>{% translate "Clase terminada" %}</h1>
+      {% if leaderboard %}
+        <h2>{% translate "Mejores puntajes" %}</h2>
+        <ol class="board">{% for r in leaderboard %}<li><span>{{ forloop.counter }}. {{ r.name }}</span><strong>{{ r.total|floatformat:"-1" }}</strong></li>{% endfor %}</ol>
+      {% endif %}
+      <p><a class="btn" href="{% url 'session_results' session.pk %}">{% translate "Ver resultados completos" %}</a>
+         <a class="btn secondary" href="{% url 'course_manage' session.course_id %}">{% translate "Volver al curso" %}</a></p>
+    </div>
+  {% elif slide.kind == "content" %}
+    <div class="slide">{{ slide.markdown|md }}</div>
+  {% else %}
+    <div class="slide">
+      {% if session.phase == "open" %}
+        <div class="timer" data-closes-at="{{ session.closes_at|date:'c' }}" data-server-now="{{ now|date:'c' }}">–</div>
+      {% endif %}
+      {% if slide.stem %}<div>{{ slide.stem|md }}</div>{% endif %}
+      <div class="prompt">{{ slide.question.prompt|md }}</div>
+
+      {% if slide.question.type == "choice" or slide.question.type == "multi_choice" %}
+        {% if session.phase == "closed" or session.phase == "results" %}
+          <div class="bars">
+            {% for b in stats.bars %}
+              <div class="bar{% if session.phase == 'results' %}{% if b.correct %} right{% else %} wrong{% endif %}{% endif %}">
+                <div class="bar-label"><span class="tag o{{ forloop.counter0 }}">{{ forloop.counter0|letter }}</span><span>{{ b.text|md_inline }}</span>{% if session.phase == 'results' and b.correct %}<span class="mark" aria-label="{% translate 'correcta' %}">✓</span>{% endif %}</div>
+                <div class="count">{{ b.count }}</div>
+                <div class="fill-track"><div class="fill o{{ forloop.counter0 }}" style="width:{% widthratio b.count stats.total|default:1 100 %}%"></div></div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="options">
+            {% for o in slide.question.options %}
+              <div class="option o{{ forloop.counter0 }}"><span class="tag">{{ forloop.counter0|letter }}</span><span>{{ o.text|md_inline }}</span></div>
+            {% endfor %}
+          </div>
+        {% endif %}
+        {% if slide.question.type == "multi_choice" %}<p class="meter">{% translate "Puede marcar varias." %}</p>{% endif %}
+
+      {% elif slide.question.type == "true_false" %}
+        {% if session.phase == "closed" or session.phase == "results" %}
+          <div class="bars">
+            {% for b in stats.bars %}
+              <div class="bar">
+                <div class="bar-label">{% if session.phase == 'results' %}<span class="tag {% if b.answer %}o3{% else %}o0{% endif %}">{% if b.answer %}{% translate "V" context "inicial de verdadero" %}{% else %}{% translate "F" context "inicial de falso" %}{% endif %}</span>{% endif %}<span>{{ b.text|md_inline }}</span></div>
+                <div class="count">{{ b.count|percent:stats.total }}%</div>
+                <div class="fill-track"><div class="fill o1" style="width:{{ b.count|percent:stats.total }}%"></div></div>
+              </div>
+            {% endfor %}
+            <p class="meter">{% translate "Porcentaje que acertó cada afirmación." %}</p>
+          </div>
+        {% else %}
+          <ol>{% for s in slide.question.statements %}<li>{{ s.text|md_inline }}</li>{% endfor %}</ol>
+        {% endif %}
+
+      {% else %}
+        {% if session.phase == "results" %}
+          <div class="bars">
+            {% for b in stats.bars %}
+              <div class="bar{% if b.correct %} right{% else %} wrong{% endif %}">
+                <div class="bar-label"><span class="mono">{{ b.text }}</span>{% if b.correct %}<span class="mark" aria-label="{% translate 'correcta' %}">✓</span>{% endif %}</div>
+                <div class="count">{{ b.count }}</div>
+                <div class="fill-track"><div class="fill {% if b.correct %}o3{% else %}o0{% endif %}" style="width:{% widthratio b.count stats.total|default:1 100 %}%"></div></div>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endif %}
+
+      {% if session.phase == "results" and correct_display %}
+        <p><strong>{% translate "Respuesta:" %}</strong> {% for c in correct_display %}{{ c|md_inline }}{% if not forloop.last %} · {% endif %}{% endfor %}</p>
+      {% endif %}
+
+      <p class="meter">
+        {% if session.phase == "ready" %}{% translate "Pregunta lista — ábrala cuando todos la hayan leído." %}
+        {% elif session.phase == "open" %}{% blocktranslate %}{{ answered }} de {{ participants }} respondieron.{% endblocktranslate %}
+        {% elif session.phase == "closed" %}{% blocktranslate with correct=stats.correct %}Cerrada: {{ answered }} respuestas, {{ correct }} correctas.{% endblocktranslate %}
+        {% elif session.phase == "results" %}{% blocktranslate with correct=stats.correct %}{{ correct }} de {{ answered }} acertaron.{% endblocktranslate %}{% endif %}
+      </p>
+
+      {% if session.phase == "results" and leaderboard %}
+        <ol class="board">{% for r in leaderboard %}<li><span>{{ forloop.counter }}. {{ r.name }}</span><strong>{{ r.total|floatformat:"-1" }}</strong></li>{% endfor %}</ol>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {% if slide.notes and session.status == "live" %}<p class="notes">{% translate "Notas:" %} {{ slide.notes }}</p>{% endif %}
+
+  <div class="controls">
+    {% if session.status == "lobby" %}
+      <button data-action="start" class="big">{% translate "Iniciar clase" %}</button>
+    {% elif session.status == "live" %}
+      <button data-action="prev" class="secondary" {% if session.index == 0 or session.phase == "open" %}disabled{% endif %} title="{% translate 'Flecha izquierda' %}">◀ {% translate "Anterior" %}</button>
+      <span class="progress">{{ session.index|add:1 }} / {{ session.slides|length }}</span>
+      {% if session.phase == "ready" %}<button data-action="open" title="{% translate 'Espacio' %}">{% translate "Abrir pregunta" %}</button>{% endif %}
+      {% if session.phase == "open" %}<button data-action="close" title="{% translate 'Espacio' %}">{% translate "Cerrar ya" %}</button>{% endif %}
+      {% if session.phase == "closed" %}<button data-action="reveal" title="{% translate 'Espacio' %}">{% translate "Mostrar respuesta" %}</button>{% endif %}
+      <button data-action="next" class="secondary" {% if session.index|add:1 == session.slides|length or session.phase == "open" %}disabled{% endif %} title="{% translate 'Flecha derecha' %}">{% translate "Siguiente" %} ▶</button>
+      <button data-action="end" class="danger" data-confirm="{% translate '¿Terminar la clase? Los estudiantes ya no podrán responder.' %}">{% translate "Terminar" %}</button>
+    {% endif %}
+  </div>
+</div>

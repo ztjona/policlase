@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{# Todas las páginas de cuenta de allauth heredan el diseño de policlase. #}
+{% block title %}{% block head_title %}{% endblock head_title %}{% endblock %}
+{% block main %}<div class="auth card">{% block content %}{% endblock content %}</div>{% endblock %}
+{% block scripts %}{% block extra_body %}{% endblock extra_body %}{% endblock %}

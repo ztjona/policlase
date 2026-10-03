@@ -1,0 +1,28 @@
+{% extends "account/base_entrance.html" %}
+{% load allauth i18n %}
+{# Un solo formulario para los dos registros; `teacher` lo pone TeacherSignupView. #}
+{% block head_title %}{% if teacher %}{% translate "Crear cuenta de docente" %}{% else %}{% translate "Crear cuenta" %}{% endif %}{% endblock head_title %}
+{% block content %}
+    {% element h1 %}{% if teacher %}{% translate "Crear cuenta de docente" %}{% else %}{% translate "Crear cuenta de estudiante" %}{% endif %}{% endelement %}
+    {% element p %}
+        {% url 'account_signup' as student_url %}{% url 'teacher_signup' as teacher_url %}
+        {% if teacher %}
+            {% translate "Tendrá su propio espacio: sus cursos, estudiantes y clases solo los ve usted." %}
+            {% blocktranslate %}¿Es estudiante? <a href="{{ student_url }}">Cree su cuenta de estudiante</a>.{% endblocktranslate %}
+        {% else %}
+            {% blocktranslate %}¿Es docente? <a href="{{ teacher_url }}">Cree su cuenta de docente</a>.{% endblocktranslate %}
+        {% endif %}
+        {% blocktranslate %}¿Ya tiene cuenta? <a href="{{ login_url }}">Inicie sesión</a>.{% endblocktranslate %}
+    {% endelement %}
+    {% if teacher %}{% url 'teacher_signup' as action_url %}{% else %}{% url 'account_signup' as action_url %}{% endif %}
+    {% element form form=form method="post" action=action_url tags="entrance,signup" %}
+        {% slot body %}
+            {% csrf_token %}
+            {% element fields form=form unlabeled=True %}{% endelement %}
+            {{ redirect_field }}
+        {% endslot %}
+        {% slot actions %}
+            {% element button tags="prominent,signup" type="submit" %}{% translate "Crear cuenta" %}{% endelement %}
+        {% endslot %}
+    {% endelement %}
+{% endblock content %}

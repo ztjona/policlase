@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{{ course.name }}{% endblock %}
+{% block main %}
+<div class="muted small mono">{{ course.code }}</div>
+<div class="spread">
+  <h1>{{ course.name }}</h1>
+  <a class="btn secondary" href="{% url 'course_settings' course.pk %}">{% translate "Configuración del curso" %}</a>
+</div>
+<p class="muted small">
+  {% blocktranslate count n=approved_count %}{{ n }} estudiante inscrito{% plural %}{{ n }} estudiantes inscritos{% endblocktranslate %}
+  {% if not course.accepting %}· {% translate "inscripción cerrada" %}{% endif %}
+</p>
+
+{% if live %}
+  <div class="card spread" style="border-color:var(--danger)">
+    <div><span class="chip live">{% translate "EN VIVO" %}</span> <strong>{{ live.title }}</strong> · PIN <span class="mono">{{ live.pin }}</span></div>
+    <a class="btn" href="{% url 'present' live.pk %}">{% translate "Volver al proyector" %}</a>
+  </div>
+{% endif %}
+
+{% if pending %}
+  <h2>{% translate "Solicitudes pendientes" %} <span class="chip warn">{{ pending|length }}</span></h2>
+  <form method="post" action="{% url 'enrollment_decide' course.pk %}" class="card" id="pending-form">
+    {% csrf_token %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th><input type="checkbox" aria-label="{% translate 'seleccionar todas' %}" onclick="document.querySelectorAll('#pending-form input[name=enrollment]').forEach(c=>c.checked=this.checked)"></th>
+          <th>{% translate "Estudiante" %}</th><th>{% translate "Cédula" %}</th><th>{% translate "Correo" %}</th><th>{% translate "Solicitó" %}</th>
+        </tr></thead>
+        <tbody>
+          {% for e in pending %}
+            <tr>
+              <td><input type="checkbox" name="enrollment" value="{{ e.pk }}" aria-label="{% blocktranslate with name=e.student.display_name %}seleccionar {{ name }}{% endblocktranslate %}"></td>
+              <td>{{ e.student.last_name }}, {{ e.student.first_name }} <span class="muted small">@{{ e.student.username }}</span></td>
+              <td class="mono">{{ e.student.student_id }}</td>
+              <td class="small">{{ e.student.email }}</td>
+              <td class="small muted">{{ e.requested_at|date:"d M H:i" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button name="action" value="approve_all">{% blocktranslate with n=pending|length %}Aprobar todas ({{ n }}){% endblocktranslate %}</button>
+      <button name="action" value="approve" class="secondary">{% translate "Aprobar seleccionadas" %}</button>
+      <button name="action" value="reject" class="danger">{% translate "Rechazar seleccionadas" %}</button>
+    </div>
+  </form>
+{% endif %}
+
+<div class="spread"><h2>{% translate "Presentaciones" %}</h2><a class="btn secondary" href="{% url 'deck_new' course.pk %}">{% translate "Nueva presentación" %}</a></div>
+{% if decks %}
+  <div class="stack">
+    {% for d in decks %}
+      <div class="card spread">
+        <div>
+          <a href="{% url 'deck_view' course.pk d.pk %}"><strong>{{ d.title }}</strong></a>
+          <div class="small muted">
+            {% blocktranslate count n=d.slides|length %}{{ n }} diapositiva{% plural %}{{ n }} diapositivas{% endblocktranslate %} ·
+            {% blocktranslate count n=d.question_count %}{{ n }} pregunta{% plural %}{{ n }} preguntas{% endblocktranslate %} ·
+            {% blocktranslate with when=d.updated_at|date:"d M H:i" %}editada {{ when }}{% endblocktranslate %}
+          </div>
+        </div>
+        <div class="row">
+          <a class="btn secondary" href="{% url 'deck_edit' course.pk d.pk %}">{% translate "Editar" %}</a>
+          {% if not live %}
+            <form method="post" action="{% url 'session_start' course.pk d.pk %}">{% csrf_token %}<button>{% translate "Iniciar clase" %}</button></form>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <p class="muted">{% translate "Todavía no hay presentaciones. Cree una para dictar su primera clase en vivo." %}</p>
+{% endif %}
+
+{% if past_sessions %}
+  <h2>{% translate "Clases dictadas" %}</h2>
+  <div class="card table-wrap">
+    <table>
+      <thead><tr><th>{% translate "Clase" %}</th><th>{% translate "Fecha" %}</th><th>{% translate "Participantes" %}</th><th></th></tr></thead>
+      <tbody>
+        {% for s in past_sessions %}
+          <tr>
+            <td>{{ s.title }}</td>
+            <td class="small">{{ s.started_at|default:s.created_at|date:"d M Y H:i" }}</td>
+            <td class="num">{{ s.participants.count }}</td>
+            <td><a href="{% url 'session_results' s.pk %}">{% translate "Resultados" %}</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+{% endblock %}

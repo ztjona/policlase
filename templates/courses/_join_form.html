@@ -1,0 +1,9 @@
+{% load i18n %}
+<form method="post" action="{% url 'course_join' %}" class="row">
+  {% csrf_token %}
+  <div style="flex:1;min-width:200px">
+    <label for="id_code" class="sr-only">{% translate "Código del curso" %}</label>
+    {{ join_form.code }}
+  </div>
+  <button type="submit">{% translate "Solicitar inscripción" %}</button>
+</form>

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{{ course.name }}{% endblock %}
+{% block main %}
+<div class="muted small mono">{{ course.code }}</div>
+<h1>{{ course.name }}</h1>
+<p class="muted">{{ course.owner.display_name }}</p>
+
+{% if live %}
+  <div class="card spread" style="border-color:var(--danger)">
+    <div><span class="chip live">{% translate "EN VIVO" %}</span> <strong>{{ live.title }}</strong></div>
+    {% if user == course.owner %}
+      <a class="btn" href="{% url 'present' live.pk %}">{% translate "Ir al proyector" %}</a>
+    {% else %}
+      <a class="btn big" href="{% url 'live_student' live.pk %}">{% translate "Entrar a la clase" %}</a>
+    {% endif %}
+  </div>
+{% else %}
+  <div class="card muted">{% translate "No hay ninguna clase en vivo en este momento." %}</div>
+{% endif %}
+
+{% if course.description %}
+  <h2>{% translate "Acerca del curso" %}</h2>
+  <div class="card">{{ course.description|linebreaks }}</div>
+{% endif %}
+{% endblock %}
