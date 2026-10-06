@@ -15,6 +15,13 @@ class User(AbstractUser):
     class Role(models.TextChoices):
         STUDENT = "student", _("Estudiante")
         TEACHER = "teacher", _("Docente")
+        #: Asistente sin registro a una clase en vivo abierta (apps.live.guests).
+        GUEST = "guest", _("Invitado")
+
+    class Theme(models.TextChoices):
+        AUTO = "", _("Automático (como el sistema)")
+        LIGHT = "light", _("Claro")
+        DARK = "dark", _("Oscuro")
 
     email = models.EmailField(_("correo electrónico"), unique=True)
     role = models.CharField(_("rol"), max_length=10, choices=Role.choices, default=Role.STUDENT)
@@ -24,12 +31,17 @@ class User(AbstractUser):
     #: Vacíos hasta que el usuario elige; mientras tanto mandan el navegador y la cookie.
     language = models.CharField(_("idioma"), max_length=8, blank=True, choices=settings.LANGUAGES)
     timezone = models.CharField(_("zona horaria"), max_length=64, blank=True)
+    theme = models.CharField(_("tema"), max_length=8, blank=True, choices=Theme.choices, default=Theme.AUTO)
 
     REQUIRED_FIELDS = ["email"]
 
     @property
     def is_teacher(self) -> bool:
         return self.role == self.Role.TEACHER
+
+    @property
+    def is_guest(self) -> bool:
+        return self.role == self.Role.GUEST
 
     @property
     def display_name(self) -> str:

@@ -5,6 +5,15 @@
       <h1>{{ session.title }}</h1>
       <p class="url">{% blocktranslate %}Entre a <strong>{{ join_host }}/en-vivo</strong> e ingrese el PIN{% endblocktranslate %}</p>
       <div class="pin" aria-label="PIN">{{ session.pin }}</div>
+      {% if guest_url %}
+        <div class="guest-invite">
+          <div class="qr" aria-hidden="true">{{ guest_qr|safe }}</div>
+          <div>
+            <p><strong>{% translate "Invitados, sin cuenta:" %}</strong> {% translate "escaneen el código o abran" %}</p>
+            <p class="mono guest-url">{{ guest_url }}</p>
+          </div>
+        </div>
+      {% endif %}
       <p class="meter">{% blocktranslate count n=participants %}{{ n }} estudiante conectado{% plural %}{{ n }} estudiantes conectados{% endblocktranslate %} · {% translate "también pueden entrar desde la página del curso" %}</p>
     </div>
   {% elif session.status == "ended" %}
@@ -99,6 +108,7 @@
   <div class="controls">
     {% if session.status == "lobby" %}
       <button data-action="start" class="big">{% translate "Iniciar clase" %}</button>
+      {% include "live/_guest_toggle.html" %}
     {% elif session.status == "live" %}
       <button data-action="prev" class="secondary" {% if session.index == 0 or session.phase == "open" %}disabled{% endif %} title="{% translate 'Flecha izquierda' %}">◀ {% translate "Anterior" %}</button>
       <span class="progress">{{ session.index|add:1 }} / {{ session.slides|length }}</span>
@@ -106,6 +116,7 @@
       {% if session.phase == "open" %}<button data-action="close" title="{% translate 'Espacio' %}">{% translate "Cerrar ya" %}</button>{% endif %}
       {% if session.phase == "closed" %}<button data-action="reveal" title="{% translate 'Espacio' %}">{% translate "Mostrar respuesta" %}</button>{% endif %}
       <button data-action="next" class="secondary" {% if session.index|add:1 == session.slides|length or session.phase == "open" %}disabled{% endif %} title="{% translate 'Flecha derecha' %}">{% translate "Siguiente" %} ▶</button>
+      {% include "live/_guest_toggle.html" %}
       <button data-action="end" class="danger" data-confirm="{% translate '¿Terminar la clase? Los estudiantes ya no podrán responder.' %}">{% translate "Terminar" %}</button>
     {% endif %}
   </div>

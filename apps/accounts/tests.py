@@ -154,3 +154,20 @@ class AnonymousLanguageTests(TestCase):
             self.client.post(reverse("account_signup"), signup_data(username="eva", email="eva@example.ec"))
         user = User.objects.get(username="eva")
         self.assertEqual((user.language, user.timezone), ("en", "America/Bogota"))
+
+
+class ThemePreferenceTests(TestCase):
+    def test_automatico_por_defecto_y_persistente(self):
+        self.assertNotContains(self.client.get(reverse("account_login")), "data-theme")
+        self.client.post(reverse("set_theme"), {"theme": "light", "next": "/"})
+        self.assertContains(self.client.get(reverse("account_login")), 'data-theme="light"')
+        user = User.objects.create_user("ana", "ana@example.ec", PASSWORD)
+        self.client.force_login(user)
+        self.client.post(reverse("account_preferences"),
+                         {"language": "es", "timezone": "America/Guayaquil", "theme": "dark"})
+        user.refresh_from_db()
+        self.assertEqual(user.theme, "dark")
+
+    def test_tema_invalido_se_ignora(self):
+        response = self.client.post(reverse("set_theme"), {"theme": "<script>", "next": "/"})
+        self.assertNotIn("policlase_theme", response.cookies)

@@ -1,0 +1,30 @@
+{% load policlase i18n %}
+{# Diapositivas tal como se verán, con las respuestas marcadas: la usan la vista de la presentación y la vista previa del editor. #}
+{% for s in slides %}
+  <section class="card slide-card" data-index="{{ forloop.counter0 }}">
+    <div class="spread small muted">
+      <span>{% blocktranslate with n=forloop.counter %}Diapositiva {{ n }}{% endblocktranslate %}</span>
+      {% if s.kind == "question" %}<span><span class="chip">{{ s.question.type }}</span> {{ s.points|floatformat:"-1" }} pt · {{ s.time_limit_s }} s · <span class="mono">{{ s.item_id }}</span></span>{% endif %}
+    </div>
+    <div class="slide mini">
+      {% if s.kind == "content" %}
+        {{ s.markdown|md }}
+      {% else %}
+        {% if s.stem %}<div>{{ s.stem|md }}</div>{% endif %}
+        <div class="prompt">{{ s.question.prompt|md }}</div>
+        {% if s.question.options %}
+          <div class="options">
+            {% for o in s.question.options %}
+              <div class="option o{{ forloop.counter0 }}{% if o.key in s.solution.correct %} right{% endif %}"><span class="tag">{{ forloop.counter0|letter }}</span><span>{{ o.text|md_inline }}</span>{% if o.key in s.solution.correct %}<span class="mark" aria-label="{% translate 'correcta' %}">✓</span>{% endif %}</div>
+            {% endfor %}
+          </div>
+        {% elif s.question.statements %}
+          <ol>{% for st in s.question.statements %}<li>{{ st.text|md_inline }} <span class="chip">{% if s.solution.answers|get_item:st.key %}{% translate "V" context "inicial de verdadero" %}{% else %}{% translate "F" context "inicial de falso" %}{% endif %}</span></li>{% endfor %}</ol>
+        {% elif s.solution.solution is not None %}
+          <p class="small">{% translate "Respuesta:" %} <span class="mono">{{ s.solution.solution }}</span></p>
+        {% endif %}
+      {% endif %}
+    </div>
+    {% if s.notes %}<p class="small muted">{% translate "Notas:" %} {{ s.notes }}</p>{% endif %}
+  </section>
+{% endfor %}

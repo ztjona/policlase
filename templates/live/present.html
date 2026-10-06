@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% load static i18n %}
 {% block title %}{{ session.title }} · {% translate "proyector" %}{% endblock %}
+{# Los proyectores lavan los fondos oscuros: claro, salvo que el docente haya elegido oscuro. #}
+{% block html_theme %} data-theme="{{ theme|default:'light' }}"{% endblock %}
+{% block color_scheme %}{{ theme|default:'light' }}{% endblock %}
 {% block chrome %}
 <div class="live-shell">
   <div class="live-bar">
@@ -10,6 +13,14 @@
     <span class="spacer"></span>
     <span>PIN <strong class="mono">{{ session.pin }}</strong></span>
     <span class="conn" id="conn">{% translate "conectando…" %}</span>
+    <form method="post" action="{% url 'set_theme' %}" class="themeswitch">
+      {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+      {% if theme == "dark" %}
+        <button name="theme" value="light" class="secondary small" title="{% translate 'Tema claro' %}">☀ <span class="sr-only">{% translate "Tema claro" %}</span></button>
+      {% else %}
+        <button name="theme" value="dark" class="secondary small" title="{% translate 'Tema oscuro' %}">☾ <span class="sr-only">{% translate "Tema oscuro" %}</span></button>
+      {% endif %}
+    </form>
   </div>
   {% csrf_token %}
   <div class="stage" id="stage" aria-live="polite"><p class="slide muted">{% translate "Cargando…" %}</p></div>

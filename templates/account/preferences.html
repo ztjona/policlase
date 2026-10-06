@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% load i18n %}
-{% block title %}{% translate "Idioma y zona horaria" %}{% endblock %}
+{% block title %}{% translate "Preferencias" %}{% endblock %}
 {% block page_class %}narrow{% endblock %}
 {% block main %}
-<h1>{% translate "Idioma y zona horaria" %}</h1>
+<h1>{% translate "Preferencias" %}</h1>
 <form method="post" class="card stack">
   {% csrf_token %}
   <div>
@@ -14,6 +14,11 @@
     <label for="{{ form.timezone.id_for_label }}">{{ form.timezone.label }}</label>
     {{ form.timezone }}
     <span class="helptext">{% translate "Se detectó automáticamente desde su navegador. Las horas de clases y solicitudes se muestran en esta zona." %}</span>
+  </div>
+  <div>
+    <label for="{{ form.theme.id_for_label }}">{{ form.theme.label }}</label>
+    {{ form.theme }}
+    <span class="helptext">{{ form.theme.help_text }}</span>
   </div>
   <button type="submit">{% translate "Guardar" %}</button>
 </form>

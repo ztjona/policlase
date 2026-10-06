@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.courses",
     "apps.live",
+    "apps.github",
 ]
 
 MIDDLEWARE = [
@@ -88,6 +89,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "apps.accounts.context_processors.preferences",
             ],
         },
     },
@@ -216,6 +218,7 @@ LANGUAGE_COOKIE_SECURE = HTTPS
 #: Respaldo cuando el navegador aún no informó su zona horaria.
 TIME_ZONE = "America/Guayaquil"
 TIMEZONE_COOKIE = "policlase_tz"
+THEME_COOKIE = "policlase_theme"
 USE_I18N = True
 USE_TZ = True
 

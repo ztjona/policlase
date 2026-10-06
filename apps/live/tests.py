@@ -315,3 +315,114 @@ class SSETests(LiveBase):
         session = await sync_to_async(self.start)()
         status, _ = await self.read_first_event(self.outsider, session.pk)
         self.assertEqual(status, 403)
+
+
+class GuestTests(LiveBase):
+    """Clase abierta: entrar sin cuenta con el enlace, sin acceder a nada más."""
+
+    def open_session(self, allow=True):
+        session = self.start()
+        if allow:
+            engine.apply(session.pk, "guests_on")
+        self.client.logout()
+        session.refresh_from_db()
+        return session
+
+    def enter(self, session, name="Visitante"):
+        return self.client.post(reverse("live_guest", args=[session.guest_token]), {"name": name})
+
+    def test_invitado_entra_responde_y_aparece_en_resultados(self):
+        session = self.open_session()
+        response = self.enter(session, "María")
+        self.assertRedirects(response, reverse("live_student", args=[session.pk]))
+        guest = User.objects.get(role=User.Role.GUEST)
+        self.assertEqual(guest.first_name, "María")
+        self.assertFalse(guest.has_usable_password())
+
+        session = self.goto_first_question(session)
+        engine.apply(session.pk, "open")
+        session.refresh_from_db()
+        self.client.post(reverse("student_answer", args=[session.pk]), {"choice": self.right_key(session)})
+        self.assertEqual(Response.objects.get().student, guest)
+
+        self.client.force_login(self.teacher)
+        self.assertContains(self.client.get(reverse("session_results", args=[session.pk])), "María")
+
+    def test_clase_cerrada_a_invitados(self):
+        session = self.open_session(allow=False)
+        self.assertContains(self.client.get(reverse("live_guest", args=[session.guest_token])),
+                            "no está abierta a invitados")
+        self.enter(session)
+        self.assertFalse(User.objects.filter(role=User.Role.GUEST).exists())
+
+    def test_cerrar_a_invitados_les_quita_el_acceso(self):
+        session = self.open_session()
+        self.enter(session)
+        engine.apply(session.pk, "guests_off")
+        self.assertEqual(self.client.get(reverse("student_fragment", args=[session.pk])).status_code, 404)
+
+    def test_el_pin_no_basta_para_invitados(self):
+        session = self.open_session()
+        self.enter(session)
+        # el token es el permiso; la clase de otro curso con el mismo invitado no se abre
+        other = Course.objects.create(owner=self.teacher, name="Otro", code="X-1")
+        other_session = LiveSession.objects.create(course=other, title="x", slides=session.slides,
+                                                   allow_guests=True)
+        self.assertEqual(self.client.get(reverse("live_student", args=[other_session.pk])).status_code, 404)
+
+    def test_invitado_queda_confinado_a_la_clase(self):
+        session = self.open_session()
+        self.enter(session)
+        for url in (reverse("home"), reverse("course_detail", args=[self.course.pk]),
+                    reverse("account_preferences"), reverse("course_join")):
+            self.assertRedirects(self.client.get(url), reverse("live_student", args=[session.pk]),
+                                 fetch_redirect_response=False)
+
+    def test_estudiante_inscrito_con_el_enlace_entra_como_si_mismo(self):
+        session = self.open_session()
+        self.client.force_login(self.ana)
+        self.client.get(reverse("live_guest", args=[session.guest_token]))
+        self.assertFalse(User.objects.filter(role=User.Role.GUEST).exists())
+
+    def test_proyector_muestra_enlace_y_qr(self):
+        session = self.open_session()
+        self.client.force_login(self.teacher)
+        page = self.client.get(reverse("present_fragment", args=[session.pk]))
+        self.assertContains(page, session.guest_token)
+        self.assertContains(page, "<svg")
+
+    def test_clase_terminada(self):
+        session = self.open_session()
+        engine.apply(session.pk, "end")
+        self.assertContains(self.client.get(reverse("live_guest", args=[session.guest_token])), "ya terminó")
+
+
+class PreviewTests(LiveBase):
+    def preview(self, source, user=None):
+        self.client.force_login(user or self.teacher)
+        return self.client.post(reverse("deck_preview", args=[self.course.pk]), {"source": source})
+
+    def test_vista_previa_renderiza_y_ubica_diapositivas(self):
+        data = self.preview(DEMO).json()
+        self.assertEqual(data["diagnostics"], [])
+        self.assertIn("slide-card", data["html"])
+        self.assertEqual(len(data["lines"]), len(self.deck.slides))
+        self.assertTrue(all(isinstance(n, int) for n in data["lines"]))
+
+    def test_vista_previa_con_errores(self):
+        data = self.preview(DEMO.replace("type: choice", "type: open", 1)).json()
+        self.assertIsNone(data["html"])
+        self.assertIn("E082", [d["code"] for d in data["diagnostics"]])
+
+    def test_otro_docente_no_usa_la_vista_previa_de_cursos_ajenos(self):
+        self.assertEqual(self.preview(DEMO, make_user("otra", User.Role.TEACHER)).status_code, 404)
+
+
+class ThemeTests(LiveBase):
+    def test_proyector_claro_por_defecto_y_oscuro_si_se_elige(self):
+        session = self.start()
+        page = self.client.get(reverse("present", args=[session.pk]))
+        self.assertContains(page, 'data-theme="light"')
+        self.client.post(reverse("set_theme"), {"theme": "dark", "next": "/"})
+        self.assertContains(self.client.get(reverse("present", args=[session.pk])), 'data-theme="dark"')
+        self.assertContains(self.client.get(reverse("home")), 'data-theme="dark"')

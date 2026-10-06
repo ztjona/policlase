@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{{ session.title }}{% endblock %}
+{% block page_class %}narrow{% endblock %}
+{% block main %}
+<h1>{{ session.title }}</h1>
+<p class="muted">{{ session.course.owner.display_name }}</p>
+<form method="post" class="card stack">
+  {% csrf_token %}
+  <p class="small muted" style="margin:0">{% translate "Entra como invitado, sin crear una cuenta. Tu nombre aparecerá en el marcador." %}</p>
+  <div>
+    <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+    {{ form.name }}
+    {% for e in form.name.errors %}<span class="helptext" style="color:var(--danger)">{{ e }}</span>{% endfor %}
+  </div>
+  <button type="submit" class="big">{% translate "Entrar a la clase" %}</button>
+</form>
+<p class="small muted">{% blocktranslate with login=request.path %}¿Tiene cuenta? <a href="/cuenta/login/?next={{ login }}">Inicie sesión</a> y entre con su nombre de usuario.{% endblocktranslate %}</p>
+{% endblock %}

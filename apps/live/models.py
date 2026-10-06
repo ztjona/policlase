@@ -13,6 +13,9 @@ class Deck(models.Model):
 
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="decks")
     title = models.CharField(_("título"), max_length=200)
+    #: Archivo de origen en GitHub y su blob sha, si el curso está vinculado (apps.github).
+    github_path = models.CharField(max_length=400, blank=True)
+    github_sha = models.CharField(max_length=40, blank=True)
     source = models.TextField("fuente YAML")
     compiled = models.JSONField(default=dict)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -40,6 +43,10 @@ class LiveSessionQuerySet(models.QuerySet):
 
 def new_pin() -> str:
     return f"{secrets.randbelow(900000) + 100000}"
+
+
+def new_guest_token() -> str:
+    return secrets.token_urlsafe(12)
 
 
 class LiveSession(models.Model):
@@ -71,6 +78,10 @@ class LiveSession(models.Model):
     title = models.CharField(max_length=200)
     slides = models.JSONField()
     pin = models.CharField(max_length=6, default=new_pin)
+    #: Clase abierta: cualquiera con el enlace de invitado entra sin cuenta (charlas, visitas).
+    #: El PIN sigue siendo solo para estudiantes aprobados: el enlace es largo e inadivinable.
+    allow_guests = models.BooleanField(default=False)
+    guest_token = models.CharField(max_length=24, unique=True, default=new_guest_token)
 
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.LOBBY)
     index = models.PositiveIntegerField(default=0)

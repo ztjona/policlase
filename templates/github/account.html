@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}GitHub{% endblock %}
+{% block page_class %}narrow{% endblock %}
+{% block main %}
+<h1>GitHub</h1>
+{% if current %}
+  <div class="card stack">
+    <p style="margin:0">{% blocktranslate with login=current.login %}Conectado como <strong>@{{ login }}</strong>.{% endblocktranslate %}</p>
+    <p class="small muted" style="margin:0">{% translate "Vincule cada curso a una carpeta de su repositorio en «Configuración del curso»." %}</p>
+    <form method="post">{% csrf_token %}<button name="action" value="disconnect" class="danger">{% translate "Desconectar y borrar el token" %}</button></form>
+  </div>
+  <h2>{% translate "Reemplazar el token" %}</h2>
+{% endif %}
+<form method="post" class="card stack">
+  {% csrf_token %}
+  <div>
+    <label for="{{ form.token.id_for_label }}">{{ form.token.label }}</label>
+    {{ form.token }}
+    {% for e in form.token.errors %}<span class="helptext" style="color:var(--danger)">{{ e }}</span>{% endfor %}
+  </div>
+  <button type="submit">{% translate "Conectar" %}</button>
+</form>
+<div class="card small">
+  <p style="margin-top:0"><strong>{% translate "Cómo crear el token (2 minutos)" %}</strong></p>
+  <ol>
+    <li>{% blocktranslate %}En GitHub: <em>Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token</em>.{% endblocktranslate %}</li>
+    <li>{% blocktranslate %}<em>Repository access</em>: <strong>Only select repositories</strong> y elija el repositorio de sus cursos.{% endblocktranslate %}</li>
+    <li>{% blocktranslate %}<em>Permissions → Repository permissions → Contents</em>: <strong>Read and write</strong>. Nada más.{% endblocktranslate %}</li>
+    <li>{% translate "Copie el token y péguelo aquí. Se guarda cifrado y solo se usa para sus cursos." %}</li>
+  </ol>
+</div>
+{% endblock %}

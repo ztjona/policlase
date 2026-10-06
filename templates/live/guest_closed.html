@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{{ session.title }}{% endblock %}
+{% block page_class %}narrow{% endblock %}
+{% block main %}
+<h1>{{ session.title }}</h1>
+<div class="card">
+  {% if ended %}{% translate "Esta clase ya terminó." %}
+  {% else %}{% translate "Esta clase no está abierta a invitados en este momento. Pídale al docente que la abra." %}{% endif %}
+</div>
+{% endblock %}

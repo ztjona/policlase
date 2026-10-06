@@ -1,4 +1,4 @@
-"""Idioma y zona horaria de cada usuario.
+"""Idioma y zona horaria de cada usuario; confinamiento de los invitados a su clase.
 
 `LocaleMiddleware` ya eligió un idioma con la cookie o el navegador; aquí manda la preferencia
 guardada del usuario. La zona horaria la detecta el navegador (base.html la deja en una cookie):
@@ -11,7 +11,11 @@ from zoneinfo import ZoneInfo, available_timezones
 
 from asgiref.sync import iscoroutinefunction, markcoroutinefunction, sync_to_async
 from django.conf import settings
+from django.shortcuts import redirect
 from django.utils import timezone, translation
+
+#: Lo único que ve un invitado: la clase en vivo y lo necesario para mostrarla.
+GUEST_PATHS = ("/en-vivo/", "/static/", "/i18n/", "/idioma/", "/tema/", "/cuenta/logout/")
 
 
 @cache
@@ -43,6 +47,16 @@ def _apply(request, user) -> bool:
     return save
 
 
+def _guest_redirect(request, user):
+    """Un invitado fuera de la clase vuelve a su clase (o sale, si ya no tiene ninguna)."""
+    if not (user.is_authenticated and user.is_guest) or request.path.startswith(GUEST_PATHS):
+        return None
+    from apps.live.models import Participant
+
+    last = Participant.objects.filter(student=user).order_by("-joined_at").first()
+    return redirect("live_student", pk=last.session_id) if last else redirect("account_logout")
+
+
 class PreferencesMiddleware:
     sync_capable = async_capable = True
 
@@ -56,10 +70,14 @@ class PreferencesMiddleware:
             return self.__acall__(request)
         if _apply(request, request.user):
             request.user.save(update_fields=["timezone"])
-        return self.get_response(request)
+        return _guest_redirect(request, request.user) or self.get_response(request)
 
     async def __acall__(self, request):
         user = await request.auser()
         if _apply(request, user):
             await sync_to_async(user.save)(update_fields=["timezone"])
+        if user.is_authenticated and user.is_guest:
+            response = await sync_to_async(_guest_redirect)(request, user)
+            if response:
+                return response
         return await self.get_response(request)

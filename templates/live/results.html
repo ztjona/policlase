@@ -23,6 +23,17 @@
       {% empty %}
         <tr><td colspan="99" class="muted">{% translate "Sin estudiantes inscritos." %}</td></tr>
       {% endfor %}
+      {% if guests %}
+        <tr><th colspan="99">{% translate "Invitados" %}</th></tr>
+        {% for r in guests %}
+          <tr>
+            <td>{{ r.student.display_name }} <span class="chip">{% translate "invitado" %}</span></td>
+            {% for c in r.cells %}<td class="num">{% if c %}<span class="{% if c.correct %}chip ok{% elif c.points %}chip warn{% else %}chip danger{% endif %}">{{ c.points|floatformat:"-1" }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>{% endfor %}
+            <td class="num"><strong>{{ r.total|floatformat:"-1" }}</strong></td>
+            <td class="num">{{ r.percent }}</td>
+          </tr>
+        {% endfor %}
+      {% endif %}
     </tbody>
   </table>
 </div>

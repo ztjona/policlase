@@ -15,7 +15,7 @@
       <p>{% blocktranslate with total=my_total|floatformat:"-1" max=session.max_points|floatformat:"-1" %}Tu puntaje: <strong>{{ total }}</strong> de {{ max }}{% endblocktranslate %}{% if my_rank %} · {% blocktranslate %}puesto {{ my_rank }}{% endblocktranslate %}{% endif %}</p>
     </div>
     {% if leaderboard %}<ol class="board">{% for r in leaderboard %}<li><span>{{ forloop.counter }}. {{ r.name }}</span><strong>{{ r.total|floatformat:"-1" }}</strong></li>{% endfor %}</ol>{% endif %}
-    <a class="btn secondary" href="{% url 'course_detail' session.course_id %}">{% translate "Volver al curso" %}</a>
+    {% if not user.is_guest %}<a class="btn secondary" href="{% url 'course_detail' session.course_id %}">{% translate "Volver al curso" %}</a>{% endif %}
 
   {% elif slide.kind == "content" %}
     <div class="card">{{ slide.markdown|md }}</div>

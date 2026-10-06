@@ -4,6 +4,7 @@ from django.core.exceptions import PermissionDenied
 from django.db import IntegrityError, transaction
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.utils.translation import ngettext
@@ -136,6 +137,14 @@ def course_manage(request, pk):
     from apps.live.models import Deck, LiveSession
 
     course = owned_course(request, pk)
+    from apps.github import sync
+    from apps.github.models import CourseRepo
+
+    link = CourseRepo.objects.filter(course=course).first()
+    if link:
+        result = sync.maybe_pull(link)          # GitHub es la fuente: al abrir el curso, al día
+        if result and result.changed:
+            messages.info(request, _("Presentaciones actualizadas desde GitHub."))
     pending = (course.enrollments.filter(status=Status.PENDING)
                .select_related("student").order_by("requested_at"))
     return render(request, "courses/course_manage.html", {
@@ -145,6 +154,7 @@ def course_manage(request, pk):
         "decks": Deck.objects.filter(course=course),
         "live": LiveSession.objects.active().filter(course=course).first(),
         "past_sessions": LiveSession.objects.filter(course=course, status=LiveSession.Status.ENDED)[:10],
+        "link": link,
     })
 
 
@@ -161,10 +171,19 @@ def course_settings(request, pk):
         else:
             messages.success(request, _("Datos del curso guardados."))
             return redirect("course_settings", pk=pk)
+    from apps.github.forms import CourseRepoForm
+    from apps.github.models import CourseRepo, GitHubAccount
+
+    link = CourseRepo.objects.filter(course=course).first()
     enrollments = course.enrollments.select_related("student", "decided_by")
     return render(request, "courses/course_settings.html", {
         "course": course,
         "form": form,
+        "link": link,
+        "repo_form": CourseRepoForm(instance=link, initial=None if link else {"branch": "main"}),
+        "github_account": GitHubAccount.objects.filter(user=request.user).first(),
+        "webhook_url": request.build_absolute_uri(reverse("github_webhook", args=[course.pk])),
+        "github_url": reverse("github_account"),
         "approved": [e for e in enrollments if e.status == Status.APPROVED],
         "rejected": [e for e in enrollments if e.status == Status.REJECTED],
     })

@@ -32,8 +32,33 @@
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
+/* Tema: «auto» sigue al sistema; el usuario puede fijar claro u oscuro (data-theme en <html>).
+   Los proyectores lavan los fondos oscuros, así que la vista del proyector usa claro salvo que
+   el docente elija oscuro a propósito. */
+:root { color-scheme: light; }
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #0F1513;
+  --surface: #161E1A;
+  --surface-alt: #1C2521;
+  --ink: #E4E9E4;
+  --ink-soft: #B7C2BA;
+  --muted: #8B978F;
+  --rule: #2A342F;
+  --accent: #4FBF98;
+  --accent-ink: #0B1310;
+  --accent-soft: #163128;
+  --danger: #E6877A;
+  --danger-soft: #3A211D;
+  --warn: #DDB05C;
+  --warn-soft: #33291A;
+  --ok: #5CCB8E;
+  --ok-soft: #173424;
+  --shadow: 0 1px 2px rgba(0,0,0,.35), 0 4px 14px rgba(0,0,0,.25);
+}
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme]) {
+    color-scheme: dark;
     --ground: #0F1513;
     --surface: #161E1A;
     --surface-alt: #1C2521;
@@ -113,7 +138,28 @@ button.link {
   background: none; border: 0; padding: 0; color: var(--ink-soft); font: inherit; cursor: pointer;
 }
 button.link:hover { color: var(--accent); filter: none; }
-.langswitch { margin: 0; display: inline; }
+.guest-invite { display: flex; gap: 20px; align-items: center; justify-content: center; margin-top: 18px; text-align: left; }
+.guest-invite .qr svg { width: 170px; height: 170px; display: block; border-radius: 6px; }
+.guest-invite p { margin: .2rem 0; }
+.guest-url { font-size: 1.05rem; word-break: break-all; }
+/* editor de presentaciones */
+.page.wide { max-width: 1500px; }
+.editor { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 900px) { .editor { grid-template-columns: 1fr; } }
+.editor-pane { display: flex; flex-direction: column; gap: 10px; }
+.editor-pane textarea.code { min-height: 62vh; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.toolbar button { padding: 4px 10px; font-size: .85rem; }
+.preview-pane { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; padding-right: 4px; }
+#preview.stale { opacity: .45; }
+.slide-card { cursor: pointer; transition: box-shadow .15s, border-color .15s; }
+.slide-card.current { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.slide.mini { font-size: 15px; padding: 8px 0 0; }
+.slide.mini h1 { font-size: 1.5em; }
+.diag li.jump { cursor: pointer; }
+.diag li.jump:hover { text-decoration: underline; }
+.langswitch, .themeswitch { margin: 0; display: inline; }
+.themeswitch button { padding: 4px 10px; }
 
 /* avisos que el usuario cierra (p. ej. solicitud rechazada) */
 .notice { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;

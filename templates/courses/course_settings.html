@@ -34,6 +34,49 @@
   </section>
 </div>
 
+<h2 id="github">{% translate "Sincronización con GitHub" %}</h2>
+<section class="card stack">
+  {% if not github_account %}
+    <p style="margin:0">{% blocktranslate with url=github_url %}Primero conecte su cuenta de GitHub en el menú de usuario → <a href="{{ url }}">GitHub</a>.{% endblocktranslate %}</p>
+  {% else %}
+    {% if link %}
+      <p style="margin:0">
+        {% translate "Vinculado a" %} <a class="mono" href="https://github.com/{{ link.repo }}/tree/{{ link.branch }}/{{ link.folder }}" target="_blank" rel="noopener">{{ link.repo }}/{{ link.folder }}</a>
+        ({% translate "rama" %} <span class="mono">{{ link.branch }}</span>).
+        {% if link.last_synced_at %}<span class="muted small">{% blocktranslate with when=link.last_synced_at|timesince %}Última sincronización hace {{ when }}.{% endblocktranslate %}</span>{% endif %}
+      </p>
+      {% if link.last_error %}<p class="notice" style="margin:0">{{ link.last_error }}</p>{% endif %}
+      <form method="post" action="{% url 'github_course_link' course.pk %}" class="row">
+        {% csrf_token %}
+        <button name="action" value="sync">{% translate "Sincronizar ahora" %}</button>
+        <button name="action" value="unlink" class="danger"
+                onclick="return confirm('{% translate "Las presentaciones quedan en policlase, pero dejan de sincronizarse. ¿Continuar?" as msg %}{{ msg|escapejs }}')">{% translate "Desvincular" %}</button>
+      </form>
+      <details class="small">
+        <summary>{% translate "Sincronización instantánea (webhook, opcional)" %}</summary>
+        <p>{% translate "Sin webhook, policlase trae los cambios al abrir el curso o el editor. Con webhook, al instante de cada push. En GitHub: Settings → Webhooks → Add webhook:" %}</p>
+        <ul>
+          <li>Payload URL: <span class="mono">{{ webhook_url }}</span></li>
+          <li>Content type: <span class="mono">application/json</span></li>
+          <li>Secret: <span class="mono">{{ link.webhook_secret }}</span></li>
+          <li>{% translate "Eventos: solo «push»." %}</li>
+        </ul>
+      </details>
+    {% else %}
+      <p class="small muted" style="margin:0">{% translate "Las presentaciones del curso vivirán en una carpeta de su repositorio: lo que suba a GitHub aparece aquí, y lo que guarde en el editor se confirma allá. Las presentaciones que ya tiene aquí se suben al vincular." %}</p>
+    {% endif %}
+    <form method="post" action="{% url 'github_course_link' course.pk %}" class="stack">
+      {% csrf_token %}
+      <div class="grid" style="grid-template-columns:2fr 1fr 2fr">
+        {% for field in repo_form %}
+          <div><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}</div>
+        {% endfor %}
+      </div>
+      <div><button name="action" value="link" class="{% if link %}secondary{% endif %}">{% if link %}{% translate "Cambiar carpeta" %}{% else %}{% translate "Vincular" %}{% endif %}</button></div>
+    </form>
+  {% endif %}
+</section>
+
 <h2>{% translate "Inscritos" %} <span class="chip ok">{{ approved|length }}</span></h2>
 {% if approved %}
   <div class="card table-wrap">

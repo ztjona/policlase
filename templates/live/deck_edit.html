@@ -1,31 +1,47 @@
 {% extends "base.html" %}
 {% load static i18n %}
 {% block title %}{% if deck %}{% blocktranslate with title=deck.title %}Editar {{ title }}{% endblocktranslate %}{% else %}{% translate "Nueva presentación" %}{% endif %}{% endblock %}
+{% block page_class %}wide{% endblock %}
 {% block main %}
-<div class="muted small"><a href="{% url 'course_manage' course.pk %}">{{ course.name }}</a></div>
-<h1>{% if deck %}{% blocktranslate with title=deck.title %}Editar «{{ title }}»{% endblocktranslate %}{% else %}{% translate "Nueva presentación" %}{% endif %}</h1>
+<div class="muted small"><a href="{% url 'course_manage' course.pk %}">← {{ course.name }}</a></div>
+<div class="spread">
+  <h1>{% if deck %}{% blocktranslate with title=deck.title %}Editar «{{ title }}»{% endblocktranslate %}{% else %}{% translate "Nueva presentación" %}{% endif %}</h1>
+  {% if link %}<span class="small muted">{% translate "Al guardar se confirma en GitHub:" %} <span class="mono">{{ link.repo }}{% if deck.github_path %}/{{ deck.github_path }}{% endif %}</span></span>{% endif %}
+</div>
 
-{% if diagnostics %}
-  <ul class="diag">
-    {% for d in diagnostics %}
-      <li class="{{ d.severity }}"><code>{{ d.code }}</code> {{ d.message }}{% if d.line %} · {% blocktranslate with line=d.line %}línea {{ line }}{% endblocktranslate %}{% endif %}{% if d.where %} · {{ d.where }}{% endif %}</li>
-    {% endfor %}
-  </ul>
-{% endif %}
-
-<form method="post" enctype="multipart/form-data" class="stack" id="deck-form">
+<form method="post" enctype="multipart/form-data" id="deck-form"
+      data-preview="{% url 'deck_preview' course.pk %}">
   {% csrf_token %}
-  <div class="dropzone" id="dropzone">
-    {% translate "Arrastre aquí un archivo <code>.yaml</code> o" %}
-    <label for="file" style="display:inline;font-weight:600;color:var(--accent);cursor:pointer">{% translate "elíjalo" %}</label>
-    <input type="file" id="file" name="file" accept=".yaml,.yml,text/yaml" class="sr-only">
-    {% translate "— se valida al guardar." %}
-  </div>
-  <label for="source">{% translate "Fuente (formato <code>policlase.deck/v1</code>)" %}</label>
-  <textarea id="source" name="source" class="code" spellcheck="false">{{ source }}</textarea>
-  <div class="row">
-    <button type="submit">{% translate "Validar y guardar" %}</button>
-    <a class="btn secondary" href="{% if deck %}{% url 'deck_view' course.pk deck.pk %}{% else %}{% url 'course_manage' course.pk %}{% endif %}">{% translate "Cancelar" %}</a>
+  <div class="editor">
+    <div class="editor-pane">
+      <div class="toolbar" role="toolbar" aria-label="{% translate 'Insertar diapositiva' %}">
+        <span class="small muted">{% translate "Insertar:" %}</span>
+        <button type="button" class="secondary small" data-snippet="content">{% translate "Contenido" %}</button>
+        <button type="button" class="secondary small" data-snippet="choice">{% translate "Opción única" %}</button>
+        <button type="button" class="secondary small" data-snippet="multi_choice">{% translate "Opción múltiple" %}</button>
+        <button type="button" class="secondary small" data-snippet="true_false">{% translate "Verdadero/falso" %}</button>
+        <button type="button" class="secondary small" data-snippet="numeric">{% translate "Numérica" %}</button>
+        <button type="button" class="secondary small" data-snippet="text">{% translate "Texto corto" %}</button>
+      </div>
+      <label for="source" class="sr-only">{% translate "Fuente (formato <code>policlase.deck/v1</code>)" %}</label>
+      <textarea id="source" name="source" class="code" spellcheck="false">{{ source }}</textarea>
+      <ul class="diag" id="diagnostics" aria-live="polite">
+        {% for d in diagnostics %}
+          <li class="{{ d.severity }}" data-line="{{ d.line|default:'' }}"><code>{{ d.code }}</code> {{ d.message }}{% if d.line %} · {% blocktranslate with line=d.line %}línea {{ line }}{% endblocktranslate %}{% endif %}{% if d.where %} · {{ d.where }}{% endif %}</li>
+        {% endfor %}
+      </ul>
+      <div class="row">
+        <button type="submit">{% translate "Validar y guardar" %}</button>
+        <a class="btn secondary" href="{% if deck %}{% url 'deck_view' course.pk deck.pk %}{% else %}{% url 'course_manage' course.pk %}{% endif %}">{% translate "Cancelar" %}</a>
+        <span class="small muted">Ctrl+S</span>
+        <label for="file" class="small" style="margin:0 0 0 auto;font-weight:400;cursor:pointer;color:var(--accent)">{% translate "Abrir un archivo .yaml…" %}</label>
+        <input type="file" id="file" name="file" accept=".yaml,.yml,text/yaml" class="sr-only">
+      </div>
+    </div>
+    <div class="preview-pane">
+      <div class="spread small muted"><strong>{% translate "Vista previa" %}</strong><span id="preview-status"></span></div>
+      <div id="preview" class="stack"><p class="muted">{% translate "Cargando…" %}</p></div>
+    </div>
   </div>
 </form>
 

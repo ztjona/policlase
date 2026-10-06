@@ -16,6 +16,10 @@
   <div class="card spread" style="border-color:var(--danger)">
     <div><span class="chip live">{% translate "EN VIVO" %}</span> <strong>{{ live.title }}</strong> · PIN <span class="mono">{{ live.pin }}</span></div>
     <a class="btn" href="{% url 'present' live.pk %}">{% translate "Volver al proyector" %}</a>
+    {% if live.allow_guests %}
+      <p class="small" style="flex-basis:100%;margin:6px 0 0">{% translate "Enlace para invitados:" %}
+        <span class="mono">{{ request.scheme }}://{{ request.get_host }}{% url 'live_guest' live.guest_token %}</span></p>
+    {% endif %}
   </div>
 {% endif %}
 
@@ -51,6 +55,16 @@
 {% endif %}
 
 <div class="spread"><h2>{% translate "Presentaciones" %}</h2><a class="btn secondary" href="{% url 'deck_new' course.pk %}">{% translate "Nueva presentación" %}</a></div>
+{% if link %}
+  <p class="small muted">
+    {% translate "Sincronizadas con" %} <a class="mono" href="https://github.com/{{ link.repo }}/tree/{{ link.branch }}/{{ link.folder }}" target="_blank" rel="noopener">{{ link.repo }}/{{ link.folder }}</a>
+    {% if link.last_error %}· <span style="color:var(--danger)">{{ link.last_error }}</span>{% endif %}
+  </p>
+  {% for issue in link.issues %}
+    <div class="notice"><span><strong class="mono">{{ issue.path }}</strong> {% translate "tiene errores y no se actualizó:" %}
+      {% for d in issue.diagnostics|slice:":3" %}<code>{{ d.code }}</code> {{ d.message }}{% if d.line %} ({% blocktranslate with line=d.line %}línea {{ line }}{% endblocktranslate %}){% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}</span></div>
+  {% endfor %}
+{% endif %}
 {% if decks %}
   <div class="stack">
     {% for d in decks %}

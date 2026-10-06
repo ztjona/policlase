@@ -3,28 +3,93 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: policlase\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-03 17:30-0500\n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: static/js/deck-editor.js:11
+#: static/js/deck-editor.js:58
+#, javascript-format
+msgid "línea %s"
+msgstr "line %s"
+
+#: static/js/deck-editor.js:66
+msgid "validando…"
+msgstr "validating…"
+
+#: static/js/deck-editor.js:78
+msgid "al día"
+msgstr "up to date"
+
+#: static/js/deck-editor.js:82
+#, javascript-format
+msgid "%s error"
+msgid_plural "%s errores"
+msgstr[0] "%s error"
+msgstr[1] "%s errors"
+
+#: static/js/deck-editor.js:86 static/js/live.js:72
+msgid "sin conexión"
+msgstr "offline"
+
+#: static/js/deck-editor.js:97
+msgid "Título"
+msgstr "Title"
+
+#: static/js/deck-editor.js:97
+msgid "Texto con matemáticas: $f(x) = x^2$."
+msgstr "Text with math: $f(x) = x^2$."
+
+#: static/js/deck-editor.js:101
+msgid "¿Pregunta?"
+msgstr "Question?"
+
+#: static/js/deck-editor.js:102 static/js/deck-editor.js:108
+msgid "Correcta"
+msgstr "Correct"
+
+#: static/js/deck-editor.js:103 static/js/deck-editor.js:109
+msgid "Distractor"
+msgstr "Distractor"
+
+#: static/js/deck-editor.js:107
+msgid "Marque todas las correctas"
+msgstr "Mark all the correct ones"
+
+#: static/js/deck-editor.js:113
+msgid "Indique si cada afirmación es verdadera o falsa"
+msgstr "Mark each statement as true or false"
+
+#: static/js/deck-editor.js:114
+msgid "Afirmación verdadera"
+msgstr "True statement"
+
+#: static/js/deck-editor.js:114
+msgid "Afirmación falsa"
+msgstr "False statement"
+
+#: static/js/deck-editor.js:118
+msgid "¿Cuánto vale $2^{10}$?"
+msgstr "What is $2^{10}$?"
+
+#: static/js/deck-editor.js:122
+msgid "¿Nombre del método?"
+msgstr "Name of the method?"
+
+#: static/js/deck-editor.js:122
+msgid "bisección"
+msgstr "bisection"
+
+#: static/js/deck-editor.js:171
 msgid "El archivo supera 512 KB."
 msgstr "The file is larger than 512 KB."
-
-#: static/js/deck-editor.js:15
-#, javascript-format
-msgid "Cargado: %s — revise y pulse «Validar y guardar»."
-msgstr "Loaded: %s — review it and click “Validate and save”."
 
 #: static/js/live.js:68
 msgid "Sin acceso a esta clase."
 msgstr "No access to this class."
-
-#: static/js/live.js:72
-msgid "sin conexión"
-msgstr "offline"
 
 #: static/js/live.js:88
 msgid "en vivo"

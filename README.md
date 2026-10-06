@@ -14,6 +14,15 @@ Aula virtual autoalojada para cursos universitarios con carga matemática.
 - **Clases en vivo** al estilo Kahoot: el docente proyecta y avanza, los estudiantes responden desde
   el teléfono, con cuenta regresiva, cierre automático, resultados y marcador. Las presentaciones
   se escriben en YAML (`policlase.deck/v1`) y se validan con [`policlase-gen`](../policlase-gen).
+  El docente puede **abrir la clase a invitados**: un enlace (y su QR en el proyector) deja entrar
+  sin cuenta, para charlas o visitas.
+- **Editor de presentaciones** con vista previa en vivo, validación mientras se escribe y plantillas
+  para cada tipo de pregunta.
+- **Sincronización con GitHub** por curso: cada docente conecta un token *fine-grained* (Contents:
+  lectura y escritura) y vincula una carpeta de su repositorio. Lo que se empuja a GitHub aparece en
+  la plataforma (al abrir el curso, o al instante con el webhook opcional); lo que se guarda en el
+  editor se confirma en GitHub, y si el archivo cambió allá entretanto no se pisa nada.
+- **Tema claro/oscuro/automático** por usuario; el proyector usa el claro salvo que se elija oscuro.
 
 ## Arranque
 

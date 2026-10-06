@@ -91,6 +91,9 @@ def apply(session_id: int, action: str) -> LiveSession:
             raise ActionError(_("La pregunta no está abierta."))
         session.phase, session.closes_at = Phase.CLOSED, now
 
+    elif action in ("guests_on", "guests_off"):
+        session.allow_guests = action == "guests_on"
+
     elif action == "reveal":
         if session.phase == Phase.OPEN:
             session.closes_at = now

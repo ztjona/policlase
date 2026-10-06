@@ -52,7 +52,11 @@ class ProfileSignupForm(forms.Form):
 class PreferencesForm(forms.Form):
     language = forms.ChoiceField(label=_("Idioma"), choices=settings.LANGUAGES)
     timezone = forms.ChoiceField(label=_("Zona horaria"))
+    theme = forms.ChoiceField(label=_("Tema"), required=False,
+                              help_text=_("En el proyector se usa el tema claro, salvo que elija oscuro."))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["timezone"].choices = [(z, z.replace("_", " ")) for z in sorted(timezone_names())]
+        from .models import User
+        self.fields["theme"].choices = User.Theme.choices

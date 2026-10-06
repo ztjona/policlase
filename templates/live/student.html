@@ -4,7 +4,7 @@
 {% block chrome %}
 <div class="live-shell">
   <div class="live-bar">
-    <a class="brand" href="{% url 'course_detail' course.pk %}">poli<span>clase</span></a>
+    {% if user.is_guest %}<span class="brand">poli<span>clase</span></span>{% else %}<a class="brand" href="{% url 'course_detail' course.pk %}">poli<span>clase</span></a>{% endif %}
     <span class="muted small">{{ course.code }}</span>
     <span class="spacer"></span>
     <span class="small">{{ user.display_name }}</span>

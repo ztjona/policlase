@@ -13,28 +13,7 @@
 <p class="muted">{% blocktranslate count n=deck.slides|length %}{{ n }} diapositiva{% plural %}{{ n }} diapositivas{% endblocktranslate %} · {% blocktranslate count n=deck.question_count %}{{ n }} pregunta{% plural %}{{ n }} preguntas{% endblocktranslate %}</p>
 
 <div class="stack">
-  {% for s in deck.slides %}
-    <section class="card">
-      <div class="spread small muted">
-        <span>{% blocktranslate with n=forloop.counter %}Diapositiva {{ n }}{% endblocktranslate %}</span>
-        {% if s.kind == "question" %}<span><span class="chip">{{ s.question.type }}</span> {{ s.points|floatformat:"-1" }} pt · {{ s.time_limit_s }} s · <span class="mono">{{ s.item_id }}</span></span>{% endif %}
-      </div>
-      {% if s.kind == "content" %}
-        {{ s.markdown|md }}
-      {% else %}
-        {% if s.stem %}{{ s.stem|md }}{% endif %}
-        <div><strong>{{ s.question.prompt|md }}</strong></div>
-        {% if s.question.options %}
-          <ol type="A">{% for o in s.question.options %}<li>{{ o.text|md_inline }}{% if o.key in s.solution.correct %} <span class="chip ok">{% translate "correcta" %}</span>{% endif %}</li>{% endfor %}</ol>
-        {% elif s.question.statements %}
-          <ol>{% for st in s.question.statements %}<li>{{ st.text|md_inline }} <span class="chip">{% if s.solution.answers|get_item:st.key %}{% translate "V" context "inicial de verdadero" %}{% else %}{% translate "F" context "inicial de falso" %}{% endif %}</span></li>{% endfor %}</ol>
-        {% elif s.solution.solution is not None %}
-          <p class="small">{% translate "Respuesta:" %} <span class="mono">{{ s.solution.solution }}</span></p>
-        {% endif %}
-      {% endif %}
-      {% if s.notes %}<p class="small muted">{% translate "Notas:" %} {{ s.notes }}</p>{% endif %}
-    </section>
-  {% endfor %}
+  {% include "live/_deck_slides.html" with slides=deck.slides %}
 </div>
 
 <form method="post" action="{% url 'deck_delete' course.pk deck.pk %}" style="margin-top:24px"
