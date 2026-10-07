@@ -1,11 +1,6 @@
 {% load i18n policlase %}
 {# Pestaña Clases: secciones (unidades) minimizables; las presentaciones se arrastran entre ellas. #}
 {% if link %}
-  <p class="small muted">
-    ⎇ {% translate "Sincronizadas con" %} <a class="mono" href="https://github.com/{{ link.repo }}/tree/{{ link.branch }}/{{ link.folder }}" target="_blank" rel="noopener">{{ link.repo }}/{{ link.folder }}</a>
-    · {% translate "cada carpeta con presentaciones es una sección" %}
-    {% if link.last_error %}· <span style="color:var(--danger)">{{ link.last_error }}</span>{% endif %}
-  </p>
   {% for issue in link.issues %}
     <div class="notice"><span><strong class="mono">{{ issue.path }}</strong> {% translate "tiene errores y no se actualizó:" %}
       {% for d in issue.diagnostics|slice:":3" %}<code>{{ d.code }}</code> {{ d.message }}{% if d.line %} ({% blocktranslate with line=d.line %}línea {{ line }}{% endblocktranslate %}){% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}</span></div>
@@ -13,8 +8,6 @@
 {% endif %}
 
 <div id="units" data-csrf="{{ csrf_token }}">
-  {% include "courses/_unit_actions.html" %}
-
   {% for group in groups %}
     {% with section=group.section %}
       {% if section %}
@@ -52,27 +45,26 @@
     <p class="muted">{% translate "Todavía no hay presentaciones. Cree una sección (p. ej. «Unidad 1») y agregue presentaciones, o cree una presentación suelta." %}</p>
   {% endif %}
 
-  {% if groups|length > 1 %}{% include "courses/_unit_actions.html" %}{% endif %}
 </div>
 
 {% if past_sessions %}
   <h2>{% translate "Clases dictadas" %}</h2>
   <div class="card table-wrap">
     <table>
-      <thead><tr><th>{% translate "Clase" %}</th><th>{% translate "Fecha" %}</th><th>{% translate "Participantes" %}</th><th></th></tr></thead>
+      <thead><tr><th>{% translate "Clase" %}</th><th>{% translate "Fecha" %}</th><th class="center">{% translate "Participantes" %}</th><th class="actions-col"></th></tr></thead>
       <tbody>
         {% for s in past_sessions %}
           <tr>
             <td>{{ s.title }}</td>
             <td class="small">{{ s.started_at|default:s.created_at|date:"d M Y H:i" }}</td>
-            <td class="num">{{ s.participants.count }}</td>
-            <td class="row-actions">
+            <td class="center">{{ s.participants.count }}</td>
+            <td class="actions-col"><div class="row-actions">
               <a class="icon-btn" href="{% url 'session_results' s.pk %}" title="{% translate 'Resultados' %}" aria-label="{% translate 'Resultados' %}">{% icon "results" %}</a>
               <form method="post" action="{% url 'session_delete' s.pk %}"
                     onsubmit="return confirm('{% translate "¿Eliminar esta clase y todas sus respuestas? No se puede deshacer." as msg %}{{ msg|escapejs }}')">
                 {% csrf_token %}<button class="icon-btn danger" title="{% translate 'Eliminar clase' %}" aria-label="{% translate 'Eliminar clase' %}">{% icon "trash" %}</button>
               </form>
-            </td>
+            </div></td>
           </tr>
         {% endfor %}
       </tbody>

@@ -253,6 +253,12 @@ MEDIA_ROOT = env("POLICLASE_MEDIA_ROOT", str(BASE_DIR / "media"))
 LIVE_POLL_SECONDS = float(env("POLICLASE_LIVE_POLL_SECONDS", "0.5"))
 LIVE_HEARTBEAT_SECONDS = 15
 
+# ------------------------------------------------------------------------------ versión
+
+POLICLASE_VERSION = (BASE_DIR / "VERSION").read_text().strip() if (BASE_DIR / "VERSION").exists() else "dev"
+#: Fecha de construcción de la imagen (la escribe el Dockerfile).
+POLICLASE_BUILD_DATE = Path("/opt/build-date").read_text().strip() if Path("/opt/build-date").exists() else ""
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

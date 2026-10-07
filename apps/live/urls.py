@@ -28,6 +28,8 @@ urlpatterns = [
     path("docente/en-vivo/<int:pk>/accion/", views.present_action, name="present_action"),
     path("docente/en-vivo/<int:pk>/resultados/", views.session_results, name="session_results"),
     path("docente/en-vivo/<int:pk>/eliminar/", views.session_delete, name="session_delete"),
+    path("docente/en-vivo/<int:pk>/respuestas/<int:response_pk>/nota/", views.response_grade, name="response_grade"),
+    path("docente/en-vivo/<int:pk>/preguntas/<int:index>/calificar/", views.answer_grade, name="answer_grade"),
     # estudiante en clase
     path("en-vivo/", views.join_by_pin, name="live_join"),
     path("en-vivo/abierta/<str:token>/", guest_entry, name="live_guest"),

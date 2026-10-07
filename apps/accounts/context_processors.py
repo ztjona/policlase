@@ -13,4 +13,4 @@ def theme_of(request) -> str:
 
 
 def preferences(request) -> dict:
-    return {"theme": theme_of(request)}
+    return {"theme": theme_of(request), "policlase_version": settings.POLICLASE_VERSION}

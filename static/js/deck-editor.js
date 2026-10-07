@@ -230,6 +230,14 @@
     if (lines[index]) ed.goTo(lines[index]);
   });
 
+  // Posar el mouse sobre una miniatura: la diapositiva tal como se verá.
+  if (window.policlaseHoverPreview) {
+    window.policlaseHoverPreview(outline, ".thumb", function (thumb) {
+      var card = preview.querySelector('.slide-card[data-index="' + thumb.dataset.index + '"]');
+      return card ? card.outerHTML : "";
+    });
+  }
+
   // Arrastrar y soltar para reordenar.
   var dragged = null;
   outline.addEventListener("dragstart", function (e) {

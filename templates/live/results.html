@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load i18n %}
+{% load i18n policlase %}
 {% block title %}{% translate "Resultados" %} · {{ session.title }}{% endblock %}
 {% block main %}
 <div class="muted small"><a href="{% url 'course_manage' course.pk %}">{{ course.name }}</a></div>
@@ -16,7 +16,7 @@
       {% for r in rows %}
         <tr>
           <td>{{ r.student.last_name }}, {{ r.student.first_name }}{% if not r.joined %} <span class="chip">{% translate "ausente" %}</span>{% endif %}</td>
-          {% for c in r.cells %}<td class="num">{% if c %}<span class="{% if c.correct %}chip ok{% elif c.points %}chip warn{% else %}chip danger{% endif %}">{{ c.points|floatformat:"-1" }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>{% endfor %}
+          {% for c, full in r.cells %}<td class="num">{% include "live/_grade_cell.html" %}</td>{% endfor %}
           <td class="num"><strong>{{ r.total|floatformat:"-1" }}</strong></td>
           <td class="num">{{ r.percent }}</td>
         </tr>
@@ -28,7 +28,7 @@
         {% for r in guests %}
           <tr>
             <td>{{ r.student.display_name }} <span class="chip">{% translate "invitado" %}</span></td>
-            {% for c in r.cells %}<td class="num">{% if c %}<span class="{% if c.correct %}chip ok{% elif c.points %}chip warn{% else %}chip danger{% endif %}">{{ c.points|floatformat:"-1" }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>{% endfor %}
+            {% for c, full in r.cells %}<td class="num">{% include "live/_grade_cell.html" %}</td>{% endfor %}
             <td class="num"><strong>{{ r.total|floatformat:"-1" }}</strong></td>
             <td class="num">{{ r.percent }}</td>
           </tr>
@@ -37,6 +37,39 @@
     </tbody>
   </table>
 </div>
+
+<p class="small muted">{% translate "Clic en una nota para corregirla a mano; ✎ marca las corregidas. El marcador de la clase no cambia." %}</p>
+
+{% if review %}
+  <h2>{% translate "Revisar respuestas" %}</h2>
+  <p class="small muted">{% translate "Si una respuesta era correcta y el ítem no la previó, désela por buena a todos los que la dieron." %}</p>
+  {% for q in review %}
+    <details class="card review" id="p{{ q.index }}">
+      <summary><strong>{% translate "P" context "abreviatura de pregunta" %}{{ q.number }}</strong> · {{ q.slide.question.prompt|md_inline }}
+        <span class="chip">{{ q.slide.question.type }}</span>
+        <span class="small muted">{% blocktranslate count n=q.groups|length %}{{ n }} respuesta distinta{% plural %}{{ n }} respuestas distintas{% endblocktranslate %}</span></summary>
+      <table class="review-table">
+        <thead><tr><th>{% translate "Respuesta" %}</th><th class="num">{% translate "Estudiantes" %}</th><th class="num">{% translate "Nota" %}</th><th></th></tr></thead>
+        <tbody>
+          {% for g in q.groups %}
+            <tr>
+              <td>{% for part in g.display %}{{ part|md_inline }}{% if not forloop.last %} · {% endif %}{% empty %}<span class="muted">—</span>{% endfor %}</td>
+              <td class="num">{{ g.count }}</td>
+              <td class="num">{% for p in g.points %}{{ p|floatformat:"-1" }}{% if not forloop.last %} / {% endif %}{% endfor %} <span class="muted small">{% translate "de" %} {{ q.slide.points|floatformat:"-1" }}</span>{% if g.edited %} <span title="{% blocktranslate with auto=g.auto_points|floatformat:'-1' %}Corregida a mano; automática: {{ auto }}{% endblocktranslate %}">✎</span>{% endif %}</td>
+              <td class="actions-col">
+                <form method="post" action="{% url 'answer_grade' session.pk q.index %}" class="row-actions">{% csrf_token %}<input type="hidden" name="key" value="{{ g.key }}">
+                  <button name="action" value="correct" class="icon-btn" title="{% translate 'Dar por correcta a todos los que la dieron' %}" aria-label="{% translate 'Dar por correcta' %}">{% icon "check" %}</button>
+                  <button name="action" value="wrong" class="icon-btn danger" title="{% translate 'Dar por incorrecta a todos los que la dieron' %}" aria-label="{% translate 'Dar por incorrecta' %}">{% icon "close" %}</button>
+                  {% if g.edited %}<button name="action" value="auto" class="icon-btn" title="{% translate 'Volver a la nota automática' %}" aria-label="{% translate 'Volver a la nota automática' %}">↺</button>{% endif %}
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </details>
+  {% endfor %}
+{% endif %}
 
 {% if feedback %}
   <h2>{% translate "Retroalimentación anónima" %}</h2>
@@ -59,3 +92,4 @@
   </div>
 {% endif %}
 {% endblock %}
+{% block scripts %}{% load static %}<script defer src="{% static 'js/results.js' %}"></script>{% endblock %}

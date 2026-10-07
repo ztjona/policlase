@@ -216,12 +216,23 @@ class Response(models.Model):
     answer = models.JSONField()
     correct = models.BooleanField()
     fraction = models.FloatField()
+    #: Nota que cuenta. La pone el calificador y el docente puede corregirla a mano (respuestas
+    #: correctas que el ítem no previó); `auto_*` guardan lo que dijo el calificador.
     points = models.FloatField()
+    auto_points = models.FloatField(null=True, blank=True)
+    auto_correct = models.BooleanField(null=True, blank=True)
+    edited_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
+                                  blank=True, related_name="+")
+    edited_at = models.DateTimeField(null=True, blank=True)
     #: Puntos de juego para el marcador: 1000 × puntos, y con bono por rapidez entre el 50 %
     #: (al final del tiempo) y el 100 % (al instante). La nota usa `points`, nunca esto.
     score = models.PositiveIntegerField(default=0)
     elapsed_ms = models.PositiveIntegerField()
     answered_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def edited(self) -> bool:
+        return self.edited_at is not None
 
     class Meta:
         constraints = [

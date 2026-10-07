@@ -347,3 +347,13 @@ class DragMoveGitHubTests(SyncBase):
         self.assertEqual(response.status_code, 409)
         deck.refresh_from_db()
         self.assertIsNone(deck.section)
+
+
+
+class GitHubIconTests(SyncBase):
+    def test_icono_con_la_informacion_en_el_tooltip(self):
+        self.client.force_login(self.teacher)
+        page = self.client.get(reverse("course_manage", args=[self.course.pk]))
+        self.assertContains(page, "https://github.com/profe/cursos/tree/main/mn/clases")
+        self.assertContains(page, "data-tip=")
+        self.assertNotContains(page, "⎇ Sincronizadas con")

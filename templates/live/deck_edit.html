@@ -69,5 +69,6 @@
 {% block scripts %}
 {# Monaco se carga desde deck-editor.js, después de KaTeX: su cargador AMD define `define.amd` y,
    si llegara antes, KaTeX se registraría como módulo AMD en vez de `window.katex`. #}
+<script defer src="{% static 'js/hover-preview.js' %}"></script>
 <script defer src="{% static 'js/deck-editor.js' %}"></script>
 {% endblock %}

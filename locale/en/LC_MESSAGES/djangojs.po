@@ -4,14 +4,14 @@ msgid ""
 msgstr ""
 "Project-Id-Version: policlase\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-07 11:54-0500\n"
+"POT-Creation-Date: 2026-10-07 14:52-0500\n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: static/js/deck-editor.js:160 static/js/deck-editor.js:440
+#: static/js/deck-editor.js:160 static/js/deck-editor.js:448
 #, javascript-format
 msgid "línea %s"
 msgstr "line %s"
@@ -31,7 +31,7 @@ msgid_plural "%s errores"
 msgstr[0] "%s error"
 msgstr[1] "%s errors"
 
-#: static/js/deck-editor.js:193 static/js/live.js:98
+#: static/js/deck-editor.js:193 static/js/live.js:121
 msgid "sin conexión"
 msgstr "offline"
 
@@ -39,95 +39,107 @@ msgstr "offline"
 msgid "Corrija los errores antes de usar el panel."
 msgstr "Fix the errors before using the panel."
 
-#: static/js/deck-editor.js:280
+#: static/js/deck-editor.js:288
 msgid "Título"
 msgstr "Title"
 
-#: static/js/deck-editor.js:280
+#: static/js/deck-editor.js:288
 msgid "Texto con matemáticas: $f(x) = x^2$."
 msgstr "Text with math: $f(x) = x^2$."
 
-#: static/js/deck-editor.js:283
+#: static/js/deck-editor.js:291
 msgid "¿Pregunta?"
 msgstr "Question?"
 
-#: static/js/deck-editor.js:284 static/js/deck-editor.js:289
+#: static/js/deck-editor.js:292 static/js/deck-editor.js:297
 msgid "Correcta"
 msgstr "Correct"
 
-#: static/js/deck-editor.js:285 static/js/deck-editor.js:290
+#: static/js/deck-editor.js:293 static/js/deck-editor.js:298
 msgid "Distractor"
 msgstr "Distractor"
 
-#: static/js/deck-editor.js:288
+#: static/js/deck-editor.js:296
 msgid "Marque todas las correctas"
 msgstr "Mark all the correct ones"
 
-#: static/js/deck-editor.js:293
+#: static/js/deck-editor.js:301
 msgid "Indique si cada afirmación es verdadera o falsa"
 msgstr "Mark each statement as true or false"
 
-#: static/js/deck-editor.js:294
+#: static/js/deck-editor.js:302
 msgid "Afirmación verdadera"
 msgstr "True statement"
 
-#: static/js/deck-editor.js:294
+#: static/js/deck-editor.js:302
 msgid "Afirmación falsa"
 msgstr "False statement"
 
-#: static/js/deck-editor.js:297
+#: static/js/deck-editor.js:305
 msgid "¿Cuánto vale $2^{10}$?"
 msgstr "What is $2^{10}$?"
 
-#: static/js/deck-editor.js:300
+#: static/js/deck-editor.js:308
 msgid "¿Nombre del método?"
 msgstr "Name of the method?"
 
-#: static/js/deck-editor.js:300
+#: static/js/deck-editor.js:308
 msgid "bisección"
 msgstr "bisection"
 
-#: static/js/deck-editor.js:372
+#: static/js/deck-editor.js:380
 msgid "Opción en una línea"
 msgstr "One-line option"
 
-#: static/js/deck-editor.js:373
+#: static/js/deck-editor.js:381
 msgid "Afirmación en una línea"
 msgstr "One-line statement"
 
-#: static/js/deck-editor.js:487
+#: static/js/deck-editor.js:495
 msgid "El archivo supera 512 KB."
 msgstr "The file is larger than 512 KB."
 
-#: static/js/live.js:94
+#: static/js/live.js:117
 msgid "Sin acceso a esta clase."
 msgstr "No access to this class."
 
-#: static/js/live.js:118
+#: static/js/live.js:141
 msgid "en vivo"
 msgstr "live"
 
-#: static/js/live.js:119
+#: static/js/live.js:142
 msgid "reconectando…"
 msgstr "reconnecting…"
 
-#: static/js/live.js:124
+#: static/js/live.js:147
 msgid "clase terminada"
 msgstr "class ended"
 
-#: static/js/live.js:151
+#: static/js/live.js:174
 #, javascript-format
 msgid "No se pudo aplicar la acción (%s)."
 msgstr "Couldn't apply the action (%s)."
 
-#: static/js/live.js:197
+#: static/js/live.js:241
 msgid "Enviando…"
 msgstr "Sending…"
 
-#: static/js/live.js:202
+#: static/js/live.js:246
 msgid "Enviar respuesta"
 msgstr "Submit answer"
 
-#: static/js/live.js:203
+#: static/js/live.js:247
 msgid "No se pudo enviar. Revise su conexión e intente de nuevo."
 msgstr "Couldn't send. Check your connection and try again."
+
+#: static/js/results.js:28
+msgid "Nota"
+msgstr "Grade"
+
+#: static/js/results.js:30
+msgid "Guardar"
+msgstr "Save"
+
+#: static/js/results.js:34
+msgid "Volver a la nota automática"
+msgstr "Back to the automatic grade"

@@ -53,6 +53,7 @@
             <a role="menuitem" href="{% url 'account_change_password' %}">{% translate "Contraseña" %}</a>
             <a role="menuitem" href="{% url 'account_email' %}">{% translate "Correo" %}</a>
             {% if user.is_staff %}<a role="menuitem" href="{% url 'admin:index' %}">{% translate "Administración" %}</a>{% endif %}
+            <a role="menuitem" href="{% url 'about' %}">{% translate "Acerca de" %}</a>
             <hr>
             <a role="menuitem" href="{% url 'account_logout' %}">{% translate "Cerrar sesión" %}</a>
             {% endif %}
@@ -81,6 +82,7 @@
     {% endif %}
     {% block main %}{% endblock %}
   </main>
+  <footer class="site-foot small muted">policlase {{ policlase_version }} · <a href="{% url 'about' %}">{% translate "Acerca de" %}</a></footer>
 {% endblock %}
 <script src="{% url 'javascript-catalog' %}"></script>
 <script defer src="{% static 'vendor/katex/katex.min.js' %}"></script>

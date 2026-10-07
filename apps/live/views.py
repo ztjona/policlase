@@ -14,6 +14,7 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
+from django.utils.translation import ngettext
 from django.views.decorators.http import require_POST
 from policlase_gen import deck as deckfmt
 from policlase_gen import deck_text, loader
@@ -372,7 +373,7 @@ def session_results(request, pk):
         total = sum(r.points for r in answers.values())
         rows.append({
             "student": e.student,
-            "cells": [answers.get(i) for i, _q in questions],
+            "cells": [(answers.get(i), q["points"]) for i, q in questions],
             "total": total,
             "percent": round(100 * total / max_points) if max_points else 0,
             "joined": session.participants.filter(student=e.student).exists(),
@@ -385,14 +386,54 @@ def session_results(request, pk):
     for p in session.participants.exclude(student_id__in=enrolled).select_related("student"):
         answers = by_student.get(p.student_id, {})
         total = sum(r.points for r in answers.values())
-        guests.append({"student": p.student, "cells": [answers.get(i) for i, _q in questions],
+        guests.append({"student": p.student, "cells": [(answers.get(i), q["points"]) for i, q in questions],
                        "total": total, "percent": round(100 * total / max_points) if max_points else 0})
     guests.sort(key=lambda r: -r["total"])
+    review = [{"index": i, "number": n, "slide": slide, "groups": engine.answer_groups(session, i)}
+              for n, (i, slide) in enumerate(questions, start=1)]
     return render(request, "live/results.html", {
-        "session": session, "course": session.course, "questions": questions,
+        "session": session, "course": session.course, "questions": questions, "review": review,
         "rows": rows, "guests": guests, "max_points": max_points,
         "feedback": engine.feedback_summary(session) if session.has_feedback else None,
     })
+
+
+@teacher_required
+@require_POST
+def response_grade(request, pk, response_pk):
+    """Corregir a mano la nota de un estudiante en una pregunta (o volver a la automática)."""
+    session = _own_session(request, pk)
+    response = get_object_or_404(Response, pk=response_pk, session=session)
+    if request.POST.get("restore"):
+        engine.set_grade(response, None, request.user)
+    else:
+        try:
+            engine.set_grade(response, float(request.POST.get("points", "").replace(",", ".")), request.user)
+        except ValueError:
+            return JsonResponse({"error": _("Escriba un número.")}, status=400)
+    return JsonResponse({"points": response.points, "correct": response.correct, "edited": response.edited})
+
+
+@teacher_required
+@require_POST
+def answer_grade(request, pk, index):
+    """Dar por correcta (o incorrecta) una respuesta para todos los que la dieron."""
+    session = _own_session(request, pk)
+    if index not in session.asked_indices:
+        raise Http404
+    key, action = request.POST.get("key", ""), request.POST.get("action", "")
+    full = float(session.slides[index]["points"])
+    points = {"correct": full, "wrong": 0.0, "auto": None}.get(action, "x")
+    if points == "x":
+        return redirect("session_results", pk=session.pk)
+    changed = 0
+    for response in Response.objects.filter(session=session, slide_index=index):
+        if engine.answer_key(response.answer) == key:
+            engine.set_grade(response, points, request.user)
+            changed += 1
+    messages.success(request, ngettext("%(n)d respuesta actualizada.", "%(n)d respuestas actualizadas.", changed)
+                     % {"n": changed})
+    return redirect(f"{reverse('session_results', args=[session.pk])}#p{index}")
 
 
 # ---------------------------------------------------------------- sesión: estudiante

@@ -81,6 +81,29 @@
     });
   }
 
+  function escapeHtml(t) {
+    return t.replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; });
+  }
+
+  function tex(body) {
+    try { return window.katex.renderToString(body, { throwOnError: true }); }
+    catch (err) { return '<span class="lp-error">' + escapeHtml(body) + " ⚠</span>"; }
+  }
+
+  /** HTML con el LaTeX de `text` renderizado, o "" si no lleva matemáticas. */
+  function renderMath(text) {
+    if (text.indexOf("$") >= 0) {
+      var html = "", last = 0;
+      text.replace(/\$\$[\s\S]+?\$\$|\$[^$]+\$/g, function (m, offset) {
+        html += escapeHtml(text.slice(last, offset));
+        html += tex(m.replace(/^\$+|\$+$/g, ""));
+        last = offset + m.length;
+      });
+      return last ? html + escapeHtml(text.slice(last)) : "";
+    }
+    return /[\\^_{}]/.test(text) ? tex(text) : "";
+  }
+
   function Live(opts) {
     var stage = document.getElementById("stage");
     var lastKey = null, carried = null;
@@ -157,6 +180,15 @@
         if (button && !button.disabled) act(button.dataset.action, button);
       });
 
+      // Posar el mouse sobre una miniatura muestra la diapositiva (sin marcar la respuesta:
+      // el proyector lo ve la clase).
+      if (window.policlaseHoverPreview) {
+        window.policlaseHoverPreview(live.stage, ".live-outline .thumb", function (thumb) {
+          var t = thumb.querySelector("template.thumb-preview");
+          return t ? t.innerHTML : "";
+        });
+      }
+
       // Panel de diapositivas: se muestra u oculta y el navegador lo recuerda.
       var shell = document.getElementById("shell"), toggle = document.getElementById("toggle-outline");
       function setOutline(on) {
@@ -186,6 +218,18 @@
         // así no pierde lo que está marcando.
         keyOf: function (d) { return d.state_version + ":" + d.status; },
         afterSwap: bindForm,
+      });
+
+      // Respuestas de texto: si llevan LaTeX ($…$, \comandos, ^, _), se ven renderizadas al escribir.
+      live.stage.addEventListener("input", function (e) {
+        var input = e.target.closest("[data-math-preview]");
+        if (!input || !window.katex) return;
+        var box = input.parentNode.querySelector(".math-preview");
+        if (!box) return;
+        var text = input.value;
+        var html = renderMath(text);
+        box.hidden = !html;
+        box.querySelector(".math-out").innerHTML = html || "";
       });
 
       function bindForm(stage) {

@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import timedelta
 from pathlib import Path
 
@@ -831,3 +832,118 @@ class CoursePageActionsTests(LiveBase):
         self.assertContains(page, reverse("course_settings", args=[self.course.pk]))
         self.assertContains(page, 'class="icon-btn danger"')
         self.assertContains(page, reverse("deck_move", args=[self.course.pk, self.deck.pk]))
+
+
+class ManualGradeTests(LiveBase):
+    def setUp(self):
+        super().setUp()
+        session = self.goto_first_question(self.start())
+        for student in (self.ana, self.bruno):
+            engine.join(session, student)
+        session = engine.apply(session.pk, "open")
+        wrong = next(o["key"] for o in session.slide["question"]["options"] if o["key"] != self.right_key(session))
+        engine.submit(session.pk, self.ana, wrong)
+        engine.submit(session.pk, self.bruno, wrong)
+        self.session = engine.apply(session.pk, "end")
+        self.response = Response.objects.get(student=self.ana)
+        self.client.force_login(self.teacher)
+
+    def grade(self, **data):
+        return self.client.post(reverse("response_grade", args=[self.session.pk, self.response.pk]), data)
+
+    def test_corregir_y_volver_a_la_automatica(self):
+        self.assertEqual(self.grade(points="1").json(), {"points": 1.0, "correct": True, "edited": True})
+        self.response.refresh_from_db()
+        self.assertEqual((self.response.points, self.response.auto_points, self.response.edited_by),
+                         (1.0, 0.0, self.teacher))
+        page = self.client.get(reverse("session_results", args=[self.session.pk]))
+        self.assertContains(page, "edit-mark")
+        self.assertEqual(page.context["rows"][0]["total"], 1.0)
+        self.grade(restore="1")
+        self.response.refresh_from_db()
+        self.assertEqual((self.response.points, self.response.correct, self.response.edited), (0.0, False, False))
+
+    def test_no_pasa_del_maximo_ni_baja_de_cero(self):
+        self.grade(points="7")
+        self.response.refresh_from_db()
+        self.assertEqual(self.response.points, 1.0)
+        self.grade(points="-3")
+        self.response.refresh_from_db()
+        self.assertEqual(self.response.points, 0.0)
+        self.assertEqual(self.grade(points="abc").status_code, 400)
+
+    def test_dar_por_correcta_una_respuesta_a_todos(self):
+        index = self.response.slide_index
+        page = self.client.get(reverse("session_results", args=[self.session.pk]))
+        group = page.context["review"][0]["groups"][0]
+        self.assertEqual(group["count"], 2)
+        self.client.post(reverse("answer_grade", args=[self.session.pk, index]), {"key": group["key"], "action": "correct"})
+        self.assertEqual(set(Response.objects.values_list("points", flat=True)), {1.0})
+        self.assertTrue(all(r.edited for r in Response.objects.all()))
+        self.client.post(reverse("answer_grade", args=[self.session.pk, index]), {"key": group["key"], "action": "auto"})
+        self.assertEqual(set(Response.objects.values_list("points", flat=True)), {0.0})
+
+    def test_el_marcador_no_cambia(self):
+        before = Response.objects.get(pk=self.response.pk).score
+        self.grade(points="1")
+        self.assertEqual(Response.objects.get(pk=self.response.pk).score, before)
+
+    def test_otro_docente_no_califica(self):
+        self.client.force_login(make_user("otra", User.Role.TEACHER))
+        self.assertEqual(self.grade(points="1").status_code, 404)
+        self.assertEqual(self.client.post(reverse("answer_grade", args=[self.session.pk, self.response.slide_index]),
+                                          {"key": "x", "action": "correct"}).status_code, 404)
+        self.response.refresh_from_db()
+        self.assertEqual(self.response.points, 0.0)
+
+
+class PreviewSafetyTests(LiveBase):
+    def test_el_proyector_previsualiza_sin_revelar_respuestas(self):
+        session = self.start()
+        engine.apply(session.pk, "start")
+        page = self.client.get(reverse("present_fragment", args=[session.pk])).content.decode()
+        previews = re.findall(r'<template class="thumb-preview">(.*?)</template>', page, re.S)
+        self.assertEqual(len(previews), len(session.slides))
+        self.assertTrue(any("option o0" in p for p in previews))
+        for p in previews:
+            self.assertNotIn(" right", p)
+            self.assertNotIn('class="mark"', p)
+            self.assertNotIn("Notas:", p)
+
+    def test_el_editor_si_marca_la_correcta(self):
+        self.client.force_login(self.teacher)
+        html = self.client.post(reverse("deck_preview", args=[self.course.pk]), {"source": DEMO}).json()["html"]
+        self.assertIn('class="mark"', html)
+
+
+class StudentMathPreviewTests(LiveBase):
+    def test_las_respuestas_de_texto_tienen_vista_previa(self):
+        source = DEMO + '''
+  - item:
+      id: L-texto
+      questions:
+        - { id: q1, type: text, prompt: 'Escriba $\\tilde{x}$', grading: { accept: ['\\tilde{x}'] } }
+'''
+        document, report = deckfmt.load_deck_text(source)
+        self.assertFalse(report.errors, [d.message for d in report])
+        self.deck.compiled = deckfmt.compile_deck(document)
+        self.deck.save()
+        session = self.start()
+        engine.join(session, self.ana)
+        engine.apply(session.pk, "start")
+        index = next(i for i, s in enumerate(session.slides) if s.get("item_id") == "L-texto")
+        engine.apply(session.pk, "goto", index=index)
+        engine.apply(session.pk, "open")
+        self.client.force_login(self.ana)
+        page = self.client.get(reverse("student_fragment", args=[session.pk]))
+        self.assertContains(page, "data-math-preview")
+        self.assertContains(page, 'class="math-preview"')
+
+
+class AboutTests(LiveBase):
+    def test_acerca_de(self):
+        self.client.logout()
+        page = self.client.get(reverse("about"))
+        self.assertContains(page, "Jonathan Zea")
+        self.assertContains(page, "github.com/ztjona/policlase")
+        self.assertContains(self.client.get(reverse("account_login")), reverse("about"))

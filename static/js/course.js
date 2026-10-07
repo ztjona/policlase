@@ -52,8 +52,8 @@
     });
   });
 
-  // Nueva sección (arriba y abajo): muestra el campo en ese lugar.
-  root.querySelectorAll("[data-new-section]").forEach(function (button) {
+  // Nueva sección (en la barra de pestañas): muestra el campo en ese lugar.
+  document.querySelectorAll("[data-new-section]").forEach(function (button) {
     button.addEventListener("click", function () {
       var form = button.parentNode.querySelector("form.new-section");
       form.hidden = false;

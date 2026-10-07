@@ -13,6 +13,7 @@
             <span class="title">{{ o.slide|slide_title|md_inline }}</span>
           </span>
         </button>
+        <template class="thumb-preview">{% include "live/_slide_card.html" with s=o.slide index=o.index reveal=False %}</template>
         {% if not o.current or session.status == "lobby" %}
           <button type="button" class="icon" data-action="{% if o.slide.hidden %}show{% else %}hide{% endif %}" data-index="{{ o.index }}"
                   title="{% if o.slide.hidden %}{% translate 'Mostrar en esta clase' %}{% else %}{% translate 'Ocultar en esta clase' %}{% endif %}"

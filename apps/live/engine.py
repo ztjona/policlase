@@ -18,6 +18,7 @@ sesión en un estado imposible.
 
 from __future__ import annotations
 
+import json
 from datetime import timedelta
 
 from django.db import IntegrityError, transaction
@@ -260,7 +261,8 @@ def submit(session_id: int, student, answer) -> Response:
                 session=session, slide_index=session.index, student=student,
                 item_id=slide["item_id"], item_version=slide["item_version"],
                 answer=answer, correct=result.correct, fraction=result.fraction,
-                points=result.points, elapsed_ms=max(elapsed, 0),
+                points=result.points, auto_points=result.points, auto_correct=result.correct,
+                elapsed_ms=max(elapsed, 0),
                 score=game_score(result.points, elapsed, float(slide["time_limit_s"]), session.speed_bonus),
             )
     except IntegrityError:
@@ -269,6 +271,52 @@ def submit(session_id: int, student, answer) -> Response:
     LiveSession.objects.filter(pk=session_id).update(answers_version=F("answers_version") + 1)
     close_if_all_answered(session_id, session.index)
     return response
+
+
+def answer_key(answer) -> str:
+    """Forma canónica de una respuesta, para agrupar las iguales."""
+    if isinstance(answer, list):
+        answer = sorted(answer)
+    return json.dumps(answer, sort_keys=True, ensure_ascii=False)
+
+
+def set_grade(response: Response, points: float | None, by) -> Response:
+    """Corrige a mano la nota de una respuesta; `None` vuelve a la del calificador.
+
+    Solo cambia la nota (`points`), no el marcador de la clase: el juego ya se jugó.
+    """
+    full = float(response.session.slides[response.slide_index]["points"])
+    if points is None:
+        if response.auto_points is not None:
+            response.points = response.auto_points
+        if response.auto_correct is not None:
+            response.correct = response.auto_correct
+        response.edited_by, response.edited_at = None, None
+    else:
+        points = min(max(0.0, float(points)), full)
+        response.points, response.correct = points, full > 0 and points >= full - 1e-9
+        response.edited_by, response.edited_at = by, timezone.now()
+    response.fraction = response.points / full if full else 0.0
+    response.save(update_fields=["points", "correct", "fraction", "edited_by", "edited_at"])
+    return response
+
+
+def answer_groups(session: LiveSession, index: int) -> list[dict]:
+    """Respuestas distintas a una pregunta, con cuántos las dieron y cómo se calificaron."""
+    slide = session.slides[index]
+    groups: dict[str, dict] = {}
+    for r in Response.objects.filter(session=session, slide_index=index).order_by("pk"):
+        g = groups.setdefault(answer_key(r.answer), {
+            "key": answer_key(r.answer), "display": answer_display(slide, r.answer),
+            "count": 0, "auto_points": r.auto_points if r.auto_points is not None else r.points,
+            "points": set(), "edited": 0})
+        g["count"] += 1
+        g["points"].add(r.points)
+        g["edited"] += r.edited
+    out = sorted(groups.values(), key=lambda g: (-g["count"], g["key"]))
+    for g in out:
+        g["points"] = sorted(g["points"])
+    return out
 
 
 def connected(session_id: int):

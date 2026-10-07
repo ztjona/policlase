@@ -15,7 +15,7 @@ from django.shortcuts import redirect
 from django.utils import timezone, translation
 
 #: Lo único que ve un invitado: la clase en vivo y lo necesario para mostrarla.
-GUEST_PATHS = ("/en-vivo/", "/static/", "/i18n/", "/idioma/", "/tema/", "/cuenta/logout/")
+GUEST_PATHS = ("/en-vivo/", "/static/", "/i18n/", "/idioma/", "/tema/", "/cuenta/logout/", "/acerca/")
 
 
 @cache

@@ -50,7 +50,8 @@ COPY --from=gen src /opt/policlase-gen/src
 RUN pip install /opt/policlase-gen
 
 COPY . .
-RUN DJANGO_SECRET_KEY=build-only python manage.py compilemessages --ignore "*/site-packages/*" \
+RUN date -u +%Y-%m-%d > /opt/build-date \
+ && DJANGO_SECRET_KEY=build-only python manage.py compilemessages --ignore "*/site-packages/*" \
  && DJANGO_SECRET_KEY=build-only python manage.py collectstatic --noinput \
  && chmod +x docker/entrypoint.sh \
  && mkdir -p /data/media && chown -R policlase /data

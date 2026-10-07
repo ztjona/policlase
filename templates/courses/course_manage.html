@@ -6,6 +6,15 @@
 <div class="course-head">
   <h1>{{ course.name }}</h1>
   <a class="icon-btn" href="{% url 'course_settings' course.pk %}" title="{% translate 'Configuración del curso' %}" aria-label="{% translate 'Configuración del curso' %}">{% icon "gear" 22 %}</a>
+  {% if link %}
+    <a class="icon-btn tip{% if link.last_error %} danger-text{% endif %}" target="_blank" rel="noopener"
+       href="https://github.com/{{ link.repo }}/tree/{{ link.branch }}/{{ link.folder }}"
+       aria-label="{% translate 'Sincronizado con GitHub' %}"
+       data-tip="{% blocktranslate with repo=link.repo folder=link.folder branch=link.branch %}Sincronizado con GitHub: {{ repo }}/{{ folder }} (rama {{ branch }}).{% endblocktranslate %}
+{% translate 'Cada carpeta con presentaciones es una sección.' %}{% if link.last_synced_at %}
+{% blocktranslate with when=link.last_synced_at|timesince %}Última sincronización hace {{ when }}.{% endblocktranslate %}{% endif %}{% if link.last_error %}
+⚠ {{ link.last_error }}{% endif %}">{% icon "github" 20 %}</a>
+  {% endif %}
 </div>
 <p class="muted small">
   {% blocktranslate count n=approved_count %}{{ n }} estudiante inscrito{% plural %}{{ n }} estudiantes inscritos{% endblocktranslate %}
@@ -63,11 +72,14 @@
   </form>
 {% endif %}
 
+<div class="tabs-bar">
 <nav class="tabs" aria-label="{% translate 'Secciones del curso' %}">
   <a href="{% url 'course_manage' course.pk %}" {% if tab == "clases" %}aria-current="page"{% endif %}>{% translate "Clases" %}</a>
   <a href="{% url 'course_assessments' course.pk %}" {% if tab == "evaluaciones" %}aria-current="page"{% endif %}>{% translate "Evaluaciones" %}</a>
   <a href="{% url 'course_activities' course.pk %}" {% if tab == "actividades" %}aria-current="page"{% endif %}>{% translate "Actividades" %}</a>
 </nav>
+{% if tab == "clases" %}{% include "courses/_unit_actions.html" %}{% endif %}
+</div>
 
 {% if tab == "clases" %}
   {% include "courses/_tab_classes.html" %}

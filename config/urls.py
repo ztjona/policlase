@@ -5,6 +5,7 @@ from django.views.generic import RedirectView
 from django.views.i18n import JavaScriptCatalog
 
 from apps.accounts.views import preferences, set_language, set_theme, teacher_signup
+from apps.core.views import about
 
 urlpatterns = [
     # Los navegadores piden /favicon.ico por su cuenta, aunque la página declare otro ícono.
@@ -13,6 +14,7 @@ urlpatterns = [
     path("cuenta/preferencias/", preferences, name="account_preferences"),
     path("idioma/", set_language, name="set_language"),
     path("tema/", set_theme, name="set_theme"),
+    path("acerca/", about, name="about"),
     path("i18n/js/", JavaScriptCatalog.as_view(), name="javascript-catalog"),
     path("", include("apps.github.urls")),
     path("cuenta/", include("allauth.urls")),

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load static i18n %}
+{% block title %}{% translate "Acerca de" %}{% endblock %}
+{% block page_class %}narrow{% endblock %}
+{% block main %}
+<div class="about-head">
+  <img src="{% static 'img/icon.svg' %}" alt="" width="72" height="72">
+  <div>
+    <h1 class="brand-title">poli<span>clase</span></h1>
+    <p class="muted" style="margin:0">{% blocktranslate %}Versión {{ version }}{% endblocktranslate %}{% if build_date %} · {% blocktranslate %}compilada el {{ build_date }}{% endblocktranslate %}{% endif %}</p>
+  </div>
+</div>
+
+<div class="card stack">
+  <p style="margin:0">{% translate "Aula virtual autoalojada para cursos con matemáticas: clases en vivo con preguntas desde el teléfono, presentaciones en YAML con LaTeX y sincronización con GitHub." %}</p>
+  <p style="margin:0"><strong>{% translate "Desarrollado por Jonathan Zea." %}</strong></p>
+</div>
+
+<h2>{% translate "Código fuente" %}</h2>
+<div class="card stack small">
+  <div><a href="https://github.com/ztjona/policlase" target="_blank" rel="noopener">github.com/ztjona/policlase</a> — {% translate "la plataforma" %}</div>
+  <div><a href="https://github.com/ztjona/policlase-gen" target="_blank" rel="noopener">github.com/ztjona/policlase-gen</a> — {% blocktranslate %}el formato de ítems y presentaciones y su validador (versión {{ gen_version }}){% endblocktranslate %}</div>
+  <div>{% translate "Licencia MIT." %}</div>
+</div>
+
+<h2>{% translate "Créditos" %}</h2>
+<div class="card small">
+  <p style="margin-top:0">{% translate "policlase se apoya en software libre:" %}
+    Django, django-allauth, KaTeX, Monaco Editor (VS Code), markdown-it-py, ruamel.yaml, segno, psycopg, Uvicorn, WhiteNoise.</p>
+  <p style="margin-bottom:0">{% translate "El logo se inspira en los colores y el escudo de la Escuela Politécnica Nacional." %}</p>
+</div>
+{% endblock %}
