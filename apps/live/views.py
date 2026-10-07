@@ -1,11 +1,13 @@
 import asyncio
 import json
+import time
 
 from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError, transaction
+from django.db import connection as db_connection
 from django.http import Http404, HttpResponse, HttpResponseForbidden, JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -14,14 +16,14 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 from policlase_gen import deck as deckfmt
-from policlase_gen import loader
+from policlase_gen import deck_text, loader
 
 from apps.courses.access import is_approved, owned_course, teacher_required
 from apps.courses.models import Enrollment
 
 from . import engine
 from .guests import qr_svg
-from .models import Deck, LiveSession, Response
+from .models import Deck, LiveSession, Response, Section
 
 Phase = LiveSession.Phase
 Status = LiveSession.Status
@@ -76,6 +78,12 @@ def deck_edit(request, course_pk, pk=None):
     deck = get_object_or_404(Deck, pk=pk, course=course) if pk else None
     source = deck.source if deck else DECK_TEMPLATE
     diagnostics = []
+    sections = list(Section.objects.filter(course=course))
+    wanted = request.POST.get("section") if request.method == "POST" else request.GET.get("seccion")
+    if wanted is None:
+        section = deck.section if deck else None
+    else:
+        section = next((x for x in sections if str(x.pk) == wanted), None)
 
     if request.method == "POST":
         upload = request.FILES.get("file")
@@ -93,6 +101,7 @@ def deck_edit(request, course_pk, pk=None):
             compiled = deckfmt.compile_deck(document)
             deck = deck or Deck(course=course)
             deck.title = compiled["title"]
+            deck.section = section
             saved = True
             if link:
                 # GitHub primero: si allá cambió el archivo, no se pisa nada y el texto sigue aquí.
@@ -121,7 +130,34 @@ def deck_edit(request, course_pk, pk=None):
 
     return render(request, "live/deck_edit.html", {
         "course": course, "deck": deck, "source": source, "diagnostics": diagnostics, "link": link,
+        "sections": sections, "section": section,
     })
+
+
+@teacher_required
+@require_POST
+def deck_ops(request, course_pk):
+    """Panel lateral del editor: reordenar, ocultar/mostrar, activar la retroalimentación.
+
+    Edita el texto (policlase_gen.deck_text) y lo devuelve; el editor lo aplica como una edición
+    más, deshacible con Ctrl+Z. Nada se guarda hasta «Guardar».
+    """
+    owned_course(request, course_pk)
+    source, op = request.POST.get("source", ""), request.POST.get("op", "")
+    try:
+        index = int(request.POST.get("index", "-1"))
+        if op == "move":
+            source = deck_text.move_slide(source, index, int(request.POST.get("target", "-1")))
+        elif op in ("hide", "show"):
+            source = deck_text.set_hidden(source, index, op == "hide")
+        elif op in ("feedback_on", "feedback_off"):
+            source = deck_text.set_feedback(source, op == "feedback_on")
+        else:
+            return JsonResponse({"error": _("Operación desconocida.")}, status=400)
+    except (ValueError, deck_text.EditError) as exc:
+        return JsonResponse({"error": _("Corrija los errores antes de usar el panel: %(error)s") % {"error": exc}},
+                            status=400)
+    return JsonResponse({"source": source})
 
 
 @teacher_required
@@ -142,6 +178,7 @@ def deck_preview(request, course_pk):
     if document is not None and not report.errors:
         compiled = deckfmt.compile_deck(document)
         payload["html"] = render_to_string("live/_deck_slides.html", {"slides": compiled["slides"]}, request)
+        payload["outline"] = render_to_string("live/_deck_outline.html", {"slides": compiled["slides"]}, request)
         payload["title"] = compiled["title"]
     if document is not None and isinstance(document.get("slides"), list):
         # Línea donde empieza cada diapositiva: el editor resalta la que tiene el cursor.
@@ -185,14 +222,19 @@ def session_start(request, course_pk, deck_pk):
 
     active = LiveSession.objects.active().filter(course=course).first()
     if active:
-        messages.info(request, _("Ya hay una clase en vivo en este curso; se abrió esa."))
+        if active.status == Status.PAUSED:
+            messages.info(request, _("Hay una clase en pausa en este curso: reanúdela o termínela antes de iniciar otra."))
+        else:
+            messages.info(request, _("Ya hay una clase en vivo en este curso; se abrió esa."))
         return redirect("present", pk=active.pk)
 
     for _attempt in range(10):  # el PIN es aleatorio; en el raro caso de choque se reintenta
         try:
             with transaction.atomic():
+                # Las ocultas no se presentan; la retroalimentación desactivada tampoco.
                 session = LiveSession.objects.create(
-                    course=course, deck=deck, title=deck.title, slides=deck.slides,
+                    course=course, deck=deck, title=deck.title,
+                    slides=[s for s in deck.slides if not s.get("hidden")],
                 )
             break
         except IntegrityError:
@@ -241,6 +283,12 @@ def present_fragment(request, pk):
         context["correct_display"] = engine.correct_display(session.slide)
     if session.phase == Phase.RESULTS or session.status == Status.ENDED:
         context["leaderboard"] = engine.leaderboard(session)
+    if session.is_question and session.phase in (Phase.OPEN, Phase.CLOSED):
+        context["connected"] = engine.connected(session.pk).count()
+    if session.is_feedback or (session.status == Status.ENDED and session.has_feedback):
+        context["feedback_count"] = session.feedback.count()
+    if session.status == Status.PAUSED and session.paused_remaining_ms is not None:
+        context["paused_left_s"] = round(session.paused_remaining_ms / 1000)
     return render(request, "live/_present_stage.html", context)
 
 
@@ -258,7 +306,7 @@ def present_action(request, pk):
 @teacher_required
 def session_results(request, pk):
     session = _own_session(request, pk)
-    questions = [(i, session.slides[i]) for i in session.question_indices]
+    questions = [(i, session.slides[i]) for i in session.asked_indices]
     students = (Enrollment.objects.filter(course=session.course, status=Enrollment.Status.APPROVED)
                 .select_related("student"))
     by_student: dict[int, dict[int, Response]] = {}
@@ -291,6 +339,7 @@ def session_results(request, pk):
     return render(request, "live/results.html", {
         "session": session, "course": session.course, "questions": questions,
         "rows": rows, "guests": guests, "max_points": max_points,
+        "feedback": engine.feedback_summary(session) if session.has_feedback else None,
     })
 
 
@@ -345,8 +394,13 @@ def student_fragment(request, pk):
     return render(request, "live/_student_stage.html", _student_context(session, request.user))
 
 
+def rating_choices():
+    return [(1, _("Mal")), (2, _("Regular")), (3, _("Bien")), (4, _("Muy bien")), (5, _("Excelente"))]
+
+
 def _student_context(session: LiveSession, user, error: str = "") -> dict:
-    context = {"session": session, "slide": session.slide, "error": error, "now": timezone.now()}
+    context = {"session": session, "slide": session.slide, "error": error, "now": timezone.now(),
+               "rating_choices": rating_choices()}
     if session.is_question:
         mine = Response.objects.filter(session=session, slide_index=session.index, student=user).first()
         context["mine"] = mine
@@ -354,6 +408,9 @@ def _student_context(session: LiveSession, user, error: str = "") -> dict:
             context["mine_display"] = engine.answer_display(session.slide, mine.answer)
         if session.phase == Phase.RESULTS:
             context["correct_display"] = engine.correct_display(session.slide)
+    if session.is_feedback or session.status == Status.ENDED:
+        context["feedback_open"] = engine.can_give_feedback(session, user)
+        context["feedback_given"] = session.participants.filter(student=user, feedback_given=True).exists()
     if session.phase == Phase.RESULTS or session.status == Status.ENDED:
         board = engine.leaderboard(session, limit=None)
         context["leaderboard"] = board[:5]
@@ -392,22 +449,85 @@ def student_answer(request, pk):
     return render(request, "live/_student_stage.html", _student_context(session, request.user, error))
 
 
+@login_required
+@require_POST
+def student_feedback(request, pk):
+    session = _student_session(request, pk)
+    error = ""
+    try:
+        rating = int(request.POST.get("rating", "0"))
+    except ValueError:
+        rating = 0
+    try:
+        engine.submit_feedback(session.pk, request.user, rating, request.POST.get("comment", ""))
+    except engine.ActionError as exc:
+        error = str(exc)
+    session.refresh_from_db()
+    return render(request, "live/_student_stage.html", _student_context(session, request.user, error))
+
+
 # ------------------------------------------------------------------------------ SSE
 
 
-@sync_to_async
-def _authorize_stream(user, pk) -> bool:
+def _stream_access(user, pk) -> tuple[bool, bool]:
+    """(¿puede ver el flujo?, ¿es el docente?)."""
     session = LiveSession.objects.filter(pk=pk).select_related("course").first()
     if session is None or not user.is_authenticated:
-        return False
-    return session.course.owner_id == user.pk or can_attend(user, session)
+        return False, False
+    is_teacher = session.course.owner_id == user.pk
+    return is_teacher or can_attend(user, session), is_teacher
 
 
-@sync_to_async
-def _snapshot(pk) -> dict | None:
+def _released(func):
+    """Las consultas del flujo SSE devuelven la conexión al pool apenas terminan: la petición
+    dura toda la clase y, si no, cada teléfono retendría una conexión todo ese tiempo."""
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        finally:
+            if not db_connection.in_atomic_block:    # (en las pruebas todo va dentro de una transacción)
+                db_connection.close()
+    return sync_to_async(wrapper)
+
+
+_touch = _released(engine.touch)
+# También suelta la conexión que abrió la autenticación de la petición (mismo hilo).
+_authorize_stream = _released(_stream_access)
+
+
+def _snapshot_db(pk) -> dict | None:
     engine.expire_if_due(pk)
     return (LiveSession.objects.filter(pk=pk)
             .values("state_version", "answers_version", "status", "phase", "index").first())
+
+
+_snapshot_from_db = _released(_snapshot_db)
+#: {sesión: (instante, estado)}: todos los flujos de una clase en este proceso comparten un sondeo.
+_shared: dict[int, tuple[float, dict | None]] = {}
+_shared_locks: dict[int, asyncio.Lock] = {}
+
+
+async def _snapshot(pk) -> dict | None:
+    """Estado de la sesión, consultado como mucho una vez por intervalo de sondeo y proceso.
+
+    Sin esto, cada teléfono consultaba por su cuenta: 30 estudiantes eran 60 consultas idénticas
+    por segundo. Ahora son 2 por proceso, haya 5 o 100 estudiantes.
+    """
+    fresh = settings.LIVE_POLL_SECONDS * 0.5
+    hit = _shared.get(pk)
+    if hit and time.monotonic() - hit[0] < fresh:
+        return hit[1]
+    async with _shared_locks.setdefault(pk, asyncio.Lock()):
+        hit = _shared.get(pk)
+        if hit and time.monotonic() - hit[0] < fresh:
+            return hit[1]
+        value = await _snapshot_from_db(pk)
+        _shared[pk] = (time.monotonic(), value)
+        if len(_shared) > 200:                         # olvidar sesiones viejas
+            for old in [k for k, (t, _v) in _shared.items() if time.monotonic() - t > 60]:
+                _shared.pop(old, None)
+                _shared_locks.pop(old, None)
+        return value
 
 
 async def events(request, pk):
@@ -417,16 +537,21 @@ async def events(request, pk):
     renderizado en las vistas normales, que ya están probadas.
     """
     user = await request.auser()
-    if not await _authorize_stream(user, pk):
+    allowed, is_teacher = await _authorize_stream(user, pk)
+    if not allowed:
         return HttpResponseForbidden()
 
     poll = settings.LIVE_POLL_SECONDS
     heartbeat_every = max(1, int(settings.LIVE_HEARTBEAT_SECONDS / poll))
+    touch_every = max(1, int(engine.TOUCH_EVERY_S / poll))
 
     async def stream():
-        last, idle = None, 0
+        last, idle, ticks = None, 0, 0
         yield "retry: 2000\n\n"
         while True:
+            if not is_teacher and ticks % touch_every == 0:
+                await _touch(pk, user)         # «sigue conectado»: cuenta para el cierre automático
+            ticks += 1
             snapshot = await _snapshot(pk)
             if snapshot is None:
                 return

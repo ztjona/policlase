@@ -6,6 +6,6 @@ aprobación y una clase en vivo completa con tres estudiantes. Requiere el proto
 
 ```bash
 pip install playwright                     # usa el Chromium del sistema, no descarga navegadores
-./reiniciar-demo.sh                        # ¡borra la base! solo en el prototipo
+./reiniciar-demo.sh                        # ¡borra la base! solo en una instalación de prueba (se niega si hay dominio)
 python e2e.py                              # capturas en ./capturas/
 ```

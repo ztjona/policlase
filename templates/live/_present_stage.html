@@ -16,9 +16,18 @@
       {% endif %}
       <p class="meter">{% blocktranslate count n=participants %}{{ n }} estudiante conectado{% plural %}{{ n }} estudiantes conectados{% endblocktranslate %} · {% translate "también pueden entrar desde la página del curso" %}</p>
     </div>
+  {% elif session.status == "paused" %}
+    <div class="slide lobby">
+      <div class="pause-mark" aria-hidden="true">❚❚</div>
+      <h1>{% translate "Clase en pausa" %}</h1>
+      <p class="url">{% blocktranslate with n=session.index|add:1 total=session.slides|length %}Se retoma en la diapositiva {{ n }} de {{ total }}.{% endblocktranslate %}
+        {% if paused_left_s is not None %}{% blocktranslate with s=paused_left_s %}La pregunta abierta conserva {{ s }} s.{% endblocktranslate %}{% endif %}</p>
+      <p class="meter">{% translate "Reanude cuando vuelva a tener a la clase, aunque sea otro día. O termínela aquí: los resultados cuentan solo las preguntas que se hicieron." %}</p>
+    </div>
   {% elif session.status == "ended" %}
     <div class="slide">
       <h1>{% translate "Clase terminada" %}</h1>
+      {% if feedback_count is not None %}<p class="meter">{% blocktranslate count n=feedback_count %}{{ n }} respuesta anónima de retroalimentación.{% plural %}{{ n }} respuestas anónimas de retroalimentación.{% endblocktranslate %}</p>{% endif %}
       {% if leaderboard %}
         <h2>{% translate "Mejores puntajes" %}</h2>
         <ol class="board">{% for r in leaderboard %}<li><span>{{ forloop.counter }}. {{ r.name }}</span><strong>{{ r.total|floatformat:"-1" }}</strong></li>{% endfor %}</ol>
@@ -28,6 +37,13 @@
     </div>
   {% elif slide.kind == "content" %}
     <div class="slide">{{ slide.markdown|md }}</div>
+  {% elif slide.kind == "feedback" %}
+    <div class="slide lobby">
+      <h1>{% translate "¿Cómo estuvo la clase?" %}</h1>
+      <p class="url">{% translate "Respondan en su teléfono: valoración de 1 a 5 y, si quieren, un comentario." %}</p>
+      <p class="anon-note">{% include "live/_lock.html" %} {% translate "Es anónima: nadie, ni el docente, puede saber quién respondió qué." %}</p>
+      <p class="meter">{% blocktranslate count n=feedback_count %}{{ n }} respuesta{% plural %}{{ n }} respuestas{% endblocktranslate %}</p>
+    </div>
   {% else %}
     <div class="slide">
       {% if session.phase == "open" %}
@@ -92,8 +108,8 @@
 
       <p class="meter">
         {% if session.phase == "ready" %}{% translate "Pregunta lista — ábrala cuando todos la hayan leído." %}
-        {% elif session.phase == "open" %}{% blocktranslate %}{{ answered }} de {{ participants }} respondieron.{% endblocktranslate %}
-        {% elif session.phase == "closed" %}{% blocktranslate with correct=stats.correct %}Cerrada: {{ answered }} respuestas, {{ correct }} correctas.{% endblocktranslate %}
+        {% elif session.phase == "open" %}{% blocktranslate %}{{ answered }} de {{ connected }} conectados respondieron.{% endblocktranslate %}
+        {% elif session.phase == "closed" %}{% if answered and answered >= connected %}{% translate "Respondieron todos." %} {% endif %}{% blocktranslate with correct=stats.correct %}Cerrada: {{ answered }} respuestas, {{ correct }} correctas.{% endblocktranslate %}
         {% elif session.phase == "results" %}{% blocktranslate with correct=stats.correct %}{{ correct }} de {{ answered }} acertaron.{% endblocktranslate %}{% endif %}
       </p>
 
@@ -114,10 +130,18 @@
       <span class="progress">{{ session.index|add:1 }} / {{ session.slides|length }}</span>
       {% if session.phase == "ready" %}<button data-action="open" title="{% translate 'Espacio' %}">{% translate "Abrir pregunta" %}</button>{% endif %}
       {% if session.phase == "open" %}<button data-action="close" title="{% translate 'Espacio' %}">{% translate "Cerrar ya" %}</button>{% endif %}
+      {% if session.phase == "open" %}<button data-action="extend" class="secondary" title="{% translate 'Da más tiempo a todos' %}">+15 s</button>{% endif %}
+      {% if session.phase == "closed" %}<button data-action="extend" class="secondary" title="{% translate 'Quienes no alcanzaron pueden responder; las respuestas dadas se mantienen' %}">{% translate "Reabrir +15 s" %}</button>{% endif %}
       {% if session.phase == "closed" %}<button data-action="reveal" title="{% translate 'Espacio' %}">{% translate "Mostrar respuesta" %}</button>{% endif %}
       <button data-action="next" class="secondary" {% if session.index|add:1 == session.slides|length or session.phase == "open" %}disabled{% endif %} title="{% translate 'Flecha derecha' %}">{% translate "Siguiente" %} ▶</button>
       {% include "live/_guest_toggle.html" %}
+      <button data-action="pause" class="secondary" title="{% translate 'Para retomarla otro día donde quedó' %}">❚❚ {% translate "Pausar" %}</button>
       <button data-action="end" class="danger" data-confirm="{% translate '¿Terminar la clase? Los estudiantes ya no podrán responder.' %}">{% translate "Terminar" %}</button>
+    {% elif session.status == "paused" %}
+      <button data-action="resume" class="big" title="{% translate 'Espacio' %}">▶ {% translate "Reanudar" %}</button>
+      {% include "live/_guest_toggle.html" %}
+      <a class="btn secondary" href="{% url 'session_results' session.pk %}">{% translate "Resultados hasta ahora" %}</a>
+      <button data-action="end" class="danger" data-confirm="{% translate '¿Terminar la clase en este punto? Los resultados cuentan solo las preguntas que se hicieron.' %}">{% translate "Terminar aquí" %}</button>
     {% endif %}
   </div>
 </div>

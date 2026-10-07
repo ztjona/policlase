@@ -4,118 +4,122 @@ msgid ""
 msgstr ""
 "Project-Id-Version: policlase\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-03 17:30-0500\n"
+"POT-Creation-Date: 2026-10-06 12:39-0500\n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: static/js/deck-editor.js:58
+#: static/js/deck-editor.js:145
 #, javascript-format
 msgid "línea %s"
 msgstr "line %s"
 
-#: static/js/deck-editor.js:66
+#: static/js/deck-editor.js:154
 msgid "validando…"
 msgstr "validating…"
 
-#: static/js/deck-editor.js:78
+#: static/js/deck-editor.js:168
 msgid "al día"
 msgstr "up to date"
 
-#: static/js/deck-editor.js:82
+#: static/js/deck-editor.js:173
 #, javascript-format
 msgid "%s error"
 msgid_plural "%s errores"
 msgstr[0] "%s error"
 msgstr[1] "%s errors"
 
-#: static/js/deck-editor.js:86 static/js/live.js:72
+#: static/js/deck-editor.js:178 static/js/live.js:98
 msgid "sin conexión"
 msgstr "offline"
 
-#: static/js/deck-editor.js:97
+#: static/js/deck-editor.js:187
+msgid "Corrija los errores antes de usar el panel."
+msgstr "Fix the errors before using the panel."
+
+#: static/js/deck-editor.js:259
 msgid "Título"
 msgstr "Title"
 
-#: static/js/deck-editor.js:97
+#: static/js/deck-editor.js:259
 msgid "Texto con matemáticas: $f(x) = x^2$."
 msgstr "Text with math: $f(x) = x^2$."
 
-#: static/js/deck-editor.js:101
+#: static/js/deck-editor.js:263
 msgid "¿Pregunta?"
 msgstr "Question?"
 
-#: static/js/deck-editor.js:102 static/js/deck-editor.js:108
+#: static/js/deck-editor.js:264 static/js/deck-editor.js:270
 msgid "Correcta"
 msgstr "Correct"
 
-#: static/js/deck-editor.js:103 static/js/deck-editor.js:109
+#: static/js/deck-editor.js:265 static/js/deck-editor.js:271
 msgid "Distractor"
 msgstr "Distractor"
 
-#: static/js/deck-editor.js:107
+#: static/js/deck-editor.js:269
 msgid "Marque todas las correctas"
 msgstr "Mark all the correct ones"
 
-#: static/js/deck-editor.js:113
+#: static/js/deck-editor.js:275
 msgid "Indique si cada afirmación es verdadera o falsa"
 msgstr "Mark each statement as true or false"
 
-#: static/js/deck-editor.js:114
+#: static/js/deck-editor.js:276
 msgid "Afirmación verdadera"
 msgstr "True statement"
 
-#: static/js/deck-editor.js:114
+#: static/js/deck-editor.js:276
 msgid "Afirmación falsa"
 msgstr "False statement"
 
-#: static/js/deck-editor.js:118
+#: static/js/deck-editor.js:280
 msgid "¿Cuánto vale $2^{10}$?"
 msgstr "What is $2^{10}$?"
 
-#: static/js/deck-editor.js:122
+#: static/js/deck-editor.js:284
 msgid "¿Nombre del método?"
 msgstr "Name of the method?"
 
-#: static/js/deck-editor.js:122
+#: static/js/deck-editor.js:284
 msgid "bisección"
 msgstr "bisection"
 
-#: static/js/deck-editor.js:171
+#: static/js/deck-editor.js:352
 msgid "El archivo supera 512 KB."
 msgstr "The file is larger than 512 KB."
 
-#: static/js/live.js:68
+#: static/js/live.js:94
 msgid "Sin acceso a esta clase."
 msgstr "No access to this class."
 
-#: static/js/live.js:88
+#: static/js/live.js:116
 msgid "en vivo"
 msgstr "live"
 
-#: static/js/live.js:89
+#: static/js/live.js:117
 msgid "reconectando…"
 msgstr "reconnecting…"
 
-#: static/js/live.js:94
+#: static/js/live.js:122
 msgid "clase terminada"
 msgstr "class ended"
 
-#: static/js/live.js:120
+#: static/js/live.js:148
 #, javascript-format
 msgid "No se pudo aplicar la acción (%s)."
 msgstr "Couldn't apply the action (%s)."
 
-#: static/js/live.js:154
+#: static/js/live.js:182
 msgid "Enviando…"
 msgstr "Sending…"
 
-#: static/js/live.js:159
+#: static/js/live.js:187
 msgid "Enviar respuesta"
 msgstr "Submit answer"
 
-#: static/js/live.js:160
+#: static/js/live.js:188
 msgid "No se pudo enviar. Revise su conexión e intente de nuevo."
 msgstr "Couldn't send. Check your connection and try again."

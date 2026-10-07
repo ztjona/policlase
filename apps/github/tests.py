@@ -9,10 +9,10 @@ from django.urls import reverse
 
 from apps.accounts.models import User
 from apps.courses.models import Course
-from apps.live.models import Deck, LiveSession
+from apps.live.models import Deck, LiveSession, Section
 
 from . import sync
-from .client import Conflict, GitHubError
+from .client import Blob, Conflict, GitHubError
 from .models import CourseRepo, GitHubAccount
 
 DEMO = (Path(__file__).resolve().parents[1] / "live" / "demo" / "biseccion-clase-1.yaml").read_text(encoding="utf-8")
@@ -54,6 +54,23 @@ class FakeGitHub:
         self.files[path] = text
         self.commits.append(message)
         return sha_of(text)
+
+    def commit(self, repo, branch, changes, message, expected=None):
+        for path, sha in (expected or {}).items():
+            if sha_of(self.files.get(path, "")) != sha:
+                raise Conflict("cambió", 409)
+        blobs = {sha_of(t): t for t in self.files.values()}
+        new = dict(self.files)
+        for path, value in changes.items():
+            if value is None:
+                new.pop(path, None)
+            elif isinstance(value, Blob):
+                new[path] = blobs[value.sha]
+            else:
+                new[path] = value
+        self.files = new
+        self.commits.append(message)
+        return {path: sha_of(new[path]) for path, value in changes.items() if value is not None}
 
     def delete(self, repo, branch, path, message, sha):
         if sha_of(self.files.get(path, "")) != sha:
@@ -232,3 +249,75 @@ class WebhookTests(SyncBase):
     def test_otra_rama_no_sincroniza(self):
         self.post({"ref": "refs/heads/borrador"}, self.link.webhook_secret)
         self.assertFalse(Deck.objects.exists())
+
+
+class SectionSyncTests(SyncBase):
+    """Cada carpeta con presentaciones es una sección; las demás carpetas se ignoran."""
+
+    def setUp(self):
+        super().setUp()
+        self.gh.files = {
+            "mn/clases/unidad-02/newton.yaml": SMALL.format(title="Newton"),
+            "mn/clases/unidad-01/biseccion.yaml": DEMO,
+            "mn/clases/unidad-01/regula.yaml": SMALL.format(title="Regula falsi"),
+            "mn/clases/suelta.yaml": SMALL.format(title="Suelta"),
+            "mn/clases/generators/gen.py": "print(1)",
+            "mn/clases/items/x.yaml": "schema: policlase.item/v1\nid: x\n",
+            "mn/clases/unidad-10/.policlase-seccion": "",
+        }
+        sync.pull(self.link)
+
+    def test_carpetas_con_presentaciones_son_secciones_en_orden_natural(self):
+        self.assertEqual(list(Section.objects.values_list("title", flat=True)),
+                         ["Unidad 01", "Unidad 02", "Unidad 10"])
+        unit1 = Section.objects.get(github_folder="unidad-01")
+        self.assertEqual(sorted(unit1.decks.values_list("title", flat=True)), ["Bisección — clase 1", "Regula falsi"])
+        self.assertIsNone(Deck.objects.get(title="Suelta").section)
+
+    def test_carpeta_borrada_en_github_borra_la_seccion(self):
+        del self.gh.files["mn/clases/unidad-02/newton.yaml"]
+        sync.pull(self.link)
+        self.assertFalse(Section.objects.filter(github_folder="unidad-02").exists())
+
+    def test_crear_seccion_en_la_web_crea_la_carpeta(self):
+        self.client.force_login(self.teacher)
+        self.client.post(reverse("section_create", args=[self.course.pk]), {"title": "Unidad 3 - Interpolación"})
+        self.assertIn("mn/clases/Unidad 3 - Interpolación/.policlase-seccion", self.gh.files)
+        sync.pull(self.link)
+        self.assertTrue(Section.objects.filter(title="Unidad 3 - Interpolación").exists())
+
+    def test_renombrar_mueve_todos_los_archivos_en_un_commit(self):
+        unit1 = Section.objects.get(github_folder="unidad-01")
+        self.client.force_login(self.teacher)
+        commits = len(self.gh.commits)
+        self.client.post(reverse("section_rename", args=[self.course.pk, unit1.pk]), {"title": "Raíces"})
+        self.assertEqual(len(self.gh.commits), commits + 1)
+        self.assertIn("mn/clases/Raíces/biseccion.yaml", self.gh.files)
+        self.assertNotIn("mn/clases/unidad-01/biseccion.yaml", self.gh.files)
+        deck = Deck.objects.get(title="Regula falsi")
+        self.assertEqual(deck.github_path, "mn/clases/Raíces/regula.yaml")
+        self.assertFalse(sync.pull(self.link).changed)          # ya estaba al día
+
+    def test_cambiar_de_seccion_mueve_el_archivo(self):
+        deck = Deck.objects.get(title="Suelta")
+        unit2 = Section.objects.get(github_folder="unidad-02")
+        self.client.force_login(self.teacher)
+        self.client.post(reverse("deck_edit", args=[self.course.pk, deck.pk]),
+                         {"source": SMALL.format(title="Suelta"), "section": unit2.pk})
+        self.assertIn("mn/clases/unidad-02/suelta.yaml", self.gh.files)
+        self.assertNotIn("mn/clases/suelta.yaml", self.gh.files)
+        deck.refresh_from_db()
+        self.assertEqual(deck.section, unit2)
+
+    def test_eliminar_seccion_vacia_borra_el_marcador(self):
+        unit10 = Section.objects.get(github_folder="unidad-10")
+        self.client.force_login(self.teacher)
+        self.client.post(reverse("section_delete", args=[self.course.pk, unit10.pk]))
+        self.assertNotIn("mn/clases/unidad-10/.policlase-seccion", self.gh.files)
+        self.assertFalse(Section.objects.filter(pk=unit10.pk).exists())
+
+    def test_no_se_elimina_una_seccion_con_presentaciones(self):
+        unit1 = Section.objects.get(github_folder="unidad-01")
+        self.client.force_login(self.teacher)
+        self.client.post(reverse("section_delete", args=[self.course.pk, unit1.pk]))
+        self.assertTrue(Section.objects.filter(pk=unit1.pk).exists())

@@ -1,0 +1,92 @@
+{% load i18n %}
+{# Pestaña Clases: presentaciones agrupadas en secciones (unidades) que se minimizan. #}
+{% if link %}
+  <p class="small muted">
+    ⎇ {% translate "Sincronizadas con" %} <a class="mono" href="https://github.com/{{ link.repo }}/tree/{{ link.branch }}/{{ link.folder }}" target="_blank" rel="noopener">{{ link.repo }}/{{ link.folder }}</a>
+    · {% translate "cada carpeta con presentaciones es una sección" %}
+    {% if link.last_error %}· <span style="color:var(--danger)">{{ link.last_error }}</span>{% endif %}
+  </p>
+  {% for issue in link.issues %}
+    <div class="notice"><span><strong class="mono">{{ issue.path }}</strong> {% translate "tiene errores y no se actualizó:" %}
+      {% for d in issue.diagnostics|slice:":3" %}<code>{{ d.code }}</code> {{ d.message }}{% if d.line %} ({% blocktranslate with line=d.line %}línea {{ line }}{% endblocktranslate %}){% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}</span></div>
+  {% endfor %}
+{% endif %}
+
+{% for group in groups %}
+  {% with section=group.section %}
+    {% if section %}
+      <details class="unit" id="seccion-{{ section.pk }}" {% if not section.collapsed %}open{% endif %}
+               data-toggle="{% url 'section_toggle' course.pk section.pk %}">
+        <summary>
+          <span class="unit-title">{{ section.title }}</span>
+          <span class="chip">{% blocktranslate count n=group.decks|length %}{{ n }} presentación{% plural %}{{ n }} presentaciones{% endblocktranslate %}</span>
+          <span class="spacer"></span>
+        </summary>
+        <div class="unit-body">
+          {% include "courses/_deck_rows.html" with decks=group.decks %}
+          <div class="unit-tools">
+            <a class="btn secondary small" href="{% url 'deck_new' course.pk %}?seccion={{ section.pk }}">+ {% translate "Presentación" %}</a>
+            <form method="post" action="{% url 'section_rename' course.pk section.pk %}" class="row">
+              {% csrf_token %}
+              <input type="text" name="title" value="{{ section.title }}" aria-label="{% translate 'Nombre de la sección' %}" required maxlength="200">
+              <button class="secondary small">{% translate "Renombrar" %}</button>
+            </form>
+            {% if not group.decks %}
+              <form method="post" action="{% url 'section_delete' course.pk section.pk %}">
+                {% csrf_token %}<button class="danger small">{% translate "Eliminar sección" %}</button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+      </details>
+    {% elif group.decks %}
+      <div class="card stack" style="margin-bottom:12px">
+        {% include "courses/_deck_rows.html" with decks=group.decks %}
+      </div>
+    {% endif %}
+  {% endwith %}
+{% endfor %}
+
+{% if not has_decks and groups|length == 1 %}
+  <p class="muted">{% translate "Todavía no hay presentaciones. Cree una sección (p. ej. «Unidad 1») y agregue presentaciones, o cree una presentación suelta." %}</p>
+{% endif %}
+
+<div class="row" style="margin:6px 0 4px">
+  <form method="post" action="{% url 'section_create' course.pk %}" class="row">
+    {% csrf_token %}
+    <input type="text" name="title" placeholder="{% translate 'Unidad 1' %}" aria-label="{% translate 'Nombre de la sección nueva' %}" required maxlength="200" style="width:auto">
+    <button class="secondary">+ {% translate "Sección" %}</button>
+  </form>
+  <a class="btn secondary" href="{% url 'deck_new' course.pk %}">+ {% translate "Presentación suelta" %}</a>
+</div>
+
+{% if past_sessions %}
+  <h2>{% translate "Clases dictadas" %}</h2>
+  <div class="card table-wrap">
+    <table>
+      <thead><tr><th>{% translate "Clase" %}</th><th>{% translate "Fecha" %}</th><th>{% translate "Participantes" %}</th><th></th></tr></thead>
+      <tbody>
+        {% for s in past_sessions %}
+          <tr>
+            <td>{{ s.title }}</td>
+            <td class="small">{{ s.started_at|default:s.created_at|date:"d M Y H:i" }}</td>
+            <td class="num">{{ s.participants.count }}</td>
+            <td><a href="{% url 'session_results' s.pk %}">{% translate "Resultados" %}</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+
+<script>
+  // Minimizar o desplegar una sección se recuerda sin recargar la página.
+  document.querySelectorAll("details.unit[data-toggle]").forEach(function (d) {
+    d.addEventListener("toggle", function () {
+      var token = document.querySelector("input[name=csrfmiddlewaretoken]");
+      fetch(d.dataset.toggle, { method: "POST", credentials: "same-origin",
+        headers: { "X-CSRFToken": token ? token.value : "" },
+        body: new URLSearchParams({ collapsed: d.open ? "0" : "1" }) });
+    });
+  });
+</script>

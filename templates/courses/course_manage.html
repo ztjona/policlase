@@ -13,9 +13,18 @@
 </p>
 
 {% if live %}
-  <div class="card spread" style="border-color:var(--danger)">
-    <div><span class="chip live">{% translate "EN VIVO" %}</span> <strong>{{ live.title }}</strong> · PIN <span class="mono">{{ live.pin }}</span></div>
-    <a class="btn" href="{% url 'present' live.pk %}">{% translate "Volver al proyector" %}</a>
+  <div class="card spread" style="border-color:{% if live.status == 'paused' %}var(--warn){% else %}var(--danger){% endif %}">
+    {% if live.status == "paused" %}
+      <div><span class="chip warn">❚❚ {% translate "EN PAUSA" %}</span> <strong>{{ live.title }}</strong>
+        <span class="small muted">· {% blocktranslate with n=live.index|add:1 total=live.slides|length %}diapositiva {{ n }} de {{ total }}{% endblocktranslate %}</span></div>
+      <div class="row">
+        <a class="btn" href="{% url 'present' live.pk %}">▶ {% translate "Reanudar" %}</a>
+        <a class="btn secondary" href="{% url 'session_results' live.pk %}">{% translate "Resultados hasta ahora" %}</a>
+      </div>
+    {% else %}
+      <div><span class="chip live">{% translate "EN VIVO" %}</span> <strong>{{ live.title }}</strong> · PIN <span class="mono">{{ live.pin }}</span></div>
+      <a class="btn" href="{% url 'present' live.pk %}">{% translate "Volver al proyector" %}</a>
+    {% endif %}
     {% if live.allow_guests %}
       <p class="small" style="flex-basis:100%;margin:6px 0 0">{% translate "Enlace para invitados:" %}
         <span class="mono">{{ request.scheme }}://{{ request.get_host }}{% url 'live_guest' live.guest_token %}</span></p>
@@ -54,58 +63,17 @@
   </form>
 {% endif %}
 
-<div class="spread"><h2>{% translate "Presentaciones" %}</h2><a class="btn secondary" href="{% url 'deck_new' course.pk %}">{% translate "Nueva presentación" %}</a></div>
-{% if link %}
-  <p class="small muted">
-    {% translate "Sincronizadas con" %} <a class="mono" href="https://github.com/{{ link.repo }}/tree/{{ link.branch }}/{{ link.folder }}" target="_blank" rel="noopener">{{ link.repo }}/{{ link.folder }}</a>
-    {% if link.last_error %}· <span style="color:var(--danger)">{{ link.last_error }}</span>{% endif %}
-  </p>
-  {% for issue in link.issues %}
-    <div class="notice"><span><strong class="mono">{{ issue.path }}</strong> {% translate "tiene errores y no se actualizó:" %}
-      {% for d in issue.diagnostics|slice:":3" %}<code>{{ d.code }}</code> {{ d.message }}{% if d.line %} ({% blocktranslate with line=d.line %}línea {{ line }}{% endblocktranslate %}){% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}</span></div>
-  {% endfor %}
-{% endif %}
-{% if decks %}
-  <div class="stack">
-    {% for d in decks %}
-      <div class="card spread">
-        <div>
-          <a href="{% url 'deck_view' course.pk d.pk %}"><strong>{{ d.title }}</strong></a>
-          <div class="small muted">
-            {% blocktranslate count n=d.slides|length %}{{ n }} diapositiva{% plural %}{{ n }} diapositivas{% endblocktranslate %} ·
-            {% blocktranslate count n=d.question_count %}{{ n }} pregunta{% plural %}{{ n }} preguntas{% endblocktranslate %} ·
-            {% blocktranslate with when=d.updated_at|date:"d M H:i" %}editada {{ when }}{% endblocktranslate %}
-          </div>
-        </div>
-        <div class="row">
-          <a class="btn secondary" href="{% url 'deck_edit' course.pk d.pk %}">{% translate "Editar" %}</a>
-          {% if not live %}
-            <form method="post" action="{% url 'session_start' course.pk d.pk %}">{% csrf_token %}<button>{% translate "Iniciar clase" %}</button></form>
-          {% endif %}
-        </div>
-      </div>
-    {% endfor %}
-  </div>
-{% else %}
-  <p class="muted">{% translate "Todavía no hay presentaciones. Cree una para dictar su primera clase en vivo." %}</p>
-{% endif %}
+<nav class="tabs" aria-label="{% translate 'Secciones del curso' %}">
+  <a href="{% url 'course_manage' course.pk %}" {% if tab == "clases" %}aria-current="page"{% endif %}>{% translate "Clases" %}</a>
+  <a href="{% url 'course_assessments' course.pk %}" {% if tab == "evaluaciones" %}aria-current="page"{% endif %}>{% translate "Evaluaciones" %}</a>
+  <a href="{% url 'course_activities' course.pk %}" {% if tab == "actividades" %}aria-current="page"{% endif %}>{% translate "Actividades" %}</a>
+</nav>
 
-{% if past_sessions %}
-  <h2>{% translate "Clases dictadas" %}</h2>
-  <div class="card table-wrap">
-    <table>
-      <thead><tr><th>{% translate "Clase" %}</th><th>{% translate "Fecha" %}</th><th>{% translate "Participantes" %}</th><th></th></tr></thead>
-      <tbody>
-        {% for s in past_sessions %}
-          <tr>
-            <td>{{ s.title }}</td>
-            <td class="small">{{ s.started_at|default:s.created_at|date:"d M Y H:i" }}</td>
-            <td class="num">{{ s.participants.count }}</td>
-            <td><a href="{% url 'session_results' s.pk %}">{% translate "Resultados" %}</a></td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+{% if tab == "clases" %}
+  {% include "courses/_tab_classes.html" %}
+{% elif tab == "evaluaciones" %}
+  <div class="card muted">{% translate "Próximamente: pruebas y exámenes con preguntas generadas por estudiante (policlase-gen)." %}</div>
+{% else %}
+  <div class="card muted">{% translate "Próximamente: deberes, talleres y otras actividades con entrega." %}</div>
 {% endif %}
 {% endblock %}

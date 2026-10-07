@@ -55,9 +55,35 @@
     timerHandle = setInterval(tick, 250);
   }
 
+  // Si la pregunta sigue siendo la misma (p. ej. el docente dio +15 s), lo que el estudiante
+  // ya había marcado o escrito sobrevive al recargar el fragmento.
+  function keepForm(stage) {
+    var form = stage.querySelector("[data-answer-form]");
+    if (!form) return null;
+    var values = [];
+    form.querySelectorAll("input, textarea").forEach(function (el) {
+      if (el.type === "hidden") return;
+      if (el.type === "radio" || el.type === "checkbox") { if (el.checked) values.push([el.name, el.value, true]); }
+      else if (el.value) values.push([el.name, el.value, false]);
+    });
+    return { slide: form.dataset.slide, values: values };
+  }
+
+  function restoreForm(stage, kept) {
+    if (!kept || !kept.values.length) return;
+    var form = stage.querySelector("[data-answer-form]");
+    if (!form || form.dataset.slide !== kept.slide) return;
+    kept.values.forEach(function (v) {
+      form.querySelectorAll("[name='" + v[0] + "']").forEach(function (el) {
+        if (v[2]) { if (el.value === v[1]) el.checked = true; }
+        else el.value = v[1];
+      });
+    });
+  }
+
   function Live(opts) {
     var stage = document.getElementById("stage");
-    var lastKey = null;
+    var lastKey = null, carried = null;
     var loading = false, again = false;
 
     function refresh() {
@@ -77,7 +103,11 @@
     }
 
     function swap(html) {
+      // Lo marcado se arrastra también a través de pantallas sin formulario (p. ej. la pausa).
+      var kept = keepForm(stage) || carried;
       stage.innerHTML = html;
+      restoreForm(stage, kept);
+      carried = stage.querySelector("[data-answer-form]") ? null : kept;
       if (window.policlaseMath) window.policlaseMath(stage);
       startTimers(stage, refresh);
       if (opts.afterSwap) opts.afterSwap(stage, refresh);

@@ -8,10 +8,32 @@ from django.utils.translation import gettext_lazy as _
 from apps.courses.models import Course
 
 
+class Section(models.Model):
+    """Una unidad dentro de «Clases» (Unidad 1, Unidad 2…) que agrupa presentaciones.
+
+    En un curso vinculado a GitHub, cada sección es una carpeta (`github_folder`) dentro de la
+    carpeta del curso: crear, renombrar o mover en la web hace el commit correspondiente.
+    """
+
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="sections")
+    title = models.CharField(_("título"), max_length=200)
+    position = models.PositiveIntegerField(default=0)
+    #: Minimizada en la vista del docente (preferencia de interfaz, no va a GitHub).
+    collapsed = models.BooleanField(default=False)
+    github_folder = models.CharField(max_length=300, blank=True)
+
+    class Meta:
+        ordering = ["position", "pk"]
+
+    def __str__(self) -> str:
+        return self.title
+
+
 class Deck(models.Model):
     """Una presentación: la fuente YAML tal como la escribió el docente y su forma compilada."""
 
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="decks")
+    section = models.ForeignKey(Section, on_delete=models.SET_NULL, null=True, blank=True, related_name="decks")
     title = models.CharField(_("título"), max_length=200)
     #: Archivo de origen en GitHub y su blob sha, si el curso está vinculado (apps.github).
     github_path = models.CharField(max_length=400, blank=True)
@@ -32,8 +54,17 @@ class Deck(models.Model):
         return self.compiled.get("slides", [])
 
     @property
+    def visible_slides(self) -> list[dict]:
+        """Lo que se presentará: sin ocultas ni la retroalimentación final."""
+        return [s for s in self.slides if not s.get("hidden") and s["kind"] != "feedback"]
+
+    @property
     def question_count(self) -> int:
-        return sum(1 for s in self.slides if s["kind"] == "question")
+        return sum(1 for s in self.visible_slides if s["kind"] == "question")
+
+    @property
+    def has_feedback(self) -> bool:
+        return any(s["kind"] == "feedback" and not s.get("hidden") for s in self.slides)
 
 
 class LiveSessionQuerySet(models.QuerySet):
@@ -64,6 +95,8 @@ class LiveSession(models.Model):
     class Status(models.TextChoices):
         LOBBY = "lobby", _("Sala de espera")
         LIVE = "live", _("En curso")
+        #: La clase se acabó a mitad de la presentación: se retoma otro día donde quedó.
+        PAUSED = "paused", _("En pausa")
         ENDED = "ended", _("Terminada")
 
     class Phase(models.TextChoices):
@@ -90,6 +123,9 @@ class LiveSession(models.Model):
     opened = models.JSONField(default=list)
     opened_at = models.DateTimeField(null=True, blank=True)
     closes_at = models.DateTimeField(null=True, blank=True)
+    paused_at = models.DateTimeField(null=True, blank=True)
+    #: Tiempo que le quedaba a la pregunta abierta al pausar; se devuelve al reanudar.
+    paused_remaining_ms = models.PositiveIntegerField(null=True, blank=True)
 
     state_version = models.PositiveIntegerField(default=1)
     answers_version = models.PositiveIntegerField(default=1)
@@ -124,19 +160,37 @@ class LiveSession(models.Model):
         return bool(self.slide) and self.slide["kind"] == "question"
 
     @property
+    def is_feedback(self) -> bool:
+        return bool(self.slide) and self.slide["kind"] == "feedback"
+
+    @property
+    def has_feedback(self) -> bool:
+        return any(s["kind"] == "feedback" for s in self.slides)
+
+    @property
     def question_indices(self) -> list[int]:
         return [i for i, s in enumerate(self.slides) if s["kind"] == "question"]
 
     @property
+    def asked_indices(self) -> list[int]:
+        """Preguntas que de verdad se abrieron: una clase pausada o terminada a la mitad no
+        castiga a nadie por las que no alcanzaron a hacerse."""
+        return [i for i in self.question_indices if i in self.opened]
+
+    @property
     def max_points(self) -> float:
-        return sum(s["points"] for s in self.slides if s["kind"] == "question")
+        return sum(self.slides[i]["points"] for i in self.asked_indices)
 
 
 class Participant(models.Model):
     session = models.ForeignKey(LiveSession, on_delete=models.CASCADE, related_name="participants")
     student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
     joined_at = models.DateTimeField(auto_now_add=True)
+    #: Lo actualizan la carga de cada diapositiva y el flujo SSE cada pocos segundos: «conectado»
+    #: es haberse visto hace menos de `engine.CONNECTED_WINDOW`.
     last_seen = models.DateTimeField(auto_now=True)
+    #: Si ya dejó su retroalimentación. Qué respondió no se guarda junto a quién (ver Feedback).
+    feedback_given = models.BooleanField(default=False)
 
     class Meta:
         constraints = [
@@ -169,3 +223,15 @@ class Response(models.Model):
             models.UniqueConstraint(fields=["session", "slide_index", "student"],
                                     name="one_answer_per_question"),
         ]
+
+
+class Feedback(models.Model):
+    """Retroalimentación anónima de una clase.
+
+    A propósito sin estudiante y sin fecha: ni la base de datos permite saber quién escribió qué.
+    `Participant.feedback_given` solo evita que alguien responda dos veces.
+    """
+
+    session = models.ForeignKey(LiveSession, on_delete=models.CASCADE, related_name="feedback")
+    rating = models.PositiveSmallIntegerField()
+    comment = models.TextField(blank=True)

@@ -8,7 +8,7 @@
 
 {% if live %}
   <div class="card spread" style="border-color:var(--danger)">
-    <div><span class="chip live">{% translate "EN VIVO" %}</span> <strong>{{ live.title }}</strong></div>
+    <div>{% if live.status == "paused" %}<span class="chip warn">❚❚ {% translate "EN PAUSA" %}</span>{% else %}<span class="chip live">{% translate "EN VIVO" %}</span>{% endif %} <strong>{{ live.title }}</strong></div>
     {% if user == course.owner %}
       <a class="btn" href="{% url 'present' live.pk %}">{% translate "Ir al proyector" %}</a>
     {% else %}

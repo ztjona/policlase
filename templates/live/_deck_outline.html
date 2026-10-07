@@ -1,0 +1,23 @@
+{% load policlase i18n %}
+{# Panel lateral del editor: una miniatura por diapositiva, para ordenar y ocultar. #}
+<ol class="outline" id="outline-list">
+  {% for s in slides %}
+    <li class="thumb{% if s.hidden %} is-hidden{% endif %}{% if s.kind == 'feedback' %} is-fixed{% endif %}"
+        data-index="{{ forloop.counter0 }}" data-kind="{{ s.kind }}" {% if s.kind != "feedback" %}draggable="true"{% endif %}>
+      <span class="num">{% if s.kind == "feedback" %}★{% else %}{{ forloop.counter }}{% endif %}</span>
+      <span class="body">
+        <span class="kind">{% if s.kind == "content" %}{% translate "Contenido" %}{% elif s.kind == "feedback" %}{% translate "Retroalimentación" %}{% else %}{{ s.question.type }}{% endif %}</span>
+        <span class="title">{{ s|slide_title|md_inline }}</span>
+      </span>
+      <span class="tools">
+        {% if s.kind != "feedback" %}
+          <button type="button" class="icon" data-op="up" title="{% translate 'Subir' %}" aria-label="{% translate 'Subir' %}">↑</button>
+          <button type="button" class="icon" data-op="down" title="{% translate 'Bajar' %}" aria-label="{% translate 'Bajar' %}">↓</button>
+        {% endif %}
+        <button type="button" class="icon" data-op="{% if s.hidden %}show{% else %}hide{% endif %}"
+                title="{% if s.hidden %}{% translate 'Mostrar en clase' %}{% else %}{% translate 'Ocultar en clase' %}{% endif %}"
+                aria-label="{% if s.hidden %}{% translate 'Mostrar en clase' %}{% else %}{% translate 'Ocultar en clase' %}{% endif %}">{% if s.hidden %}◌{% else %}◉{% endif %}</button>
+      </span>
+    </li>
+  {% endfor %}
+</ol>

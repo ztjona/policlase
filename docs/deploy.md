@@ -117,6 +117,20 @@ docker exec n8n-nginx nginx -t && docker exec n8n-nginx nginx -s reload
 
 ## 6. Antes de la primera clase real
 
-- Borre los datos de demostración: `docker compose down && sudo rm -rf /mnt/mydrive/policlase/postgres`
-  y vuelva a levantar. Luego cree su cuenta real con `create_teacher --admin` (los colegas se registran en `/cuenta/registro-docente/`).
+- Solo en una instalación **nueva**, antes de que entre nadie: borre los datos de demostración
+  (`docker compose down && sudo rm -rf /mnt/mydrive/policlase/postgres`) y vuelva a levantar. Con
+  estudiantes registrados, **nunca**: borra todas las cuentas y resultados. Cree su cuenta con
+  `create_teacher --admin` (los colegas se registran en `/cuenta/registro-docente/`).
 - Respalde `/mnt/mydrive/policlase` fuera del VPS.
+
+## Actualizar con clases en curso
+
+`docker compose ... up -d --build` reinicia la plataforma: los teléfonos se reconectan solos en
+unos segundos, pero es mejor no actualizar en medio de una clase. Antes, revise que no haya ninguna
+en vivo con gente conectada:
+
+```bash
+docker compose exec web python manage.py shell -c "
+from django.utils import timezone; from datetime import timedelta; from apps.live.models import Participant
+print(Participant.objects.filter(last_seen__gte=timezone.now() - timedelta(minutes=2)).count(), 'conectados')"
+```

@@ -7,7 +7,7 @@
 {% block chrome %}
 <div class="live-shell">
   <div class="live-bar">
-    <a class="brand" href="{% url 'course_manage' course.pk %}">poli<span>clase</span></a>
+    <a class="brand" href="{% url 'course_manage' course.pk %}"><img src="{% static 'img/icon.svg' %}" alt="" width="22" height="22">poli<span>clase</span></a>
     <strong>{{ session.title }}</strong>
     <span class="muted">{{ course.code }}</span>
     <span class="spacer"></span>

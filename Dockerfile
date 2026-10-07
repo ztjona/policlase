@@ -23,6 +23,23 @@ RUN mkdir -p /opt/vendor/static/vendor \
  && mv /opt/vendor/static/vendor/package/dist /opt/vendor/static/vendor/katex \
  && rm -rf /opt/vendor/static/vendor/package
 
+# Monaco: el editor de VS Code (mismos atajos de teclado) para las presentaciones. Solo el
+# núcleo, el resaltado de YAML/Markdown y los mensajes en español; los servicios de
+# TypeScript/JSON/CSS/HTML (7 MB) nunca se usan. Sin los comentarios de sourcemaps: los .map
+# no vienen en el paquete y whitenoise falla al no encontrarlos.
+ARG MONACO_VERSION=0.52.2
+RUN mkdir -p /tmp/monaco /opt/vendor/static/vendor/monaco \
+ && curl -fsSL "https://registry.npmjs.org/monaco-editor/-/monaco-editor-${MONACO_VERSION}.tgz" \
+    | tar -xz -C /tmp/monaco \
+ && mv /tmp/monaco/package/min/vs /opt/vendor/static/vendor/monaco/vs \
+ && cd /opt/vendor/static/vendor/monaco/vs \
+ && rm -rf language \
+ && find basic-languages -mindepth 1 -maxdepth 1 -type d ! -name yaml ! -name markdown -exec rm -rf {} + \
+ && find . -maxdepth 1 -name 'nls.messages.*.js' ! -name 'nls.messages.es.js' -delete \
+ && find . -name '*.js' -exec sed -i 's#//[#@] sourceMappingURL=[^ ]*$##' {} + \
+ && find . -name '*.css' -exec sed -i 's#/\*[#@] sourceMappingURL=[^*]*\*/##' {} + \
+ && rm -rf /tmp/monaco
+
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 

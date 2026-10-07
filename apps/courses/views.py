@@ -129,33 +129,45 @@ def course_create(request):
     return render(request, "courses/course_form.html", {"form": form})
 
 
-@teacher_required
-def course_manage(request, pk):
-    """El frente del curso: la clase de hoy, solicitudes por aprobar (si las hay) y presentaciones.
-    Lo que se configura una vez —código, datos del curso, lista de inscritos— vive en
-    `course_settings`."""
-    from apps.live.models import Deck, LiveSession
+TABS = ("clases", "evaluaciones", "actividades")
 
-    course = owned_course(request, pk)
+
+@teacher_required
+def course_manage(request, pk, tab="clases"):
+    """El frente del curso: la clase en vivo (o en pausa), solicitudes por aprobar (si las hay) y
+    las pestañas Clases | Evaluaciones | Actividades. Lo que se configura una vez —código, datos
+    del curso, inscritos— vive en `course_settings`."""
     from apps.github import sync
     from apps.github.models import CourseRepo
+    from apps.live.models import Deck, LiveSession, Section
 
+    course = owned_course(request, pk)
     link = CourseRepo.objects.filter(course=course).first()
-    if link:
+    if link and tab == "clases":
         result = sync.maybe_pull(link)          # GitHub es la fuente: al abrir el curso, al día
         if result and result.changed:
             messages.info(request, _("Presentaciones actualizadas desde GitHub."))
     pending = (course.enrollments.filter(status=Status.PENDING)
                .select_related("student").order_by("requested_at"))
-    return render(request, "courses/course_manage.html", {
-        "course": course,
-        "pending": pending,
+    context = {
+        "course": course, "tab": tab, "pending": pending, "link": link,
         "approved_count": course.enrollments.filter(status=Status.APPROVED).count(),
-        "decks": Deck.objects.filter(course=course),
         "live": LiveSession.objects.active().filter(course=course).first(),
-        "past_sessions": LiveSession.objects.filter(course=course, status=LiveSession.Status.ENDED)[:10],
-        "link": link,
-    })
+    }
+    if tab == "clases":
+        decks = list(Deck.objects.filter(course=course))
+        key = (lambda d: sync.natural_key(d.github_path)) if link else (lambda d: d.pk)
+        sections = list(Section.objects.filter(course=course))
+        if link:
+            sections.sort(key=lambda s: (not s.github_folder, sync.natural_key(s.github_folder), s.pk))
+        groups = [{"section": None, "decks": sorted([d for d in decks if d.section_id is None], key=key)}]
+        groups += [{"section": s, "decks": sorted([d for d in decks if d.section_id == s.pk], key=key)}
+                   for s in sections]
+        context.update({
+            "groups": groups, "has_decks": bool(decks),
+            "past_sessions": LiveSession.objects.filter(course=course, status=LiveSession.Status.ENDED)[:10],
+        })
+    return render(request, "courses/course_manage.html", context)
 
 
 @teacher_required

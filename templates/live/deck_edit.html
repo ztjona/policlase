@@ -1,58 +1,72 @@
 {% extends "base.html" %}
 {% load static i18n %}
 {% block title %}{% if deck %}{% blocktranslate with title=deck.title %}Editar {{ title }}{% endblocktranslate %}{% else %}{% translate "Nueva presentación" %}{% endif %}{% endblock %}
-{% block page_class %}wide{% endblock %}
+{% block page_class %}full{% endblock %}
 {% block main %}
-<div class="muted small"><a href="{% url 'course_manage' course.pk %}">← {{ course.name }}</a></div>
-<div class="spread">
-  <h1>{% if deck %}{% blocktranslate with title=deck.title %}Editar «{{ title }}»{% endblocktranslate %}{% else %}{% translate "Nueva presentación" %}{% endif %}</h1>
-  {% if link %}<span class="small muted">{% translate "Al guardar se confirma en GitHub:" %} <span class="mono">{{ link.repo }}{% if deck.github_path %}/{{ deck.github_path }}{% endif %}</span></span>{% endif %}
-</div>
-
-<form method="post" enctype="multipart/form-data" id="deck-form"
-      data-preview="{% url 'deck_preview' course.pk %}">
+{% get_current_language as LANG %}
+<form method="post" enctype="multipart/form-data" id="deck-form" class="studio"
+      data-preview="{% url 'deck_preview' course.pk %}" data-ops="{% url 'deck_ops' course.pk %}"
+      data-monaco="{% get_static_prefix %}vendor/monaco/" data-lang="{{ LANG }}">
   {% csrf_token %}
-  <div class="editor">
-    <div class="editor-pane">
-      <div class="toolbar" role="toolbar" aria-label="{% translate 'Insertar diapositiva' %}">
-        <span class="small muted">{% translate "Insertar:" %}</span>
-        <button type="button" class="secondary small" data-snippet="content">{% translate "Contenido" %}</button>
-        <button type="button" class="secondary small" data-snippet="choice">{% translate "Opción única" %}</button>
-        <button type="button" class="secondary small" data-snippet="multi_choice">{% translate "Opción múltiple" %}</button>
-        <button type="button" class="secondary small" data-snippet="true_false">{% translate "Verdadero/falso" %}</button>
-        <button type="button" class="secondary small" data-snippet="numeric">{% translate "Numérica" %}</button>
-        <button type="button" class="secondary small" data-snippet="text">{% translate "Texto corto" %}</button>
+  <header class="studio-bar">
+    <a class="small" href="{% url 'course_manage' course.pk %}">← {{ course.name }}</a>
+    <strong class="studio-title" id="deck-title">{% if deck %}{{ deck.title }}{% else %}{% translate "Nueva presentación" %}{% endif %}</strong>
+    <label class="small" for="id_section">{% translate "Sección" %}</label>
+    <select name="section" id="id_section" class="compact">
+      <option value="">{% translate "— Sin sección —" %}</option>
+      {% for s in sections %}<option value="{{ s.pk }}" {% if section and s.pk == section.pk %}selected{% endif %}>{{ s.title }}</option>{% endfor %}
+    </select>
+    <span class="spacer"></span>
+    {% if link %}<span class="small muted" title="{{ link.repo }}">⎇ {% translate "se confirma en GitHub" %}</span>{% endif %}
+    <span class="small muted" id="preview-status"></span>
+    <button type="button" class="secondary small" id="toggle-preview" aria-pressed="true">{% translate "Vista previa" %}</button>
+    <a class="btn secondary small" href="{% if deck %}{% url 'deck_view' course.pk deck.pk %}{% else %}{% url 'course_manage' course.pk %}{% endif %}">{% translate "Cancelar" %}</a>
+    <button type="submit" class="small" title="Ctrl+S">{% translate "Guardar" %}</button>
+  </header>
+
+  <div class="studio-body" id="studio-body">
+    <aside class="studio-outline" aria-label="{% translate 'Diapositivas' %}">
+      <div class="outline-head">
+        <strong class="small">{% translate "Diapositivas" %}</strong>
+        <details class="insert">
+          <summary class="btn secondary small">+ {% translate "Insertar" %}</summary>
+          <div class="menu">
+            <button type="button" data-snippet="content">{% translate "Contenido" %}</button>
+            <button type="button" data-snippet="choice">{% translate "Opción única" %}</button>
+            <button type="button" data-snippet="multi_choice">{% translate "Opción múltiple" %}</button>
+            <button type="button" data-snippet="true_false">{% translate "Verdadero/falso" %}</button>
+            <button type="button" data-snippet="numeric">{% translate "Numérica" %}</button>
+            <button type="button" data-snippet="text">{% translate "Texto corto" %}</button>
+          </div>
+        </details>
       </div>
-      <label for="source" class="sr-only">{% translate "Fuente (formato <code>policlase.deck/v1</code>)" %}</label>
+      <div id="outline"><p class="muted small">{% translate "Cargando…" %}</p></div>
+      <p class="small muted outline-hint">{% translate "Arrastre para reordenar. ◉ se presenta en clase; ◌ está oculta. Los cambios van al texto y se guardan con «Guardar»." %}</p>
+    </aside>
+
+    <div class="studio-editor">
+      <div id="monaco" class="monaco-host" aria-label="{% translate 'Editor YAML' %}"></div>
       <textarea id="source" name="source" class="code" spellcheck="false">{{ source }}</textarea>
       <ul class="diag" id="diagnostics" aria-live="polite">
         {% for d in diagnostics %}
           <li class="{{ d.severity }}" data-line="{{ d.line|default:'' }}"><code>{{ d.code }}</code> {{ d.message }}{% if d.line %} · {% blocktranslate with line=d.line %}línea {{ line }}{% endblocktranslate %}{% endif %}{% if d.where %} · {{ d.where }}{% endif %}</li>
         {% endfor %}
       </ul>
-      <div class="row">
-        <button type="submit">{% translate "Validar y guardar" %}</button>
-        <a class="btn secondary" href="{% if deck %}{% url 'deck_view' course.pk deck.pk %}{% else %}{% url 'course_manage' course.pk %}{% endif %}">{% translate "Cancelar" %}</a>
-        <span class="small muted">Ctrl+S</span>
-        <label for="file" class="small" style="margin:0 0 0 auto;font-weight:400;cursor:pointer;color:var(--accent)">{% translate "Abrir un archivo .yaml…" %}</label>
+      <div class="row small">
+        <label for="file" style="margin:0;font-weight:400;cursor:pointer;color:var(--accent)">{% translate "Abrir un archivo .yaml…" %}</label>
         <input type="file" id="file" name="file" accept=".yaml,.yml,text/yaml" class="sr-only">
+        <span class="muted">{% translate "Atajos de VS Code: Ctrl+D, Alt+↑/↓, Ctrl+/, Ctrl+F, F1…" %}</span>
       </div>
     </div>
-    <div class="preview-pane">
-      <div class="spread small muted"><strong>{% translate "Vista previa" %}</strong><span id="preview-status"></span></div>
+
+    <section class="studio-preview" id="preview-pane" aria-label="{% translate 'Vista previa' %}">
       <div id="preview" class="stack"><p class="muted">{% translate "Cargando…" %}</p></div>
-    </div>
+    </section>
   </div>
 </form>
-
-<details class="card small" style="margin-top:18px">
-  <summary><strong>{% translate "Referencia rápida del formato" %}</strong></summary>
-  <ul>
-    <li>{% translate "Cada diapositiva es <code>markdown:</code> (contenido) o <code>item:</code> (una pregunta)." %}</li>
-    <li>{% translate "Tipos en vivo:" %} <code>choice</code>, <code>multi_choice</code>, <code>true_false</code>, <code>numeric</code>, <code>text</code>.</li>
-    <li>{% translate "Matemáticas con <code>$…$</code> y <code>$$…$$</code>. Tiempo por pregunta:" %} <code>lecture: {% templatetag openbrace %} time_limit_s: 20 {% templatetag closebrace %}</code>.</li>
-    <li>{% translate "Referencia completa:" %} <code>policlase-gen/docs/schema.md</code> §9.</li>
-  </ul>
-</details>
 {% endblock %}
-{% block scripts %}<script defer src="{% static 'js/deck-editor.js' %}"></script>{% endblock %}
+{% block scripts %}
+{# Monaco se carga desde deck-editor.js, después de KaTeX: su cargador AMD define `define.amd` y,
+   si llegara antes, KaTeX se registraría como módulo AMD en vez de `window.katex`. #}
+<script defer src="{% static 'js/deck-editor.js' %}"></script>
+{% endblock %}

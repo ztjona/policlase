@@ -6,12 +6,13 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 from policlase_gen import deck as deckfmt
+from policlase_gen import deck_text
 
 from apps.accounts.models import User
 from apps.courses.models import Course, Enrollment
 
 from . import engine
-from .models import Deck, LiveSession, Response
+from .models import Deck, Feedback, LiveSession, Participant, Response, Section
 
 DEMO = (Path(__file__).resolve().parent / "demo" / "biseccion-clase-1.yaml").read_text(encoding="utf-8")
 Phase, Status = LiveSession.Phase, LiveSession.Status
@@ -98,7 +99,7 @@ class StateMachineTests(LiveBase):
         self.deck.compiled = {"title": "x", "slides": []}
         self.deck.save()
         session.refresh_from_db()
-        self.assertEqual(len(session.slides), 7)
+        self.assertEqual(len(session.slides), 8)                 # 7 del YAML + retroalimentación
 
     def test_una_sesion_activa_por_curso(self):
         first = self.start()
@@ -165,9 +166,11 @@ class StateMachineTests(LiveBase):
 
 
 class AnswerTests(LiveBase):
-    def open_question(self):
-        session = engine.apply(self.goto_first_question(self.start()).pk, "open")
-        return session
+    def open_question(self, present=None):
+        session = self.goto_first_question(self.start())
+        for student in (self.ana, self.bruno) if present is None else present:
+            engine.join(session, student)              # en la sala, con el teléfono abierto
+        return engine.apply(session.pk, "open")
 
     def answer(self, user, session, **data):
         self.client.force_login(user)
@@ -208,6 +211,8 @@ class AnswerTests(LiveBase):
 
     def test_tipos_numeric_multi_y_verdadero_falso(self):
         session = self.goto_first_question(self.start())
+        for student in (self.ana, self.bruno):
+            engine.join(session, student)
         engine.apply(session.pk, "next")                         # contenido
         session = engine.apply(session.pk, "next")               # numeric
         session = engine.apply(session.pk, "open")
@@ -224,7 +229,8 @@ class AnswerTests(LiveBase):
         self.assertEqual(by[self.ana.pk], 2)
         self.assertLess(by[self.bruno.pk], 2)                    # marcar todo penaliza
 
-        engine.apply(session.pk, "close")
+        # respondieron los dos conectados: se cerró sola
+        self.assertEqual(LiveSession.objects.get(pk=session.pk).phase, Phase.CLOSED)
         session = engine.apply(session.pk, "next")               # true_false
         session = engine.apply(session.pk, "open")
         answers = session.slide["solution"]["answers"]
@@ -232,7 +238,7 @@ class AnswerTests(LiveBase):
         self.assertEqual(Response.objects.get(student=self.ana, slide_index=session.index).points, 2)
 
     def test_marcador_y_resultados(self):
-        session = self.open_question()
+        session = self.open_question(present=[self.ana])
         self.answer(self.ana, session, choice=self.right_key(session))
         board = engine.leaderboard(session)
         self.assertEqual(board[0]["student"], self.ana.pk)
@@ -267,7 +273,9 @@ class FragmentTests(LiveBase):
                 self.client.force_login(self.ana)
                 engine.submit(session.pk, self.ana, _any_answer(s.slide))
                 render_both()
-                engine.apply(session.pk, "close"); render_both()
+                # ana es la única conectada: al responder, la pregunta se cierra sola.
+                self.assertEqual(LiveSession.objects.get(pk=session.pk).phase, Phase.CLOSED)
+                render_both()
                 engine.apply(session.pk, "reveal")
             render_both()
             engine.apply(session.pk, "next")
@@ -406,7 +414,7 @@ class PreviewTests(LiveBase):
         data = self.preview(DEMO).json()
         self.assertEqual(data["diagnostics"], [])
         self.assertIn("slide-card", data["html"])
-        self.assertEqual(len(data["lines"]), len(self.deck.slides))
+        self.assertEqual(len(data["lines"]), len(self.deck.slides) - 1)   # la retroalimentación no está en el YAML
         self.assertTrue(all(isinstance(n, int) for n in data["lines"]))
 
     def test_vista_previa_con_errores(self):
@@ -426,3 +434,266 @@ class ThemeTests(LiveBase):
         self.client.post(reverse("set_theme"), {"theme": "dark", "next": "/"})
         self.assertContains(self.client.get(reverse("present", args=[session.pk])), 'data-theme="dark"')
         self.assertContains(self.client.get(reverse("home")), 'data-theme="dark"')
+
+
+class PauseExtendTests(LiveBase):
+    def open_q(self):
+        session = self.goto_first_question(self.start())
+        for student in (self.ana, self.bruno):
+            engine.join(session, student)
+        return engine.apply(session.pk, "open")
+
+    def test_pausar_congela_el_reloj_y_reanudar_lo_devuelve(self):
+        session = self.open_q()
+        LiveSession.objects.filter(pk=session.pk).update(closes_at=timezone.now() + timedelta(seconds=12))
+        session = engine.apply(session.pk, "pause")
+        self.assertEqual((session.status, session.closes_at), (Status.PAUSED, None))
+        self.assertAlmostEqual(session.paused_remaining_ms / 1000, 12, delta=1)
+        self.assertFalse(engine.expire_if_due(session.pk))           # en pausa no vence
+        with self.assertRaises(engine.ActionError):
+            engine.submit(session.pk, self.ana, self.right_key(session))
+        with self.assertRaises(engine.ActionError):
+            engine.apply(session.pk, "next")
+        session = engine.apply(session.pk, "resume")
+        self.assertEqual((session.status, session.phase), (Status.LIVE, Phase.OPEN))
+        left = (session.closes_at - timezone.now()).total_seconds()
+        self.assertTrue(10 <= left <= 13, left)
+
+    def test_espacio_en_pausa_reanuda(self):
+        session = engine.apply(self.open_q().pk, "pause")
+        self.assertEqual(engine.apply(session.pk, "primary").status, Status.LIVE)
+
+    def test_terminar_desde_la_pausa_cuenta_solo_lo_preguntado(self):
+        session = self.open_q()
+        engine.submit(session.pk, self.ana, self.right_key(session))
+        session = engine.apply(session.pk, "pause")
+        session = engine.apply(session.pk, "end")
+        self.assertEqual(session.status, Status.ENDED)
+        # 4 preguntas en la presentación, solo 1 abierta: el máximo es esa
+        self.assertEqual(session.max_points, session.slides[session.asked_indices[0]]["points"])
+        self.client.force_login(self.teacher)
+        page = self.client.get(reverse("session_results", args=[session.pk]))
+        self.assertEqual(len(page.context["questions"]), 1)
+        self.assertEqual(page.context["rows"][0]["percent"], 100)
+
+    def test_una_clase_en_pausa_bloquea_iniciar_otra(self):
+        session = engine.apply(self.open_q().pk, "pause")
+        response = self.client.post(reverse("session_start", args=[self.course.pk, self.deck.pk]))
+        self.assertRedirects(response, reverse("present", args=[session.pk]), fetch_redirect_response=False)
+        self.assertEqual(LiveSession.objects.count(), 1)
+
+    def test_mas_tiempo_y_reabrir(self):
+        session = self.open_q()
+        before = session.closes_at
+        session = engine.apply(session.pk, "extend")
+        self.assertAlmostEqual((session.closes_at - before).total_seconds(), engine.EXTEND_S, delta=1)
+        session = engine.apply(session.pk, "close")
+        session = engine.apply(session.pk, "extend")                # reabre
+        self.assertEqual(session.phase, Phase.OPEN)
+        engine.submit(session.pk, self.ana, self.right_key(session))
+        with self.assertRaises(engine.ActionError):
+            engine.apply(engine.apply(session.pk, "reveal").pk, "extend")
+
+
+class AutoCloseTests(LiveBase):
+    def setUp(self):
+        super().setUp()
+        self.session = self.goto_first_question(self.start())
+
+    def test_se_cierra_cuando_respondieron_todos_los_conectados(self):
+        for student in (self.ana, self.bruno):
+            engine.join(self.session, student)
+        session = engine.apply(self.session.pk, "open")
+        engine.submit(session.pk, self.ana, self.right_key(session))
+        self.assertEqual(LiveSession.objects.get(pk=session.pk).phase, Phase.OPEN)
+        engine.submit(session.pk, self.bruno, self.right_key(session))
+        self.assertEqual(LiveSession.objects.get(pk=session.pk).phase, Phase.CLOSED)
+
+    def test_quien_se_desconecto_no_frena_el_cierre(self):
+        for student in (self.ana, self.bruno):
+            engine.join(self.session, student)
+        Participant.objects.filter(student=self.bruno).update(
+            last_seen=timezone.now() - engine.CONNECTED_WINDOW - timedelta(seconds=1))
+        session = engine.apply(self.session.pk, "open")
+        engine.submit(session.pk, self.ana, self.right_key(session))
+        self.assertEqual(LiveSession.objects.get(pk=session.pk).phase, Phase.CLOSED)
+
+    def test_el_flujo_sse_mantiene_conectado(self):
+        engine.join(self.session, self.bruno)
+        Participant.objects.filter(student=self.bruno).update(last_seen=timezone.now() - timedelta(minutes=5))
+        engine.touch(self.session.pk, self.bruno)
+        self.assertIn(self.bruno.pk, engine.connected(self.session.pk).values_list("student_id", flat=True))
+
+
+class FeedbackTests(LiveBase):
+    def to_feedback(self):
+        session = self.start()
+        for student in (self.ana, self.bruno):
+            engine.join(session, student)
+        engine.apply(session.pk, "start")
+        LiveSession.objects.filter(pk=session.pk).update(index=len(session.slides) - 1)
+        session.refresh_from_db()
+        self.assertTrue(session.is_feedback)
+        return session
+
+    def give(self, user, session, rating="5", comment=""):
+        self.client.force_login(user)
+        return self.client.post(reverse("student_feedback", args=[session.pk]), {"rating": rating, "comment": comment})
+
+    def test_anonima_de_verdad(self):
+        session = self.to_feedback()
+        self.give(self.ana, session, "4", "Muy clara la parte de Bolzano")
+        fb = Feedback.objects.get()
+        self.assertEqual((fb.rating, fb.comment), (4, "Muy clara la parte de Bolzano"))
+        # el modelo no tiene a quién ni cuándo
+        names = {f.name for f in Feedback._meta.get_fields()}
+        self.assertEqual(names, {"id", "session", "rating", "comment"})
+
+    def test_una_vez_por_persona(self):
+        session = self.to_feedback()
+        self.give(self.ana, session)
+        self.assertContains(self.give(self.ana, session), "Ya dejó su retroalimentación")
+        self.assertEqual(Feedback.objects.count(), 1)
+
+    def test_no_antes_de_tiempo_pero_si_despues_de_terminar(self):
+        session = self.start()
+        engine.join(session, self.ana)
+        engine.apply(session.pk, "start")
+        self.give(self.ana, session)
+        self.assertFalse(Feedback.objects.exists())
+        engine.apply(session.pk, "end")
+        self.client.force_login(self.ana)
+        self.assertContains(self.client.get(reverse("student_fragment", args=[session.pk])), 'name="rating"')
+        self.give(self.ana, session)
+        self.assertEqual(Feedback.objects.count(), 1)
+
+    def test_el_docente_ve_el_resumen_solo_con_tres_o_mas(self):
+        session = self.to_feedback()
+        self.give(self.ana, session, "5", "excelente")
+        self.client.force_login(self.teacher)
+        page = self.client.get(reverse("session_results", args=[session.pk]))
+        self.assertNotContains(page, "excelente")
+        self.assertFalse(page.context["feedback"]["shown"])
+        carla = make_user("carla")
+        Enrollment.objects.create(course=self.course, student=carla, status=Enrollment.Status.APPROVED)
+        engine.join(session, carla)
+        self.give(self.bruno, session, "3")
+        self.give(carla, session, "4")
+        self.client.force_login(self.teacher)
+        page = self.client.get(reverse("session_results", args=[session.pk]))
+        self.assertContains(page, "excelente")
+        self.assertAlmostEqual(page.context["feedback"]["average"], 4.0)
+
+    def test_desactivada_con_feedback_false(self):
+        source = DEMO.replace("slides:", "feedback: false\nslides:", 1)
+        document, _report = deckfmt.load_deck_text(source)
+        self.deck.compiled = deckfmt.compile_deck(document)
+        self.deck.save()
+        session = self.start()
+        self.assertFalse(session.has_feedback)
+
+
+class HiddenSlidesTests(LiveBase):
+    def test_las_ocultas_no_se_presentan(self):
+        source = deck_text.set_hidden(DEMO, 1, True)
+        document, _report = deckfmt.load_deck_text(source)
+        self.deck.compiled = deckfmt.compile_deck(document)
+        self.deck.save()
+        self.assertEqual(self.deck.question_count, 3)
+        session = self.start()
+        self.assertEqual(len(session.slides), 7)                 # 6 visibles + retroalimentación
+
+
+class DeckOpsTests(LiveBase):
+    def op(self, user=None, **data):
+        self.client.force_login(user or self.teacher)
+        return self.client.post(reverse("deck_ops", args=[self.course.pk]), {"source": DEMO, **data})
+
+    def test_mover_ocultar_y_retroalimentacion(self):
+        moved = self.op(op="move", index=0, target=2).json()["source"]
+        kinds = lambda text: [x["kind"] for x in deckfmt.compile_deck(deckfmt.load_deck_text(text)[0])["slides"]]
+        before, after = kinds(DEMO), kinds(moved)
+        self.assertEqual(after[:3], [before[1], before[2], before[0]])   # la portada pasó al tercer lugar
+        self.assertIn("hidden: true", self.op(op="hide", index=0).json()["source"])
+        self.assertIn("feedback: false", self.op(op="feedback_off", index=7).json()["source"])
+
+    def test_con_errores_explica(self):
+        self.client.force_login(self.teacher)
+        response = self.client.post(reverse("deck_ops", args=[self.course.pk]),
+                                    {"source": "slides: [ :", "op": "hide", "index": 0})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("error", response.json())
+
+    def test_otro_docente_no(self):
+        self.assertEqual(self.op(make_user("otra", User.Role.TEACHER), op="hide", index=0).status_code, 404)
+
+
+class SectionsAndTabsTests(LiveBase):
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.teacher)
+
+    def test_crear_renombrar_minimizar_y_eliminar(self):
+        self.client.post(reverse("section_create", args=[self.course.pk]), {"title": "Unidad 1"})
+        section = Section.objects.get()
+        self.client.post(reverse("section_rename", args=[self.course.pk, section.pk]), {"title": "Unidad 1: Raíces"})
+        section.refresh_from_db()
+        self.assertEqual(section.title, "Unidad 1: Raíces")
+        self.client.post(reverse("section_toggle", args=[self.course.pk, section.pk]), {"collapsed": "1"})
+        section.refresh_from_db()
+        self.assertTrue(section.collapsed)
+        page = self.client.get(reverse("course_manage", args=[self.course.pk]))
+        self.assertContains(page, f'id="seccion-{section.pk}"')
+        self.assertNotContains(page, f'id="seccion-{section.pk}" open')
+        self.client.post(reverse("section_delete", args=[self.course.pk, section.pk]))
+        self.assertFalse(Section.objects.exists())
+
+    def test_presentacion_nueva_en_una_seccion(self):
+        self.client.post(reverse("section_create", args=[self.course.pk]), {"title": "Unidad 2"})
+        section = Section.objects.get()
+        url = reverse("deck_new", args=[self.course.pk]) + f"?seccion={section.pk}"
+        self.assertContains(self.client.get(url), f'value="{section.pk}" selected')
+        self.client.post(reverse("deck_new", args=[self.course.pk]), {"source": DEMO, "section": section.pk})
+        self.assertEqual(section.decks.count(), 1)
+
+    def test_pestanas(self):
+        for name in ("course_manage", "course_assessments", "course_activities"):
+            self.assertEqual(self.client.get(reverse(name, args=[self.course.pk])).status_code, 200, name)
+
+    def test_otro_docente_no_toca_secciones(self):
+        section = Section.objects.create(course=self.course, title="U1")
+        self.client.force_login(make_user("otra", User.Role.TEACHER))
+        for name in ("section_rename", "section_delete", "section_toggle"):
+            self.assertEqual(self.client.post(reverse(name, args=[self.course.pk, section.pk]),
+                                              {"title": "x", "collapsed": "1"}).status_code, 404, name)
+        self.assertEqual(self.client.post(reverse("section_create", args=[self.course.pk]),
+                                          {"title": "x"}).status_code, 404)
+        section.refresh_from_db()
+        self.assertEqual((section.title, section.collapsed), ("U1", False))
+
+    def test_favicon(self):
+        self.assertTrue(self.client.get("/favicon.ico")["Location"].endswith("img/favicon.ico"))
+
+
+class SharedPollingTests(LiveBase):
+    """Todos los flujos SSE de una clase comparten un sondeo por proceso."""
+
+    async def test_consultas_concurrentes_van_una_sola_vez_a_la_base(self):
+        import asyncio
+        from unittest import mock
+
+        from . import views
+
+        calls = 0
+
+        async def fake(pk):
+            nonlocal calls
+            calls += 1
+            await asyncio.sleep(0.05)
+            return {"state_version": 1, "answers_version": 1, "status": "lobby", "phase": "content", "index": 0}
+
+        views._shared.clear()
+        with mock.patch.object(views, "_snapshot_from_db", fake):
+            results = await asyncio.gather(*(views._snapshot(999) for _ in range(30)))
+        self.assertEqual(calls, 1)
+        self.assertEqual(len({r["state_version"] for r in results}), 1)

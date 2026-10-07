@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <title>policlase</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#23876A"/>
+      <stop offset="1" stop-color="#12493A"/>
+    </linearGradient>
+  </defs>
+  <!-- fondo: el verde de la marca -->
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <!-- pizarra / proyector, con la cola de un globo de diálogo: la clase participa -->
+  <path d="M120 104h272a32 32 0 0 1 32 32v196a32 32 0 0 1-32 32H226l-74 60v-60h-32a32 32 0 0 1-32-32V136a32 32 0 0 1 32-32z" fill="#F7F8F4"/>
+  <!-- resultados de una pregunta en vivo, con los colores de las opciones -->
+  <rect x="146" y="246" width="56" height="72" rx="10" fill="#C2410C"/>
+  <rect x="228" y="198" width="56" height="120" rx="10" fill="#1D4ED8"/>
+  <rect x="310" y="150" width="56" height="168" rx="10" fill="#15803D"/>
+  <!-- ✓ en la barra correcta -->
+  <path d="M322 186l14 14 24-26" fill="none" stroke="#FFFFFF" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- punto «en vivo» -->
+  <circle cx="400" cy="112" r="34" fill="#EF4444" stroke="#1A6B53" stroke-width="12"/>
+</svg>

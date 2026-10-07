@@ -35,3 +35,19 @@ def percent(value, total):
 @register.filter
 def letter(index):
     return "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[int(index) % 26]
+
+
+@register.filter
+def slide_title(slide):
+    """Una línea que identifica la diapositiva en el panel lateral."""
+    from django.utils.translation import gettext as _
+
+    kind = slide.get("kind")
+    if kind == "feedback":
+        return _("¿Cómo estuvo la clase? (anónima)")
+    text = slide.get("markdown", "") if kind == "content" else (slide.get("question") or {}).get("prompt", "")
+    for line in str(text).splitlines():
+        line = line.strip().lstrip("#").strip()
+        if line:
+            return line[:80] + ("…" if len(line) > 80 else "")
+    return "—"

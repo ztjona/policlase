@@ -11,11 +11,19 @@ import json
 import urllib.error
 import urllib.parse
 import urllib.request
+from dataclasses import dataclass
 
 from django.utils.translation import gettext as _
 
 API = "https://api.github.com"
 TIMEOUT_S = 8
+
+
+@dataclass(frozen=True)
+class Blob:
+    """Un archivo que ya está en el repositorio, referido por su sha: moverlo no exige leerlo
+    (y no corrompe binarios como imágenes)."""
+    sha: str
 
 
 class GitHubError(Exception):
@@ -52,7 +60,7 @@ class GitHubClient:
                 detail = json.loads(exc.read() or b"{}").get("message", "")
             except ValueError:
                 pass
-            if exc.code in (409, 422) and method in ("PUT", "DELETE"):
+            if exc.code in (409, 422) and method in ("PUT", "DELETE", "PATCH"):
                 raise Conflict(_("El archivo cambió en GitHub."), exc.code) from None
             if exc.code == 401:
                 raise GitHubError(_("GitHub rechazó el token (¿venció o fue revocado?)."), 401) from None
@@ -99,6 +107,42 @@ class GitHubClient:
             body["sha"] = sha
         data = self._call("PUT", f"/repos/{self._q(repo)}/contents/{self._q(path)}", body)
         return data["content"]["sha"]
+
+    def commit(self, repo: str, branch: str, changes: dict[str, "str | Blob | None"], message: str,
+               expected: dict[str, str] | None = None) -> dict[str, str]:
+        """Un solo commit con varios cambios: {ruta: texto nuevo, Blob existente o None para borrar}.
+
+        Sirve para mover y renombrar sin estados intermedios. `expected` ({ruta: sha}) exige que
+        esos archivos sigan como los conocemos; si no, o si la rama avanzó mientras tanto,
+        levanta Conflict y no cambia nada. Devuelve {ruta: sha nuevo} de lo escrito.
+        """
+        q = self._q(repo)
+        head = self._call("GET", f"/repos/{q}/git/ref/heads/{self._q(branch)}")["object"]["sha"]
+        base = self._call("GET", f"/repos/{q}/git/commits/{head}")["tree"]["sha"]
+        if expected:
+            current = self.tree(repo, branch)
+            if any(current.get(path) != sha for path, sha in expected.items()):
+                raise Conflict(_("El archivo cambió en GitHub."), 409)
+        def entry(path, value):
+            if isinstance(value, Blob):
+                return {"path": path, "mode": "100644", "type": "blob", "sha": value.sha}
+            if value is None:
+                return {"path": path, "mode": "100644", "type": "blob", "sha": None}
+            return {"path": path, "mode": "100644", "type": "blob", "content": value}
+
+        entries = [entry(path, value) for path, value in changes.items()]
+        tree = self._call("POST", f"/repos/{q}/git/trees", {"base_tree": base, "tree": entries})["sha"]
+        commit = self._call("POST", f"/repos/{q}/git/commits",
+                            {"message": message, "tree": tree, "parents": [head]})["sha"]
+        try:
+            self._call("PATCH", f"/repos/{q}/git/refs/heads/{self._q(branch)}", {"sha": commit, "force": False})
+        except GitHubError as exc:
+            if exc.status == 422:                      # no es avance rápido: alguien empujó antes
+                raise Conflict(_("El archivo cambió en GitHub."), 409) from None
+            raise
+        written = self._call("GET", f"/repos/{q}/git/trees/{tree}?recursive=1")
+        shas = {e["path"]: e["sha"] for e in written.get("tree", []) if e.get("type") == "blob"}
+        return {path: shas[path] for path, text in changes.items() if text is not None and path in shas}
 
     def delete(self, repo: str, branch: str, path: str, message: str, sha: str) -> None:
         self._call("DELETE", f"/repos/{self._q(repo)}/contents/{self._q(path)}",

@@ -9,7 +9,15 @@
       <p class="muted">{% blocktranslate with title=session.title %}Espera a que tu docente inicie <strong>{{ title }}</strong>.{% endblocktranslate %}</p>
     </div>
 
+  {% elif session.status == "paused" %}
+    <div class="card status-card">
+      <div class="emoji" aria-hidden="true">❚❚</div>
+      <h2>{% translate "Clase en pausa" %}</h2>
+      <p class="muted">{% translate "Tu docente la retomará donde quedó. Tus respuestas están guardadas." %}</p>
+    </div>
+
   {% elif session.status == "ended" %}
+    {% include "live/_feedback_form.html" %}
     <div class="card status-card">
       <h2>{% translate "Clase terminada" %}</h2>
       <p>{% blocktranslate with total=my_total|floatformat:"-1" max=session.max_points|floatformat:"-1" %}Tu puntaje: <strong>{{ total }}</strong> de {{ max }}{% endblocktranslate %}{% if my_rank %} · {% blocktranslate %}puesto {{ my_rank }}{% endblocktranslate %}{% endif %}</p>
@@ -20,6 +28,9 @@
   {% elif slide.kind == "content" %}
     <div class="card">{{ slide.markdown|md }}</div>
     <p class="muted small">{% translate "Mira el proyector. Las preguntas aparecerán aquí." %}</p>
+
+  {% elif slide.kind == "feedback" %}
+    {% include "live/_feedback_form.html" %}
 
   {% else %}
     {% if session.phase == "open" and not mine %}
@@ -32,7 +43,7 @@
       <div class="card status-card"><h3>{% translate "Prepárate…" %}</h3><p class="muted">{% translate "La pregunta se abrirá en un momento." %}</p></div>
 
     {% elif session.phase == "open" and not mine %}
-      <form method="post" action="{% url 'student_answer' session.pk %}" data-answer-form class="stack">
+      <form method="post" action="{% url 'student_answer' session.pk %}" data-answer-form data-slide="{{ session.index }}" class="stack">
         {% csrf_token %}
         {% with q=slide.question %}
           {% if q.type == "choice" or q.type == "multi_choice" %}

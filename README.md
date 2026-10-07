@@ -16,8 +16,14 @@ Aula virtual autoalojada para cursos universitarios con carga matemática.
   se escriben en YAML (`policlase.deck/v1`) y se validan con [`policlase-gen`](../policlase-gen).
   El docente puede **abrir la clase a invitados**: un enlace (y su QR en el proyector) deja entrar
   sin cuenta, para charlas o visitas.
-- **Editor de presentaciones** con vista previa en vivo, validación mientras se escribe y plantillas
-  para cada tipo de pregunta.
+- **Editor de presentaciones** con Monaco (el editor de VS Code, mismos atajos), panel lateral de
+  diapositivas para reordenar y ocultar (como PowerPoint), vista previa en vivo y plantillas para
+  cada tipo de pregunta.
+- **Clases en vivo**: pausar y retomar otro día donde quedó, +15 s / reabrir una pregunta, cierre
+  automático cuando respondieron todos los conectados, y una pregunta final de **retroalimentación
+  anónima** (sin vínculo con el estudiante; el docente ve el resumen desde 3 respuestas).
+- **Curso en pestañas** Clases | Evaluaciones | Actividades; en Clases, **secciones** (unidades) que
+  se minimizan. Con GitHub, cada carpeta con presentaciones es una sección.
 - **Sincronización con GitHub** por curso: cada docente conecta un token *fine-grained* (Contents:
   lectura y escritura) y vincula una carpeta de su repositorio. Lo que se empuja a GitHub aparece en
   la plataforma (al abrir el curso, o al instante con el webhook opcional); lo que se guarda en el

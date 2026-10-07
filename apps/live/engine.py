@@ -5,9 +5,15 @@ clics del docente o un cierre automático que coincide con un clic manual no pue
 sesión en un estado imposible.
 
     lobby ──start──▶ live ──end──▶ ended
+                      ▲  │
+              resume  │  ▼ pause
+                     paused ──end──▶ ended
 
     en una diapositiva de contenido:  content
-    en una pregunta:                   ready ──open──▶ open ──close/tiempo──▶ closed ──reveal──▶ results
+    en una pregunta:                   ready ──open──▶ open ──close/tiempo/todos──▶ closed ──reveal──▶ results
+                                                       ▲ extend                     │ extend (reabre)
+                                                       └────────────────────────────┘
+    retroalimentación final:           content (se responde mientras está en pantalla o tras terminar)
 """
 
 from __future__ import annotations
@@ -21,10 +27,17 @@ from django.utils.translation import gettext as _
 from django.utils.translation import pgettext
 from policlase_gen.grading import grade
 
-from .models import LiveSession, Participant, Response
+from .models import Feedback, LiveSession, Participant, Response
 
 Phase = LiveSession.Phase
 Status = LiveSession.Status
+
+#: Un participante cuenta como conectado si se lo vio hace menos que esto (el flujo SSE lo
+#: renueva cada `TOUCH_EVERY_S`). Quien cerró la pestaña deja de frenar el cierre automático.
+CONNECTED_WINDOW = timedelta(seconds=40)
+TOUCH_EVERY_S = 10
+EXTEND_S = 15
+FEEDBACK_MIN_SHOWN = 3
 
 
 def _tf(value) -> str:
@@ -37,7 +50,7 @@ class ActionError(Exception):
 
 def _phase_for(session: LiveSession, index: int) -> str:
     slide = session.slides[index]
-    if slide["kind"] != "question":
+    if slide["kind"] != "question":            # contenido y retroalimentación
         return Phase.CONTENT
     return Phase.RESULTS if index in session.opened else Phase.READY
 
@@ -50,6 +63,10 @@ def apply(session_id: int, action: str) -> LiveSession:
 
     if session.status == Status.ENDED:
         raise ActionError(_("La clase ya terminó."))
+    if session.status == Status.PAUSED and action == "primary":
+        action = "resume"
+    if session.status == Status.PAUSED and action not in ("resume", "end", "guests_on", "guests_off"):
+        raise ActionError(_("La clase está en pausa: reanúdela o termínela."))
 
     if action == "primary":
         # Barra espaciadora / botón del presentador: el paso siguiente lo decide el estado del
@@ -91,6 +108,33 @@ def apply(session_id: int, action: str) -> LiveSession:
             raise ActionError(_("La pregunta no está abierta."))
         session.phase, session.closes_at = Phase.CLOSED, now
 
+    elif action == "pause":
+        if session.status != Status.LIVE:
+            raise ActionError(_("Solo se puede pausar una clase en curso."))
+        session.status, session.paused_at = Status.PAUSED, now
+        if session.phase == Phase.OPEN and session.closes_at:
+            # El reloj de la pregunta abierta se congela y se devuelve al reanudar.
+            left = max(0, int((session.closes_at - now).total_seconds() * 1000))
+            session.paused_remaining_ms, session.closes_at = left, None
+
+    elif action == "resume":
+        if session.status != Status.PAUSED:
+            raise ActionError(_("La clase no está en pausa."))
+        session.status, session.paused_at = Status.LIVE, None
+        if session.phase == Phase.OPEN:
+            left = max(session.paused_remaining_ms or 0, 5000)      # al menos 5 s para releer
+            session.closes_at = now + timedelta(milliseconds=left)
+        session.paused_remaining_ms = None
+
+    elif action == "extend":
+        if session.phase == Phase.OPEN:
+            session.closes_at = max(session.closes_at or now, now) + timedelta(seconds=EXTEND_S)
+        elif session.phase == Phase.CLOSED:
+            # Reabrir: quienes no alcanzaron pueden responder; las respuestas ya dadas se quedan.
+            session.phase, session.closes_at = Phase.OPEN, now + timedelta(seconds=EXTEND_S)
+        else:
+            raise ActionError(_("No hay una pregunta abierta o cerrada a la que dar más tiempo."))
+
     elif action in ("guests_on", "guests_off"):
         session.allow_guests = action == "guests_on"
 
@@ -103,6 +147,7 @@ def apply(session_id: int, action: str) -> LiveSession:
 
     elif action == "end":
         session.status, session.ended_at = Status.ENDED, now
+        session.paused_at = session.paused_remaining_ms = None
         if session.phase == Phase.OPEN:
             session.phase, session.closes_at = Phase.CLOSED, now
 
@@ -143,11 +188,14 @@ def submit(session_id: int, student, answer) -> Response:
     session = LiveSession.objects.get(pk=session_id)
     now = timezone.now()
 
+    if session.status == Status.PAUSED:
+        raise ActionError(_("La clase está en pausa."))
     if session.status != Status.LIVE or session.phase != Phase.OPEN or not session.is_question:
         raise ActionError(_("La pregunta ya no recibe respuestas."))
     if session.closes_at and now > session.closes_at:
         raise ActionError(_("Se acabó el tiempo."))
 
+    join(session, student)          # quien responde está conectado, aunque su SSE aún no lo dijera
     slide = session.slide
     result = grade(slide["question"], answer, solution=slide["solution"])
     if not result.gradable:
@@ -166,7 +214,79 @@ def submit(session_id: int, student, answer) -> Response:
         raise ActionError(_("Ya respondió esta pregunta.")) from None
 
     LiveSession.objects.filter(pk=session_id).update(answers_version=F("answers_version") + 1)
+    close_if_all_answered(session_id, session.index)
     return response
+
+
+def connected(session_id: int):
+    return Participant.objects.filter(session_id=session_id,
+                                      last_seen__gte=timezone.now() - CONNECTED_WINDOW)
+
+
+def touch(session_id: int, user) -> None:
+    """El flujo SSE de cada estudiante lo llama cada pocos segundos: sigue conectado."""
+    Participant.objects.filter(session_id=session_id, student=user).update(last_seen=timezone.now())
+
+
+def close_if_all_answered(session_id: int, index: int) -> bool:
+    """Cierra la pregunta en cuanto respondieron todos los conectados.
+
+    Condicionado a que siga abierta y en la misma diapositiva: si el docente ya avanzó o el
+    tiempo la cerró, no hace nada.
+    """
+    answered = set(Response.objects.filter(session_id=session_id, slide_index=index)
+                   .values_list("student_id", flat=True))
+    waiting = set(connected(session_id).values_list("student_id", flat=True)) - answered
+    if not answered or waiting:
+        return False
+    return bool(
+        LiveSession.objects.filter(pk=session_id, phase=Phase.OPEN, index=index, status=Status.LIVE)
+        .update(phase=Phase.CLOSED, closes_at=timezone.now(), state_version=F("state_version") + 1)
+    )
+
+
+def can_give_feedback(session: LiveSession, student) -> bool:
+    if not session.has_feedback:
+        return False
+    if not (session.is_feedback and session.status == Status.LIVE) and session.status != Status.ENDED:
+        return False
+    return Participant.objects.filter(session=session, student=student, feedback_given=False).exists()
+
+
+@transaction.atomic
+def submit_feedback(session_id: int, student, rating: int, comment: str) -> None:
+    """Guarda la retroalimentación sin vínculo con quien la dio."""
+    session = LiveSession.objects.get(pk=session_id)
+    if not session.has_feedback or (
+            not (session.is_feedback and session.status == Status.LIVE) and session.status != Status.ENDED):
+        raise ActionError(_("La retroalimentación no está abierta."))
+    if not 1 <= rating <= 5:
+        raise ActionError(_("Elija una valoración de 1 a 5."))
+    marked = Participant.objects.filter(session=session, student=student, feedback_given=False) \
+        .update(feedback_given=True)
+    if not marked:
+        raise ActionError(_("Ya dejó su retroalimentación. ¡Gracias!"))
+    Feedback.objects.create(session=session, rating=rating, comment=comment.strip()[:1000])
+    LiveSession.objects.filter(pk=session_id).update(answers_version=F("answers_version") + 1)
+
+
+def feedback_summary(session: LiveSession) -> dict:
+    """Resumen para el docente. Con menos de FEEDBACK_MIN_SHOWN respuestas no se muestra nada:
+    en un grupo pequeño, el detalle permitiría adivinar quién respondió qué."""
+    import random
+
+    rows = list(Feedback.objects.filter(session=session).values_list("rating", "comment"))
+    summary = {"count": len(rows), "shown": len(rows) >= FEEDBACK_MIN_SHOWN, "minimum": FEEDBACK_MIN_SHOWN}
+    if summary["shown"]:
+        counts = {n: 0 for n in range(1, 6)}
+        for rating, _comment in rows:
+            counts[rating] += 1
+        summary["average"] = sum(r for r, _c in rows) / len(rows)
+        summary["bars"] = [{"rating": n, "count": counts[n]} for n in range(5, 0, -1)]
+        comments = [c for _r, c in rows if c]
+        random.shuffle(comments)                # el orden de llegada también podría delatar
+        summary["comments"] = comments
+    return summary
 
 
 # ------------------------------------------------------------------------- estadísticas

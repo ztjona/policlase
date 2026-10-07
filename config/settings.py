@@ -107,10 +107,12 @@ def _database(url: str) -> dict:
         "PASSWORD": parsed.password or "",
         "HOST": parsed.hostname or "",
         "PORT": str(parsed.port or 5432),
-        # Las conexiones SSE viven lo que dura la clase: reutilizar la conexión evita abrir
-        # una nueva en cada consulta de sondeo.
-        "CONN_MAX_AGE": 60,
-        "CONN_HEALTH_CHECKS": True,
+        # Pool de conexiones por proceso (psycopg_pool). Bajo ASGI las conexiones persistentes
+        # se filtran —cada flujo SSE y cada hilo dejaba la suya— y con 30 teléfonos Postgres
+        # llegó a su límite de 100. Con el pool, cada consulta toma una conexión y la devuelve:
+        # como máximo POLICLASE_DB_POOL por proceso, sin importar cuántos estudiantes haya.
+        "CONN_MAX_AGE": 0,
+        "OPTIONS": {"pool": {"min_size": 2, "max_size": int(env("POLICLASE_DB_POOL", "16")), "timeout": 10}},
     }
 
 

@@ -1,0 +1,21 @@
+{% load i18n %}
+{% for d in decks %}
+  <div class="deck-row">
+    <div>
+      <a href="{% url 'deck_view' course.pk d.pk %}"><strong>{{ d.title }}</strong></a>
+      <div class="small muted">
+        {% blocktranslate count n=d.visible_slides|length %}{{ n }} diapositiva{% plural %}{{ n }} diapositivas{% endblocktranslate %} ·
+        {% blocktranslate count n=d.question_count %}{{ n }} pregunta{% plural %}{{ n }} preguntas{% endblocktranslate %} ·
+        {% blocktranslate with when=d.updated_at|date:"d M H:i" %}editada {{ when }}{% endblocktranslate %}
+      </div>
+    </div>
+    <div class="row">
+      <a class="btn secondary small" href="{% url 'deck_edit' course.pk d.pk %}">{% translate "Editar" %}</a>
+      {% if not live %}
+        <form method="post" action="{% url 'session_start' course.pk d.pk %}">{% csrf_token %}<button class="small">{% translate "Iniciar clase" %}</button></form>
+      {% endif %}
+    </div>
+  </div>
+{% empty %}
+  <p class="small muted" style="margin:4px 0">{% translate "Sin presentaciones todavía." %}</p>
+{% endfor %}

@@ -37,4 +37,25 @@
     </tbody>
   </table>
 </div>
+
+{% if feedback %}
+  <h2>{% translate "Retroalimentación anónima" %}</h2>
+  <div class="card">
+    {% if feedback.shown %}
+      <p style="margin-top:0">{% blocktranslate with avg=feedback.average|floatformat:1 n=feedback.count %}Promedio <strong>{{ avg }}</strong> de 5 · {{ n }} respuestas.{% endblocktranslate %}</p>
+      <div class="bars">
+        {% for b in feedback.bars %}
+          <div class="bar"><div class="bar-label"><span>{{ b.rating }} ★</span></div><div class="count">{{ b.count }}</div>
+            <div class="fill-track"><div class="fill o3" style="width:{% widthratio b.count feedback.count 100 %}%"></div></div></div>
+        {% endfor %}
+      </div>
+      {% if feedback.comments %}
+        <h3>{% translate "Comentarios" %} <span class="small muted">({% translate "en orden aleatorio" %})</span></h3>
+        <ul class="stack" style="padding-left:1.2em">{% for c in feedback.comments %}<li>{{ c|linebreaksbr }}</li>{% endfor %}</ul>
+      {% endif %}
+    {% else %}
+      <p class="muted" style="margin:0">{% blocktranslate count n=feedback.count with min=feedback.minimum %}{{ n }} respuesta hasta ahora. El resumen aparece cuando haya al menos {{ min }}: así nadie puede deducir quién respondió qué.{% plural %}{{ n }} respuestas hasta ahora. El resumen aparece cuando haya al menos {{ min }}: así nadie puede deducir quién respondió qué.{% endblocktranslate %}</p>
+    {% endif %}
+  </div>
+{% endif %}
 {% endblock %}

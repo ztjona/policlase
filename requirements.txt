@@ -2,7 +2,7 @@
 Django>=5.2,<5.3                 # LTS hasta abril de 2028
 django-allauth>=65.19,<66        # registro, verificación de correo, recuperación de contraseña
 argon2-cffi>=23.1                # hash de contraseñas recomendado por OWASP
-psycopg[binary]>=3.2,<4
+psycopg[binary,pool]>=3.2,<4
 uvicorn>=0.30                    # ASGI: necesario para las clases en vivo (SSE)
 whitenoise>=6.7
 

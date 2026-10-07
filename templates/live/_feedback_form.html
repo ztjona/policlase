@@ -1,0 +1,20 @@
+{% load i18n %}
+{# Retroalimentación anónima. Se envía como las respuestas (data-answer-form): live.js la manda por fetch. #}
+{% if feedback_given %}
+  <div class="card status-card ok"><div class="emoji" aria-hidden="true">✓</div><h3>{% translate "¡Gracias por tu retroalimentación!" %}</h3></div>
+{% elif feedback_open %}
+  <form method="post" action="{% url 'student_feedback' session.pk %}" data-answer-form data-slide="feedback" class="card stack feedback-form">
+    {% csrf_token %}
+    <h3 style="margin:0">{% translate "¿Cómo estuvo la clase?" %}</h3>
+    <p class="anon-note small">{% include "live/_lock.html" %} {% translate "Es anónima de verdad: tu respuesta se guarda sin tu nombre, y tu docente solo ve el resumen del grupo (y únicamente cuando respondieron al menos 3). Responde con confianza." %}</p>
+    <fieldset class="rating">
+      <legend class="sr-only">{% translate "Valoración de 1 a 5" %}</legend>
+      {% for n, label in rating_choices %}
+        <label title="{{ label }}"><input type="radio" name="rating" value="{{ n }}" required>{% include "live/_face.html" %}<span class="small">{{ label }}</span></label>
+      {% endfor %}
+    </fieldset>
+    <label for="fb-comment" class="small">{% translate "Comentario (opcional): ¿qué funcionó?, ¿qué mejorarías?" %}</label>
+    <textarea id="fb-comment" name="comment" rows="3" maxlength="1000"></textarea>
+    <button type="submit" class="big">{% translate "Enviar anónimamente" %}</button>
+  </form>
+{% endif %}

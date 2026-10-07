@@ -10,7 +10,7 @@
     <form method="post" action="{% url 'session_start' course.pk deck.pk %}">{% csrf_token %}<button>{% translate "Iniciar clase" %}</button></form>
   </div>
 </div>
-<p class="muted">{% blocktranslate count n=deck.slides|length %}{{ n }} diapositiva{% plural %}{{ n }} diapositivas{% endblocktranslate %} · {% blocktranslate count n=deck.question_count %}{{ n }} pregunta{% plural %}{{ n }} preguntas{% endblocktranslate %}</p>
+<p class="muted">{% blocktranslate count n=deck.visible_slides|length %}{{ n }} diapositiva{% plural %}{{ n }} diapositivas{% endblocktranslate %} · {% blocktranslate count n=deck.question_count %}{{ n }} pregunta{% plural %}{{ n }} preguntas{% endblocktranslate %}</p>
 
 <div class="stack">
   {% include "live/_deck_slides.html" with slides=deck.slides %}
