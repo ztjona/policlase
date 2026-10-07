@@ -1,0 +1,24 @@
+{% load policlase i18n %}
+{# Panel lateral del proyector: saltar a una diapositiva, ver qué preguntas ya se hicieron y ocultar o mostrar sobre la marcha. #}
+<aside class="live-outline" aria-label="{% translate 'Diapositivas' %}">
+  <ol class="outline">
+    {% for o in outline %}
+      <li class="thumb{% if o.current %} current{% endif %}{% if o.slide.hidden %} is-hidden{% endif %}">
+        <button type="button" class="thumb-go" data-action="goto" data-index="{{ o.index }}"
+                {% if session.status != "live" or session.phase == "open" or o.current %}disabled{% endif %}
+                title="{% translate 'Ir a esta diapositiva' %}">
+          <span class="num">{% if o.slide.kind == "feedback" %}★{% else %}{{ forloop.counter }}{% endif %}</span>
+          <span class="body">
+            <span class="kind">{% if o.slide.kind == "content" %}{% translate "Contenido" %}{% elif o.slide.kind == "feedback" %}{% translate "Retroalimentación" %}{% else %}{{ o.slide.question.type }}{% endif %}{% if o.asked %} · ✓ {% translate "hecha" %}{% endif %}</span>
+            <span class="title">{{ o.slide|slide_title|md_inline }}</span>
+          </span>
+        </button>
+        {% if not o.current or session.status == "lobby" %}
+          <button type="button" class="icon" data-action="{% if o.slide.hidden %}show{% else %}hide{% endif %}" data-index="{{ o.index }}"
+                  title="{% if o.slide.hidden %}{% translate 'Mostrar en esta clase' %}{% else %}{% translate 'Ocultar en esta clase' %}{% endif %}"
+                  aria-label="{% if o.slide.hidden %}{% translate 'Mostrar en esta clase' %}{% else %}{% translate 'Ocultar en esta clase' %}{% endif %}">{% if o.slide.hidden %}◌{% else %}◉{% endif %}</button>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ol>
+</aside>

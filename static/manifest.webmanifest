@@ -4,8 +4,8 @@
   "description": "Aula virtual con clases en vivo",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#F5F6F3",
-  "theme_color": "#1B6B54",
+  "background_color": "#F4F6F9",
+  "theme_color": "#0E2A52",
   "icons": [
     { "src": "img/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "img/icon-512.png", "sizes": "512x512", "type": "image/png" },

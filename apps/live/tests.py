@@ -601,7 +601,11 @@ class HiddenSlidesTests(LiveBase):
         self.deck.save()
         self.assertEqual(self.deck.question_count, 3)
         session = self.start()
-        self.assertEqual(len(session.slides), 7)                 # 6 visibles + retroalimentación
+        self.assertEqual(len(session.slides), 8)                 # viajan todas, la oculta marcada
+        self.assertTrue(session.slides[1]["hidden"])
+        engine.apply(session.pk, "start")
+        session = engine.apply(session.pk, "next")               # salta la oculta
+        self.assertEqual(session.index, 2)
 
 
 class DeckOpsTests(LiveBase):
@@ -697,3 +701,133 @@ class SharedPollingTests(LiveBase):
             results = await asyncio.gather(*(views._snapshot(999) for _ in range(30)))
         self.assertEqual(calls, 1)
         self.assertEqual(len({r["state_version"] for r in results}), 1)
+
+
+
+class SpeedBonusTests(LiveBase):
+    def open_q(self):
+        session = self.goto_first_question(self.start())
+        for student in (self.ana, self.bruno):
+            engine.join(session, student)
+        return engine.apply(session.pk, "open")
+
+    def test_formula(self):
+        self.assertEqual(engine.game_score(1, 0, 20, True), 1000)
+        self.assertEqual(engine.game_score(1, 10_000, 20, True), 750)
+        self.assertEqual(engine.game_score(1, 20_000, 20, True), 500)
+        self.assertEqual(engine.game_score(1, 60_000, 20, True), 500)        # extendida: no baja de 50 %
+        self.assertEqual(engine.game_score(2, 10_000, 20, False), 2000)
+        self.assertEqual(engine.game_score(0, 0, 20, True), 0)
+
+    def test_el_mas_rapido_gana_el_marcador_pero_la_nota_es_igual(self):
+        session = self.open_q()
+        LiveSession.objects.filter(pk=session.pk).update(opened_at=timezone.now() - timedelta(seconds=1))
+        engine.submit(session.pk, self.ana, self.right_key(session))
+        LiveSession.objects.filter(pk=session.pk).update(opened_at=timezone.now() - timedelta(seconds=15))
+        engine.submit(session.pk, self.bruno, self.right_key(session))
+        ana, bruno = (Response.objects.get(student=u) for u in (self.ana, self.bruno))
+        self.assertEqual((ana.points, bruno.points), (1, 1))                    # misma nota
+        self.assertGreater(ana.score, bruno.score)                              # distinto juego
+        self.assertEqual(engine.leaderboard(session)[0]["student"], self.ana.pk)
+
+    def test_se_desactiva_en_la_sala_de_espera_o_en_la_presentacion(self):
+        session = self.start()
+        session = engine.apply(session.pk, "speed_off")
+        self.assertFalse(session.speed_bonus)
+        engine.apply(session.pk, "start")
+        with self.assertRaises(engine.ActionError):
+            engine.apply(session.pk, "speed_on")                                # ya empezó
+        source = DEMO.replace("slides:", "speed_bonus: false\nslides:", 1)
+        self.deck.compiled = deckfmt.compile_deck(deckfmt.load_deck_text(source)[0])
+        self.deck.save()
+        engine.apply(session.pk, "end")
+        self.client.post(reverse("session_start", args=[self.course.pk, self.deck.pk]))
+        self.assertFalse(LiveSession.objects.latest("created_at").speed_bonus)
+
+    def test_la_pausa_no_cuenta_como_tiempo(self):
+        session = self.open_q()
+        LiveSession.objects.filter(pk=session.pk).update(opened_at=timezone.now() - timedelta(seconds=2))
+        engine.apply(session.pk, "pause")
+        LiveSession.objects.filter(pk=session.pk).update(paused_at=timezone.now() - timedelta(minutes=10))
+        engine.apply(session.pk, "resume")
+        engine.submit(session.pk, self.ana, self.right_key(session))
+        self.assertLess(Response.objects.get(student=self.ana).elapsed_ms, 5000)
+
+
+class LiveOutlineTests(LiveBase):
+    def setUp(self):
+        super().setUp()
+        self.session = self.start()
+        engine.apply(self.session.pk, "start")
+
+    def test_ir_a_cualquier_diapositiva(self):
+        session = engine.apply(self.session.pk, "goto", index=4)
+        self.assertEqual((session.index, session.phase), (4, Phase.READY))
+        session = engine.apply(session.pk, "open")
+        with self.assertRaises(engine.ActionError):
+            engine.apply(session.pk, "goto", index=0)                        # pregunta abierta
+
+    def test_ocultar_y_mostrar_sobre_la_marcha(self):
+        session = engine.apply(self.session.pk, "hide", index=1)
+        self.assertTrue(session.slides[1]["hidden"])
+        session = engine.apply(session.pk, "next")
+        self.assertEqual(session.index, 2)                                   # la saltó
+        with self.assertRaises(engine.ActionError):
+            engine.apply(session.pk, "hide", index=2)                        # la que está en pantalla
+        session = engine.apply(session.pk, "goto", index=1)                  # ir a una oculta la muestra
+        self.assertFalse(session.slides[1]["hidden"])
+        self.deck.refresh_from_db()
+        self.assertFalse(self.deck.slides[1]["hidden"])                      # la presentación no cambió
+
+    def test_el_panel_se_renderiza(self):
+        self.client.force_login(self.teacher)
+        page = self.client.get(reverse("present_fragment", args=[self.session.pk]))
+        self.assertContains(page, 'class="live-outline"')
+        self.assertContains(page, 'data-action="goto" data-index="4"')
+        response = self.client.post(reverse("present_action", args=[self.session.pk]), {"action": "goto", "index": "3"})
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(LiveSession.objects.get(pk=self.session.pk).index, 3)
+
+
+class CoursePageActionsTests(LiveBase):
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.teacher)
+
+    def test_mover_presentacion_entre_secciones(self):
+        section = Section.objects.create(course=self.course, title="U1")
+        response = self.client.post(reverse("deck_move", args=[self.course.pk, self.deck.pk]), {"section": section.pk})
+        self.assertEqual(response.json(), {"ok": True})
+        self.deck.refresh_from_db()
+        self.assertEqual(self.deck.section, section)
+        self.client.post(reverse("deck_move", args=[self.course.pk, self.deck.pk]), {"section": ""})
+        self.deck.refresh_from_db()
+        self.assertIsNone(self.deck.section)
+
+    def test_eliminar_clase_dictada(self):
+        session = engine.apply(self.start().pk, "end")
+        self.client.post(reverse("session_delete", args=[session.pk]))
+        self.assertFalse(LiveSession.objects.exists())
+
+    def test_no_se_elimina_una_clase_en_curso(self):
+        session = self.start()
+        engine.apply(session.pk, "start")
+        self.client.post(reverse("session_delete", args=[session.pk]))
+        self.assertTrue(LiveSession.objects.exists())
+
+    def test_otro_docente_no_mueve_ni_elimina(self):
+        session = engine.apply(self.start().pk, "end")
+        section = Section.objects.create(course=self.course, title="U1")
+        self.client.force_login(make_user("otra", User.Role.TEACHER))
+        self.assertEqual(self.client.post(reverse("deck_move", args=[self.course.pk, self.deck.pk]),
+                                          {"section": section.pk}).status_code, 404)
+        self.assertEqual(self.client.post(reverse("session_delete", args=[session.pk])).status_code, 404)
+        self.deck.refresh_from_db()
+        self.assertIsNone(self.deck.section)
+        self.assertTrue(LiveSession.objects.filter(pk=session.pk).exists())
+
+    def test_engranaje_e_iconos(self):
+        page = self.client.get(reverse("course_manage", args=[self.course.pk]))
+        self.assertContains(page, reverse("course_settings", args=[self.course.pk]))
+        self.assertContains(page, 'class="icon-btn danger"')
+        self.assertContains(page, reverse("deck_move", args=[self.course.pk, self.deck.pk]))

@@ -1,21 +1,28 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <title>policlase</title>
+  <!-- Escudo inspirado en la identidad de la EPN (silueta y colores: azul marino, rojo, dorado);
+       dentro, el símbolo propio de policlase: los resultados de una pregunta en vivo. -->
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#23876A"/>
-      <stop offset="1" stop-color="#12493A"/>
+    <linearGradient id="navy" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#14386E"/>
+      <stop offset="1" stop-color="#021E40"/>
     </linearGradient>
+    <clipPath id="shield">
+      <path d="M92 40h328a28 28 0 0 1 28 28v190c0 118-86 182-192 222C150 440 64 376 64 258V68a28 28 0 0 1 28-28z"/>
+    </clipPath>
   </defs>
-  <!-- fondo: el verde de la marca -->
-  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
-  <!-- pizarra / proyector, con la cola de un globo de diálogo: la clase participa -->
-  <path d="M120 104h272a32 32 0 0 1 32 32v196a32 32 0 0 1-32 32H226l-74 60v-60h-32a32 32 0 0 1-32-32V136a32 32 0 0 1 32-32z" fill="#F7F8F4"/>
-  <!-- resultados de una pregunta en vivo, con los colores de las opciones -->
-  <rect x="146" y="246" width="56" height="72" rx="10" fill="#C2410C"/>
-  <rect x="228" y="198" width="56" height="120" rx="10" fill="#1D4ED8"/>
-  <rect x="310" y="150" width="56" height="168" rx="10" fill="#15803D"/>
-  <!-- ✓ en la barra correcta -->
-  <path d="M322 186l14 14 24-26" fill="none" stroke="#FFFFFF" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- punto «en vivo» -->
-  <circle cx="400" cy="112" r="34" fill="#EF4444" stroke="#1A6B53" stroke-width="12"/>
+  <g clip-path="url(#shield)">
+    <rect width="512" height="512" fill="url(#navy)"/>
+    <rect width="512" height="150" fill="#D52B1E"/>
+    <rect y="150" width="512" height="10" fill="#FFC600"/>
+  </g>
+  <path d="M92 40h328a28 28 0 0 1 28 28v190c0 118-86 182-192 222C150 440 64 376 64 258V68a28 28 0 0 1 28-28z"
+        fill="none" stroke="#FFC600" stroke-width="14"/>
+  <!-- punto «en vivo» en la franja roja -->
+  <circle cx="256" cy="95" r="26" fill="#FFFFFF"/>
+  <!-- barras de una votación en vivo, la correcta con ✓ -->
+  <rect x="150" y="292" width="54" height="74" rx="9" fill="#FFC600" opacity=".75"/>
+  <rect x="229" y="248" width="54" height="118" rx="9" fill="#FFC600" opacity=".85"/>
+  <rect x="308" y="198" width="54" height="168" rx="9" fill="#FFC600"/>
+  <path d="M319 236l14 14 22-25" fill="none" stroke="#021E40" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

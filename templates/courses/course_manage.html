@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% load i18n %}
+{% load i18n policlase %}
 {% block title %}{{ course.name }}{% endblock %}
 {% block main %}
 <div class="muted small mono">{{ course.code }}</div>
-<div class="spread">
+<div class="course-head">
   <h1>{{ course.name }}</h1>
-  <a class="btn secondary" href="{% url 'course_settings' course.pk %}">{% translate "Configuración del curso" %}</a>
+  <a class="icon-btn" href="{% url 'course_settings' course.pk %}" title="{% translate 'Configuración del curso' %}" aria-label="{% translate 'Configuración del curso' %}">{% icon "gear" 22 %}</a>
 </div>
 <p class="muted small">
   {% blocktranslate count n=approved_count %}{{ n }} estudiante inscrito{% plural %}{{ n }} estudiantes inscritos{% endblocktranslate %}

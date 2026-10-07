@@ -5,7 +5,7 @@
 {% block html_theme %} data-theme="{{ theme|default:'light' }}"{% endblock %}
 {% block color_scheme %}{{ theme|default:'light' }}{% endblock %}
 {% block chrome %}
-<div class="live-shell">
+<div class="live-shell show-outline" id="shell">
   <div class="live-bar">
     <a class="brand" href="{% url 'course_manage' course.pk %}"><img src="{% static 'img/icon.svg' %}" alt="" width="22" height="22">poli<span>clase</span></a>
     <strong>{{ session.title }}</strong>
@@ -13,6 +13,7 @@
     <span class="spacer"></span>
     <span>PIN <strong class="mono">{{ session.pin }}</strong></span>
     <span class="conn" id="conn">{% translate "conectando…" %}</span>
+    <button type="button" class="secondary small" id="toggle-outline" aria-pressed="true" title="{% translate 'Panel de diapositivas' %}">☰ <span class="sr-only">{% translate "Panel de diapositivas" %}</span></button>
     <form method="post" action="{% url 'set_theme' %}" class="themeswitch">
       {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
       {% if theme == "dark" %}

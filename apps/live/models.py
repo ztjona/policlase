@@ -114,6 +114,9 @@ class LiveSession(models.Model):
     #: Clase abierta: cualquiera con el enlace de invitado entra sin cuenta (charlas, visitas).
     #: El PIN sigue siendo solo para estudiantes aprobados: el enlace es largo e inadivinable.
     allow_guests = models.BooleanField(default=False)
+    #: Bono por rapidez en el marcador (no en la nota). Lo trae la presentación (`speed_bonus`)
+    #: y el docente puede cambiarlo en la sala de espera.
+    speed_bonus = models.BooleanField(default=True)
     guest_token = models.CharField(max_length=24, unique=True, default=new_guest_token)
 
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.LOBBY)
@@ -165,7 +168,7 @@ class LiveSession(models.Model):
 
     @property
     def has_feedback(self) -> bool:
-        return any(s["kind"] == "feedback" for s in self.slides)
+        return any(s["kind"] == "feedback" and not s.get("hidden") for s in self.slides)
 
     @property
     def question_indices(self) -> list[int]:
@@ -214,6 +217,9 @@ class Response(models.Model):
     correct = models.BooleanField()
     fraction = models.FloatField()
     points = models.FloatField()
+    #: Puntos de juego para el marcador: 1000 × puntos, y con bono por rapidez entre el 50 %
+    #: (al final del tiempo) y el 100 % (al instante). La nota usa `points`, nunca esto.
+    score = models.PositiveIntegerField(default=0)
     elapsed_ms = models.PositiveIntegerField()
     answered_at = models.DateTimeField(auto_now_add=True)
 

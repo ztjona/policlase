@@ -17,8 +17,8 @@
       {% for s in sections %}<option value="{{ s.pk }}" {% if section and s.pk == section.pk %}selected{% endif %}>{{ s.title }}</option>{% endfor %}
     </select>
     <span class="spacer"></span>
-    {% if link %}<span class="small muted" title="{{ link.repo }}">⎇ {% translate "se confirma en GitHub" %}</span>{% endif %}
-    <span class="small muted" id="preview-status"></span>
+    <span class="status-pill" id="preview-status" role="status" title="{% translate 'Validación' %}"></span>
+    {% if link %}<span class="chip gh-chip" title="{% blocktranslate with repo=link.repo %}Al guardar se hace un commit en {{ repo }}{% endblocktranslate %}">⎇ GitHub</span>{% endif %}
     <button type="button" class="secondary small" id="toggle-preview" aria-pressed="true">{% translate "Vista previa" %}</button>
     <a class="btn secondary small" href="{% if deck %}{% url 'deck_view' course.pk deck.pk %}{% else %}{% url 'course_manage' course.pk %}{% endif %}">{% translate "Cancelar" %}</a>
     <button type="submit" class="small" title="Ctrl+S">{% translate "Guardar" %}</button>
@@ -46,6 +46,7 @@
 
     <div class="studio-editor">
       <div id="monaco" class="monaco-host" aria-label="{% translate 'Editor YAML' %}"></div>
+      <div class="line-preview" id="line-preview" aria-live="polite" title="{% translate 'Vista previa de la línea del cursor' %}"></div>
       <textarea id="source" name="source" class="code" spellcheck="false">{{ source }}</textarea>
       <ul class="diag" id="diagnostics" aria-live="polite">
         {% for d in diagnostics %}

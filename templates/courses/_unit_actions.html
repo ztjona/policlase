@@ -1,0 +1,10 @@
+{% load i18n policlase %}
+<div class="unit-actions">
+  <form method="post" action="{% url 'section_create' course.pk %}" class="new-section" hidden>
+    {% csrf_token %}
+    <input type="text" name="title" placeholder="{% translate 'Unidad 1' %}" aria-label="{% translate 'Nombre de la sección nueva' %}" required maxlength="200">
+    <button class="icon-btn" title="{% translate 'Crear' %}" aria-label="{% translate 'Crear' %}">{% icon "check" %}</button>
+  </form>
+  <button type="button" class="btn secondary small" data-new-section>{% icon "folder_add" %} {% translate "Nueva sección" %}</button>
+  <a class="btn secondary small" href="{% url 'deck_new' course.pk %}">{% icon "file_add" %} {% translate "Presentación suelta" %}</a>
+</div>

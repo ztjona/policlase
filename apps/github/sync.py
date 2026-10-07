@@ -210,7 +210,10 @@ def push_deck(link: CourseRepo, deck: Deck, source: str) -> tuple[str, str]:
 
     taken = set(Deck.objects.filter(course=link.course).values_list("github_path", flat=True))
     taken |= set(client.tree(link.repo, link.branch))
-    new_path = _path_for(prefix, deck.title, taken - {path})
+    taken -= {path}
+    # Al mover se conserva el nombre del archivo; solo una presentación nueva se nombra por su título.
+    keep = f"{prefix}{path.rsplit('/', 1)[-1]}" if path else ""
+    new_path = keep if keep and keep not in taken else _path_for(prefix, deck.title, taken)
     if not path:
         sha = client.write(link.repo, link.branch, new_path, source, f"Crea «{deck.title}» desde policlase")
         return new_path, sha

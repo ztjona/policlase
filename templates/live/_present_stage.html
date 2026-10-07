@@ -1,4 +1,6 @@
 {% load policlase i18n %}
+<div class="projector-wrap">
+{% include "live/_live_outline.html" %}
 <div class="projector" data-status="{{ session.status }}" data-phase="{{ session.phase }}">
   {% if session.status == "lobby" %}
     <div class="slide lobby">
@@ -20,7 +22,7 @@
     <div class="slide lobby">
       <div class="pause-mark" aria-hidden="true">❚❚</div>
       <h1>{% translate "Clase en pausa" %}</h1>
-      <p class="url">{% blocktranslate with n=session.index|add:1 total=session.slides|length %}Se retoma en la diapositiva {{ n }} de {{ total }}.{% endblocktranslate %}
+      <p class="url">{% blocktranslate with n=position total=visible_total %}Se retoma en la diapositiva {{ n }} de {{ total }}.{% endblocktranslate %}
         {% if paused_left_s is not None %}{% blocktranslate with s=paused_left_s %}La pregunta abierta conserva {{ s }} s.{% endblocktranslate %}{% endif %}</p>
       <p class="meter">{% translate "Reanude cuando vuelva a tener a la clase, aunque sea otro día. O termínela aquí: los resultados cuentan solo las preguntas que se hicieron." %}</p>
     </div>
@@ -124,16 +126,19 @@
   <div class="controls">
     {% if session.status == "lobby" %}
       <button data-action="start" class="big">{% translate "Iniciar clase" %}</button>
+      <button data-action="{% if session.speed_bonus %}speed_off{% else %}speed_on{% endif %}" class="secondary"
+              title="{% translate 'En el marcador, responder rápido vale más (hasta el doble que al final del tiempo). La nota no cambia.' %}">
+        ⚡ {% if session.speed_bonus %}{% translate "Bono por rapidez: sí" %}{% else %}{% translate "Bono por rapidez: no" %}{% endif %}</button>
       {% include "live/_guest_toggle.html" %}
     {% elif session.status == "live" %}
-      <button data-action="prev" class="secondary" {% if session.index == 0 or session.phase == "open" %}disabled{% endif %} title="{% translate 'Flecha izquierda' %}">◀ {% translate "Anterior" %}</button>
-      <span class="progress">{{ session.index|add:1 }} / {{ session.slides|length }}</span>
+      <button data-action="prev" class="secondary" {% if not has_prev or session.phase == "open" %}disabled{% endif %} title="{% translate 'Flecha izquierda' %}">◀ {% translate "Anterior" %}</button>
+      <span class="progress">{{ position }} / {{ visible_total }}</span>
       {% if session.phase == "ready" %}<button data-action="open" title="{% translate 'Espacio' %}">{% translate "Abrir pregunta" %}</button>{% endif %}
       {% if session.phase == "open" %}<button data-action="close" title="{% translate 'Espacio' %}">{% translate "Cerrar ya" %}</button>{% endif %}
       {% if session.phase == "open" %}<button data-action="extend" class="secondary" title="{% translate 'Da más tiempo a todos' %}">+15 s</button>{% endif %}
       {% if session.phase == "closed" %}<button data-action="extend" class="secondary" title="{% translate 'Quienes no alcanzaron pueden responder; las respuestas dadas se mantienen' %}">{% translate "Reabrir +15 s" %}</button>{% endif %}
       {% if session.phase == "closed" %}<button data-action="reveal" title="{% translate 'Espacio' %}">{% translate "Mostrar respuesta" %}</button>{% endif %}
-      <button data-action="next" class="secondary" {% if session.index|add:1 == session.slides|length or session.phase == "open" %}disabled{% endif %} title="{% translate 'Flecha derecha' %}">{% translate "Siguiente" %} ▶</button>
+      <button data-action="next" class="secondary" {% if not has_next or session.phase == "open" %}disabled{% endif %} title="{% translate 'Flecha derecha' %}">{% translate "Siguiente" %} ▶</button>
       {% include "live/_guest_toggle.html" %}
       <button data-action="pause" class="secondary" title="{% translate 'Para retomarla otro día donde quedó' %}">❚❚ {% translate "Pausar" %}</button>
       <button data-action="end" class="danger" data-confirm="{% translate '¿Terminar la clase? Los estudiantes ya no podrán responder.' %}">{% translate "Terminar" %}</button>
@@ -144,4 +149,5 @@
       <button data-action="end" class="danger" data-confirm="{% translate '¿Terminar la clase en este punto? Los resultados cuentan solo las preguntas que se hicieron.' %}">{% translate "Terminar aquí" %}</button>
     {% endif %}
   </div>
+</div>
 </div>

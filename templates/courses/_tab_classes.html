@@ -1,5 +1,5 @@
-{% load i18n %}
-{# Pestaña Clases: presentaciones agrupadas en secciones (unidades) que se minimizan. #}
+{% load i18n policlase %}
+{# Pestaña Clases: secciones (unidades) minimizables; las presentaciones se arrastran entre ellas. #}
 {% if link %}
   <p class="small muted">
     ⎇ {% translate "Sincronizadas con" %} <a class="mono" href="https://github.com/{{ link.repo }}/tree/{{ link.branch }}/{{ link.folder }}" target="_blank" rel="noopener">{{ link.repo }}/{{ link.folder }}</a>
@@ -12,52 +12,47 @@
   {% endfor %}
 {% endif %}
 
-{% for group in groups %}
-  {% with section=group.section %}
-    {% if section %}
-      <details class="unit" id="seccion-{{ section.pk }}" {% if not section.collapsed %}open{% endif %}
-               data-toggle="{% url 'section_toggle' course.pk section.pk %}">
-        <summary>
-          <span class="unit-title">{{ section.title }}</span>
-          <span class="chip">{% blocktranslate count n=group.decks|length %}{{ n }} presentación{% plural %}{{ n }} presentaciones{% endblocktranslate %}</span>
-          <span class="spacer"></span>
-        </summary>
-        <div class="unit-body">
-          {% include "courses/_deck_rows.html" with decks=group.decks %}
-          <div class="unit-tools">
-            <a class="btn secondary small" href="{% url 'deck_new' course.pk %}?seccion={{ section.pk }}">+ {% translate "Presentación" %}</a>
-            <form method="post" action="{% url 'section_rename' course.pk section.pk %}" class="row">
-              {% csrf_token %}
-              <input type="text" name="title" value="{{ section.title }}" aria-label="{% translate 'Nombre de la sección' %}" required maxlength="200">
-              <button class="secondary small">{% translate "Renombrar" %}</button>
-            </form>
-            {% if not group.decks %}
-              <form method="post" action="{% url 'section_delete' course.pk section.pk %}">
-                {% csrf_token %}<button class="danger small">{% translate "Eliminar sección" %}</button>
-              </form>
+<div id="units" data-csrf="{{ csrf_token }}">
+  {% include "courses/_unit_actions.html" %}
+
+  {% for group in groups %}
+    {% with section=group.section %}
+      {% if section %}
+        <details class="unit drop-section" id="seccion-{{ section.pk }}" {% if not section.collapsed %}open{% endif %}
+                 data-section="{{ section.pk }}" data-toggle="{% url 'section_toggle' course.pk section.pk %}">
+          <summary>
+            <span class="unit-title" data-rename="{% url 'section_rename' course.pk section.pk %}"
+                  title="{% translate 'Doble clic para renombrar' %}">{{ section.title }}</span>
+            <span class="chip">{{ group.decks|length }}</span>
+            <span class="spacer"></span>
+            <a class="icon-btn" href="{% url 'deck_new' course.pk %}?seccion={{ section.pk }}"
+               title="{% translate 'Nueva presentación en esta sección' %}" aria-label="{% translate 'Nueva presentación en esta sección' %}">{% icon "file_add" %}</a>
+            {% if group.decks %}
+              <span class="icon-btn" aria-disabled="true" title="{% translate 'Para eliminar la sección, mueva o elimine antes sus presentaciones' %}">{% icon "close" %}</span>
+            {% else %}
+              <button type="button" class="icon-btn danger" data-delete="{% url 'section_delete' course.pk section.pk %}"
+                      data-confirm="{% blocktranslate with t=section.title %}¿Eliminar la sección «{{ t }}»?{% endblocktranslate %}"
+                      title="{% translate 'Eliminar sección' %}" aria-label="{% translate 'Eliminar sección' %}">{% icon "close" %}</button>
             {% endif %}
+          </summary>
+          <div class="unit-body">
+            {% include "courses/_deck_rows.html" with decks=group.decks %}
           </div>
-        </div>
-      </details>
-    {% elif group.decks %}
-      <div class="card stack" style="margin-bottom:12px">
-        {% include "courses/_deck_rows.html" with decks=group.decks %}
-      </div>
-    {% endif %}
-  {% endwith %}
-{% endfor %}
+        </details>
+      {% elif group.decks or groups|length > 1 %}
+        <section class="unit loose drop-section" data-section="">
+          <div class="loose-head small muted">{% translate "Sin sección" %} · {% translate "arrastre una presentación a una sección para agruparla" %}</div>
+          <div class="unit-body">{% include "courses/_deck_rows.html" with decks=group.decks %}</div>
+        </section>
+      {% endif %}
+    {% endwith %}
+  {% endfor %}
 
-{% if not has_decks and groups|length == 1 %}
-  <p class="muted">{% translate "Todavía no hay presentaciones. Cree una sección (p. ej. «Unidad 1») y agregue presentaciones, o cree una presentación suelta." %}</p>
-{% endif %}
+  {% if not has_decks and groups|length == 1 %}
+    <p class="muted">{% translate "Todavía no hay presentaciones. Cree una sección (p. ej. «Unidad 1») y agregue presentaciones, o cree una presentación suelta." %}</p>
+  {% endif %}
 
-<div class="row" style="margin:6px 0 4px">
-  <form method="post" action="{% url 'section_create' course.pk %}" class="row">
-    {% csrf_token %}
-    <input type="text" name="title" placeholder="{% translate 'Unidad 1' %}" aria-label="{% translate 'Nombre de la sección nueva' %}" required maxlength="200" style="width:auto">
-    <button class="secondary">+ {% translate "Sección" %}</button>
-  </form>
-  <a class="btn secondary" href="{% url 'deck_new' course.pk %}">+ {% translate "Presentación suelta" %}</a>
+  {% if groups|length > 1 %}{% include "courses/_unit_actions.html" %}{% endif %}
 </div>
 
 {% if past_sessions %}
@@ -71,22 +66,17 @@
             <td>{{ s.title }}</td>
             <td class="small">{{ s.started_at|default:s.created_at|date:"d M Y H:i" }}</td>
             <td class="num">{{ s.participants.count }}</td>
-            <td><a href="{% url 'session_results' s.pk %}">{% translate "Resultados" %}</a></td>
+            <td class="row-actions">
+              <a class="icon-btn" href="{% url 'session_results' s.pk %}" title="{% translate 'Resultados' %}" aria-label="{% translate 'Resultados' %}">{% icon "results" %}</a>
+              <form method="post" action="{% url 'session_delete' s.pk %}"
+                    onsubmit="return confirm('{% translate "¿Eliminar esta clase y todas sus respuestas? No se puede deshacer." as msg %}{{ msg|escapejs }}')">
+                {% csrf_token %}<button class="icon-btn danger" title="{% translate 'Eliminar clase' %}" aria-label="{% translate 'Eliminar clase' %}">{% icon "trash" %}</button>
+              </form>
+            </td>
           </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 {% endif %}
-
-<script>
-  // Minimizar o desplegar una sección se recuerda sin recargar la página.
-  document.querySelectorAll("details.unit[data-toggle]").forEach(function (d) {
-    d.addEventListener("toggle", function () {
-      var token = document.querySelector("input[name=csrfmiddlewaretoken]");
-      fetch(d.dataset.toggle, { method: "POST", credentials: "same-origin",
-        headers: { "X-CSRFToken": token ? token.value : "" },
-        body: new URLSearchParams({ collapsed: d.open ? "0" : "1" }) });
-    });
-  });
-</script>
+{% load static %}<script defer src="{% static 'js/course.js' %}"></script>

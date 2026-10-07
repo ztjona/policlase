@@ -55,8 +55,30 @@ def _phase_for(session: LiveSession, index: int) -> str:
     return Phase.RESULTS if index in session.opened else Phase.READY
 
 
+def speed_factor(elapsed_ms: int, limit_s: float) -> float:
+    """1.0 al instante, 0.5 al acabarse el tiempo (y después, si el docente lo extendió)."""
+    if limit_s <= 0:
+        return 1.0
+    return 1.0 - 0.5 * min(1.0, max(0, elapsed_ms) / (limit_s * 1000))
+
+
+def game_score(points: float, elapsed_ms: int, limit_s: float, speed_bonus: bool) -> int:
+    factor = speed_factor(elapsed_ms, limit_s) if speed_bonus else 1.0
+    return round(1000 * points * factor)
+
+
+def _step(session: LiveSession, start: int, direction: int) -> int | None:
+    """Siguiente diapositiva visible en esa dirección (las ocultas se saltan)."""
+    i = start + direction
+    while 0 <= i < len(session.slides):
+        if not session.slides[i].get("hidden"):
+            return i
+        i += direction
+    return None
+
+
 @transaction.atomic
-def apply(session_id: int, action: str) -> LiveSession:
+def apply(session_id: int, action: str, index: int | None = None) -> LiveSession:
     session = LiveSession.objects.select_for_update().get(pk=session_id)
     now = timezone.now()
     last = len(session.slides) - 1
@@ -65,7 +87,7 @@ def apply(session_id: int, action: str) -> LiveSession:
         raise ActionError(_("La clase ya terminó."))
     if session.status == Status.PAUSED and action == "primary":
         action = "resume"
-    if session.status == Status.PAUSED and action not in ("resume", "end", "guests_on", "guests_off"):
+    if session.status == Status.PAUSED and action not in ("resume", "end", "guests_on", "guests_off", "hide", "show"):
         raise ActionError(_("La clase está en pausa: reanúdela o termínela."))
 
     if action == "primary":
@@ -80,20 +102,47 @@ def apply(session_id: int, action: str) -> LiveSession:
     if action == "start":
         if session.status != Status.LOBBY:
             raise ActionError(_("La clase ya empezó."))
-        session.status, session.started_at, session.index = Status.LIVE, now, 0
-        session.phase = _phase_for(session, 0)
+        first = 0 if not session.slides[0].get("hidden") else _step(session, 0, 1)
+        session.status, session.started_at, session.index = Status.LIVE, now, first or 0
+        session.phase = _phase_for(session, session.index)
 
     elif action in ("next", "prev"):
         if session.status != Status.LIVE:
             raise ActionError(_("Inicie la clase primero."))
         if session.phase == Phase.OPEN:
             raise ActionError(_("Cierre la pregunta antes de cambiar de diapositiva."))
-        target = session.index + (1 if action == "next" else -1)
-        if not 0 <= target <= last:
+        target = _step(session, session.index, 1 if action == "next" else -1)
+        if target is None:
             raise ActionError(_("No hay más diapositivas en esa dirección."))
         session.index = target
         session.phase = _phase_for(session, target)
         session.opened_at = session.closes_at = None
+
+    elif action == "goto":
+        # Panel lateral del proyector: saltar a cualquier diapositiva (una oculta se muestra).
+        if session.status != Status.LIVE:
+            raise ActionError(_("Inicie la clase primero."))
+        if session.phase == Phase.OPEN:
+            raise ActionError(_("Cierre la pregunta antes de cambiar de diapositiva."))
+        if index is None or not 0 <= index <= last:
+            raise ActionError(_("Esa diapositiva no existe."))
+        session.slides[index]["hidden"] = False
+        session.index = index
+        session.phase = _phase_for(session, index)
+        session.opened_at = session.closes_at = None
+
+    elif action in ("hide", "show"):
+        # Ocultar o mostrar sobre la marcha: solo en esta clase, la presentación no cambia.
+        if index is None or not 0 <= index <= last:
+            raise ActionError(_("Esa diapositiva no existe."))
+        if action == "hide" and index == session.index and session.status != Status.LOBBY:
+            raise ActionError(_("No se puede ocultar la diapositiva que está en pantalla."))
+        session.slides[index]["hidden"] = action == "hide"
+
+    elif action in ("speed_on", "speed_off"):
+        if session.status != Status.LOBBY:
+            raise ActionError(_("El bono por rapidez se elige antes de iniciar la clase."))
+        session.speed_bonus = action == "speed_on"
 
     elif action == "open":
         if session.phase != Phase.READY:
@@ -120,10 +169,13 @@ def apply(session_id: int, action: str) -> LiveSession:
     elif action == "resume":
         if session.status != Status.PAUSED:
             raise ActionError(_("La clase no está en pausa."))
-        session.status, session.paused_at = Status.LIVE, None
         if session.phase == Phase.OPEN:
             left = max(session.paused_remaining_ms or 0, 5000)      # al menos 5 s para releer
             session.closes_at = now + timedelta(milliseconds=left)
+            if session.opened_at and session.paused_at:
+                # La pausa no cuenta como tiempo de respuesta (bono por rapidez).
+                session.opened_at += now - session.paused_at
+        session.status, session.paused_at = Status.LIVE, None
         session.paused_remaining_ms = None
 
     elif action == "extend":
@@ -209,6 +261,7 @@ def submit(session_id: int, student, answer) -> Response:
                 item_id=slide["item_id"], item_version=slide["item_version"],
                 answer=answer, correct=result.correct, fraction=result.fraction,
                 points=result.points, elapsed_ms=max(elapsed, 0),
+                score=game_score(result.points, elapsed, float(slide["time_limit_s"]), session.speed_bonus),
             )
     except IntegrityError:
         raise ActionError(_("Ya respondió esta pregunta.")) from None
@@ -334,7 +387,7 @@ def question_stats(session: LiveSession, index: int) -> dict:
 def leaderboard(session: LiveSession, limit: int | None = 5) -> list[dict]:
     rows = (Response.objects.filter(session=session)
             .values("student", "student__first_name", "student__last_name", "student__username")
-            .annotate(total=Sum("points"), time=Sum("elapsed_ms"))
+            .annotate(total=Sum("score"), time=Sum("elapsed_ms"))
             .order_by("-total", "time"))
     if limit:
         rows = rows[:limit]

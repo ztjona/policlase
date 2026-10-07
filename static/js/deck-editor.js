@@ -22,6 +22,11 @@
 
   function csrf() { return form.querySelector("input[name=csrfmiddlewaretoken]").value; }
 
+  function setStatus(text, kind) {
+    status.textContent = text;
+    status.className = "status-pill" + (kind ? " " + kind : "");
+  }
+
   // ------------------------------------------------------------ editor (Monaco o textarea)
 
   var ed = {
@@ -117,6 +122,9 @@
       editor.onDidChangeModelContent(schedule);
       editor.onDidChangeCursorPosition(function () { highlight(true); });
       editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, function () { form.requestSubmit(); });
+      registerCompletions(monaco);
+      editor.onDidChangeCursorPosition(linePreview);
+      editor.onDidChangeModelContent(linePreview);
       start();
     }, function () { clearTimeout(timeout); start(); });
   }
@@ -158,7 +166,7 @@
 
   function refresh() {
     var mine = ++seq;
-    status.textContent = gettext("validando…");
+    setStatus(gettext("validando…"));
     fetch(form.dataset.preview, {
       method: "POST", credentials: "same-origin", body: new URLSearchParams({ source: ed.get() }),
       headers: { "X-CSRFToken": csrf() },
@@ -172,17 +180,17 @@
         outline.innerHTML = data.outline;
         if (window.policlaseMath) { window.policlaseMath(preview); window.policlaseMath(outline); }
         if (data.title) titleEl.textContent = data.title;
-        status.textContent = gettext("al día");
+        setStatus(gettext("al día"), "ok");
         preview.classList.remove("stale");
         outline.classList.remove("stale");
       } else {
         // Con errores se conserva la última vista válida, atenuada.
-        status.textContent = interpolate(ngettext("%s error", "%s errores", errors), [errors]);
+        setStatus(interpolate(ngettext("%s error", "%s errores", errors), [errors]), "bad");
         preview.classList.add("stale");
         outline.classList.add("stale");
       }
       highlight(false);
-    }).catch(function () { status.textContent = gettext("sin conexión"); });
+    }).catch(function () { setStatus(gettext("sin conexión"), "bad"); });
   }
 
   function schedule() { clearTimeout(timer); timer = setTimeout(refresh, 450); }
@@ -191,7 +199,7 @@
 
   function op(name, index, target) {
     if (outline.classList.contains("stale")) {
-      status.textContent = gettext("Corrija los errores antes de usar el panel.");
+      setStatus(gettext("Corrija los errores antes de usar el panel."), "bad");
       return;
     }
     var params = { source: ed.get(), op: name, index: index };
@@ -200,7 +208,7 @@
       method: "POST", credentials: "same-origin", body: new URLSearchParams(params),
       headers: { "X-CSRFToken": csrf() },
     }).then(function (r) { return r.json(); }).then(function (data) {
-      if (data.error) { status.textContent = data.error; return; }
+      if (data.error) { setStatus(data.error, "bad"); return; }
       ed.set(data.source);
       refresh();
     });
@@ -261,34 +269,35 @@
 
   function itemId() { return "L-" + Math.random().toString(36).slice(2, 7); }
 
+  // Comillas simples: en YAML las dobles convierten \t, \f, \b… de LaTeX en caracteres de control.
+  function q(text) { return "'" + text.replace(/'/g, "''") + "'"; }
+  function head(type) {
+    return "  - item:\n      id: " + itemId() + "\n      questions:\n        - id: q1\n          type: " + type + "\n";
+  }
+
   var SNIPPETS = {
     content: function () {
       return "  - markdown: |\n      ## " + gettext("Título") + "\n      " + gettext("Texto con matemáticas: $f(x) = x^2$.") + "\n";
     },
     choice: function () {
-      return "  - item:\n      id: " + itemId() + "\n      points: 1\n      questions:\n        - id: q1\n          type: choice\n          points: 1\n" +
-        "          prompt: \"" + gettext("¿Pregunta?") + "\"\n          options:\n" +
-        "            - { text: \"" + gettext("Correcta") + "\", correct: true }\n" +
-        "            - { text: \"" + gettext("Distractor") + " 1\" }\n            - { text: \"" + gettext("Distractor") + " 2\" }\n";
+      return head("choice") + "          prompt: " + q(gettext("¿Pregunta?")) + "\n          options:\n" +
+        "            - { text: " + q(gettext("Correcta")) + ", correct: true }\n" +
+        "            - { text: " + q(gettext("Distractor") + " 1") + " }\n            - { text: " + q(gettext("Distractor") + " 2") + " }\n";
     },
     multi_choice: function () {
-      return "  - item:\n      id: " + itemId() + "\n      points: 1\n      questions:\n        - id: q1\n          type: multi_choice\n          points: 1\n" +
-        "          prompt: \"" + gettext("Marque todas las correctas") + "\"\n          options:\n" +
-        "            - { text: \"" + gettext("Correcta") + " 1\", correct: true }\n            - { text: \"" + gettext("Correcta") + " 2\", correct: true }\n" +
-        "            - { text: \"" + gettext("Distractor") + "\" }\n";
+      return head("multi_choice") + "          prompt: " + q(gettext("Marque todas las correctas")) + "\n          options:\n" +
+        "            - { text: " + q(gettext("Correcta") + " 1") + ", correct: true }\n            - { text: " + q(gettext("Correcta") + " 2") + ", correct: true }\n" +
+        "            - { text: " + q(gettext("Distractor")) + " }\n";
     },
     true_false: function () {
-      return "  - item:\n      id: " + itemId() + "\n      points: 1\n      questions:\n        - id: q1\n          type: true_false\n          points: 1\n" +
-        "          prompt: \"" + gettext("Indique si cada afirmación es verdadera o falsa") + "\"\n          statements:\n" +
-        "            - { text: \"" + gettext("Afirmación verdadera") + "\", answer: true }\n            - { text: \"" + gettext("Afirmación falsa") + "\", answer: false }\n";
+      return head("true_false") + "          prompt: " + q(gettext("Indique si cada afirmación es verdadera o falsa")) + "\n          statements:\n" +
+        "            - { text: " + q(gettext("Afirmación verdadera")) + ", answer: true }\n            - { text: " + q(gettext("Afirmación falsa")) + ", answer: false }\n";
     },
     numeric: function () {
-      return "  - item:\n      id: " + itemId() + "\n      points: 1\n      questions:\n        - id: q1\n          type: numeric\n          points: 1\n" +
-        "          prompt: \"" + gettext("¿Cuánto vale $2^{10}$?") + "\"\n          solution: 1024\n          grading: { atol: 0.5 }\n";
+      return head("numeric") + "          prompt: " + q(gettext("¿Cuánto vale $2^{10}$?")) + "\n          solution: 1024\n          grading: { atol: 0.5 }\n";
     },
     text: function () {
-      return "  - item:\n      id: " + itemId() + "\n      points: 1\n      questions:\n        - id: q1\n          type: text\n          points: 1\n" +
-        "          prompt: \"" + gettext("¿Nombre del método?") + "\"\n          grading: { accept: [\"" + gettext("bisección") + "\"] }\n";
+      return head("text") + "          prompt: " + q(gettext("¿Nombre del método?")) + "\n          grading: { accept: [" + q(gettext("bisección")) + "] }\n";
     },
   };
 
@@ -311,6 +320,125 @@
       b.closest("details").removeAttribute("open");
     });
   });
+
+  // --------------------------------------------- autocompletado según el esquema (Ctrl+Espacio)
+
+  var KEYS = {
+    root: { schema: "Versión del formato: policlase.deck/v1", title: "Título de la clase",
+            defaults: "Valores por omisión (time_limit_s)", slides: "Lista de diapositivas",
+            feedback: "Retroalimentación anónima al final (true por omisión)",
+            speed_bonus: "Bono por rapidez en el marcador (true por omisión)", meta: "Datos libres" },
+    defaults: { time_limit_s: "Segundos por pregunta (5–600; 30 por omisión)" },
+    slides: { markdown: "Contenido: markdown con $matemáticas$", item: "Una pregunta",
+              notes: "Notas para el docente", hidden: "true: no se presenta en clase" },
+    item: { id: "Identificador único del ítem", points: "Puntos (1 por omisión)", tags: "Etiquetas",
+            lecture: "Opciones de clase en vivo (time_limit_s)", stem: "Enunciado común", questions: "La pregunta (una sola en vivo)" },
+    lecture: { time_limit_s: "Segundos para esta pregunta (5–600)" },
+    questions: { id: "Identificador de la pregunta (q1)", type: "choice · multi_choice · true_false · numeric · text",
+                 points: "Puntos (1 por omisión)", prompt: "Enunciado (use comillas simples si lleva LaTeX)",
+                 options: "Opciones (choice, multi_choice)", statements: "Afirmaciones (true_false)",
+                 solution: "Respuesta (numeric)", grading: "Cómo se califica" },
+    options: { text: "Texto de la opción", correct: "true en las correctas" },
+    statements: { text: "Afirmación", answer: "true o false" },
+    grading: { atol: "numeric: tolerancia absoluta", rtol: "numeric: tolerancia relativa", integer: "numeric: exige entero",
+               units: "numeric: unidad obligatoria", accept: "text: respuestas aceptadas",
+               normalize: "text: [lowercase, strip_accents, collapse_spaces]",
+               partial: "multi_choice/true_false: crédito parcial", penalty: "penalización por error", floor: "mínimo" },
+  };
+  var VALUES = {
+    schema: ["policlase.deck/v1"],
+    type: ["choice", "multi_choice", "true_false", "numeric", "text"],
+    hidden: ["true", "false"], feedback: ["true", "false"], speed_bonus: ["true", "false"],
+    correct: ["true"], answer: ["true", "false"], integer: ["true", "false"],
+    partial: ["per_option", "per_statement", "all_or_nothing"],
+    normalize: ["[lowercase, strip_accents, collapse_spaces]"],
+  };
+  var KEY_LINE = /^(\s*)(-\s+)?([A-Za-z_][\w]*)\s*:/;
+
+  function parents(model, lineNumber, keyIndent) {
+    var path = [], threshold = keyIndent;
+    for (var l = lineNumber - 1; l >= 1 && threshold > 0; l--) {
+      var text = model.getLineContent(l);
+      if (!text.trim() || text.trim().charAt(0) === "#") continue;
+      var m = KEY_LINE.exec(text);
+      if (!m) continue;
+      var indent = m[1].length, keyAt = indent + (m[2] ? m[2].length : 0);
+      if (keyAt < threshold) { path.unshift(m[3]); threshold = m[2] ? indent : keyAt; }
+    }
+    return path;
+  }
+
+  // En variables aparte: xgettext no extrae bien un gettext que comparte línea con «${…}».
+  var OPTION_DETAIL = gettext("Opción en una línea");
+  var STATEMENT_DETAIL = gettext("Afirmación en una línea");
+
+  function registerCompletions(monaco) {
+    monaco.languages.registerCompletionItemProvider("yaml", {
+      triggerCharacters: [" ", ":"],
+      provideCompletionItems: function (model, position) {
+        var before = model.getLineContent(position.lineNumber).slice(0, position.column - 1);
+        var word = model.getWordUntilPosition(position);
+        var range = { startLineNumber: position.lineNumber, endLineNumber: position.lineNumber,
+                      startColumn: word.startColumn, endColumn: word.endColumn };
+        var value = /^\s*(?:-\s+)?([A-Za-z_]\w*):\s+[\w./-]*$/.exec(before);
+        if (value && VALUES[value[1]]) {
+          return { suggestions: VALUES[value[1]].map(function (v) {
+            return { label: v, kind: monaco.languages.CompletionItemKind.EnumMember, insertText: v, range: range };
+          }) };
+        }
+        var key = /^(\s*)(-\s+)?(\w*)$/.exec(before);
+        if (!key) return { suggestions: [] };
+        var at = key[1].length + (key[2] ? key[2].length : 0);
+        var path = parents(model, position.lineNumber, at);
+        var where = path.length ? path[path.length - 1] : "root";
+        var keys = KEYS[where] || {};
+        var out = Object.keys(keys).map(function (k) {
+          return { label: k, kind: monaco.languages.CompletionItemKind.Property, detail: keys[k],
+                   insertText: k + ": ", range: range, command: { id: "editor.action.triggerSuggest" } };
+        });
+        if (where === "options") {
+          out.push({ label: "{ text, correct }", kind: monaco.languages.CompletionItemKind.Snippet,
+                     insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                     insertText: "{ text: '${1}', correct: ${2|true,false|} }", detail: OPTION_DETAIL, range: range });
+        }
+        if (where === "statements") {
+          out.push({ label: "{ text, answer }", kind: monaco.languages.CompletionItemKind.Snippet,
+                     insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                     insertText: "{ text: '${1}', answer: ${2|true,false|} }", detail: STATEMENT_DETAIL, range: range });
+        }
+        return { suggestions: out };
+      },
+    });
+  }
+
+  // --------------------------------------------- LaTeX de la línea del cursor, renderizado
+
+  var lineBox = document.getElementById("line-preview");
+  var MATH = /\$\$[\s\S]+?\$\$|\$[^$]+\$/g;
+
+  function escapeHtml(t) {
+    return t.replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; });
+  }
+
+  function linePreview() {
+    if (!lineBox || !window.katex) return;
+    var line = ed.line(), text = editor ? editor.getModel().getLineContent(line) : "";
+    // El valor de la clave (text:, prompt:…) o la línea misma dentro de un bloque markdown.
+    var m = /(?:^|[{,\s])(?:text|prompt|markdown|stem)\s*:\s*(['"])(.*?)\1/.exec(text);
+    var value = m ? m[2] : text.replace(/^\s*(?:-\s+)?/, "");
+    if (value.indexOf("$") < 0) { lineBox.innerHTML = ""; return; }
+    var html = "", last = 0;
+    value.replace(MATH, function (tex, offset) {
+      html += escapeHtml(value.slice(last, offset));
+      var display = tex.slice(0, 2) === "$$";
+      var body = tex.slice(display ? 2 : 1, display ? -2 : -1);
+      try { html += window.katex.renderToString(body, { throwOnError: true, displayMode: false }); }
+      catch (err) { html += '<span class="lp-error" title="' + escapeHtml(err.message) + '">' + escapeHtml(tex) + " ⚠</span>"; }
+      last = offset + tex.length;
+    });
+    html += escapeHtml(value.slice(last));
+    lineBox.innerHTML = '<span class="lp-label">' + escapeHtml(interpolate(gettext("línea %s"), [line])) + "</span>" + html;
+  }
 
   // ------------------------------------------------------------------ eventos
 

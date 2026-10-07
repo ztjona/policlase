@@ -1,7 +1,8 @@
-{% load i18n %}
+{% load i18n policlase %}
 {% for d in decks %}
-  <div class="deck-row">
-    <div>
+  <div class="deck-row" draggable="true" data-move="{% url 'deck_move' course.pk d.pk %}">
+    <span class="grip" title="{% translate 'Arrastre para mover a otra sección' %}">{% icon "grip" 16 %}</span>
+    <div class="deck-info">
       <a href="{% url 'deck_view' course.pk d.pk %}"><strong>{{ d.title }}</strong></a>
       <div class="small muted">
         {% blocktranslate count n=d.visible_slides|length %}{{ n }} diapositiva{% plural %}{{ n }} diapositivas{% endblocktranslate %} ·
@@ -9,13 +10,18 @@
         {% blocktranslate with when=d.updated_at|date:"d M H:i" %}editada {{ when }}{% endblocktranslate %}
       </div>
     </div>
-    <div class="row">
-      <a class="btn secondary small" href="{% url 'deck_edit' course.pk d.pk %}">{% translate "Editar" %}</a>
+    <div class="row-actions">
       {% if not live %}
-        <form method="post" action="{% url 'session_start' course.pk d.pk %}">{% csrf_token %}<button class="small">{% translate "Iniciar clase" %}</button></form>
+        <form method="post" action="{% url 'session_start' course.pk d.pk %}">{% csrf_token %}
+          <button class="icon-btn primary" title="{% translate 'Iniciar clase' %}" aria-label="{% translate 'Iniciar clase' %}">{% icon "play" %}</button></form>
       {% endif %}
+      <a class="icon-btn" href="{% url 'deck_edit' course.pk d.pk %}" title="{% translate 'Editar' %}" aria-label="{% translate 'Editar' %}">{% icon "edit" %}</a>
+      <form method="post" action="{% url 'deck_delete' course.pk d.pk %}"
+            onsubmit="return confirm('{% blocktranslate with t=d.title asvar msg %}¿Eliminar «{{ t }}»? Las clases ya dictadas conservan sus resultados.{% endblocktranslate %}{{ msg|escapejs }}')">
+        {% csrf_token %}<button class="icon-btn danger" title="{% translate 'Eliminar presentación' %}" aria-label="{% translate 'Eliminar presentación' %}">{% icon "trash" %}</button>
+      </form>
     </div>
   </div>
 {% empty %}
-  <p class="small muted" style="margin:4px 0">{% translate "Sin presentaciones todavía." %}</p>
+  <p class="small muted drop-hint" style="margin:4px 0">{% translate "Sin presentaciones todavía: arrastre una aquí o cree una con" %} {% icon "file_add" 14 %}</p>
 {% endfor %}

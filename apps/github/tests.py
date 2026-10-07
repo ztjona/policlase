@@ -321,3 +321,29 @@ class SectionSyncTests(SyncBase):
         self.client.force_login(self.teacher)
         self.client.post(reverse("section_delete", args=[self.course.pk, unit1.pk]))
         self.assertTrue(Section.objects.filter(pk=unit1.pk).exists())
+
+
+
+class DragMoveGitHubTests(SyncBase):
+    def test_arrastrar_a_otra_seccion_mueve_el_archivo(self):
+        self.gh.files["mn/clases/unidad-01/.policlase-seccion"] = ""
+        sync.pull(self.link)
+        deck = Deck.objects.get()
+        unit = Section.objects.get(github_folder="unidad-01")
+        self.client.force_login(self.teacher)
+        response = self.client.post(reverse("deck_move", args=[self.course.pk, deck.pk]), {"section": unit.pk})
+        self.assertEqual(response.json(), {"ok": True})
+        self.assertIn("mn/clases/unidad-01/biseccion.yaml", self.gh.files)
+        self.assertNotIn("mn/clases/biseccion.yaml", self.gh.files)
+        self.assertFalse(sync.pull(self.link).changed)
+
+    def test_conflicto_al_mover_no_cambia_nada(self):
+        sync.pull(self.link)
+        deck = Deck.objects.get()
+        unit = Section.objects.create(course=self.course, title="Unidad 9", github_folder="unidad-09")
+        self.gh.files["mn/clases/biseccion.yaml"] = SMALL.format(title="Cambiada en GitHub")
+        self.client.force_login(self.teacher)
+        response = self.client.post(reverse("deck_move", args=[self.course.pk, deck.pk]), {"section": unit.pk})
+        self.assertEqual(response.status_code, 409)
+        deck.refresh_from_db()
+        self.assertIsNone(deck.section)

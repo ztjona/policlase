@@ -28,8 +28,8 @@ from .models import Deck, LiveSession, Response, Section
 Phase = LiveSession.Phase
 Status = LiveSession.Status
 
-DECK_TEMPLATE = """schema: policlase.deck/v1
-title: "Nueva clase"
+DECK_TEMPLATE = r"""schema: policlase.deck/v1
+title: 'Nueva clase'
 defaults: { time_limit_s: 30 }
 
 slides:
@@ -37,19 +37,18 @@ slides:
       # Título de la clase
       Contenido con matemáticas: $f(x) = x^2 - 4$.
 
+  # El LaTeX va entre comillas simples: en las dobles, \t, \f, \b… son escapes de YAML.
   - item:
       id: L01-ejemplo
-      points: 1
       questions:
         - id: q1
           type: choice
-          points: 1
-          prompt: "¿Cuáles son las raíces de $x^2 - 4$?"
+          prompt: '¿Cuáles son las raíces de $x^2 - 4$?'
           options:
-            - { text: "$x = \\\\pm 2$", correct: true }
-            - { text: "$x = 4$" }
-            - { text: "$x = \\\\pm 4$" }
-            - { text: "No tiene raíces reales" }
+            - { text: '$x = \pm 2$', correct: true }
+            - { text: '$x = 4$' }
+            - { text: '$x = \pm 4$' }
+            - { text: 'No tiene raíces reales' }
 """
 
 
@@ -211,6 +210,43 @@ def deck_delete(request, course_pk, pk):
     return redirect("course_manage", pk=course.pk)
 
 
+@teacher_required
+@require_POST
+def deck_move(request, course_pk, pk):
+    """Arrastrar una presentación a otra sección. Con GitHub, el archivo cambia de carpeta en un
+    solo commit (y solo si allá sigue como lo conocemos)."""
+    course = owned_course(request, course_pk)
+    deck = get_object_or_404(Deck, pk=pk, course=course)
+    wanted = request.POST.get("section", "")
+    section = get_object_or_404(Section, pk=wanted, course=course) if wanted else None
+    if section == deck.section:
+        return JsonResponse({"ok": True})
+    deck.section = section
+    link = _course_link(course)
+    if link:
+        from apps.github import sync
+        try:
+            deck.github_path, deck.github_sha = sync.push_deck(link, deck, deck.source)
+        except sync.GitHubError as exc:
+            return JsonResponse({"error": _("No se movió: %(error)s") % {"error": exc}}, status=409)
+    deck.save(update_fields=["section", "github_path", "github_sha"])
+    return JsonResponse({"ok": True})
+
+
+@teacher_required
+@require_POST
+def session_delete(request, pk):
+    """Eliminar una clase iniciada por error (o una terminada): se borran sus respuestas."""
+    session = _own_session(request, pk)
+    if session.status == Status.LIVE:
+        messages.error(request, _("Termine o pause la clase antes de eliminarla."))
+        return redirect("present", pk=session.pk)
+    course_pk = session.course_id
+    session.delete()
+    messages.success(request, _("Clase eliminada."))
+    return redirect("course_manage", pk=course_pk)
+
+
 # ------------------------------------------------------------------ sesión: docente
 
 
@@ -231,10 +267,11 @@ def session_start(request, course_pk, deck_pk):
     for _attempt in range(10):  # el PIN es aleatorio; en el raro caso de choque se reintenta
         try:
             with transaction.atomic():
-                # Las ocultas no se presentan; la retroalimentación desactivada tampoco.
+                # Las ocultas viajan marcadas: «Siguiente» las salta, y el panel del proyector
+                # permite mostrarlas sobre la marcha.
                 session = LiveSession.objects.create(
-                    course=course, deck=deck, title=deck.title,
-                    slides=[s for s in deck.slides if not s.get("hidden")],
+                    course=course, deck=deck, title=deck.title, slides=deck.slides,
+                    speed_bonus=deck.compiled.get("speed_bonus", True),
                 )
             break
         except IntegrityError:
@@ -289,7 +326,21 @@ def present_fragment(request, pk):
         context["feedback_count"] = session.feedback.count()
     if session.status == Status.PAUSED and session.paused_remaining_ms is not None:
         context["paused_left_s"] = round(session.paused_remaining_ms / 1000)
+    context.update(_progress(session))
     return render(request, "live/_present_stage.html", context)
+
+
+def _progress(session: LiveSession) -> dict:
+    """Posición entre las diapositivas visibles y el panel lateral del proyector."""
+    visible = [i for i, s in enumerate(session.slides) if not s.get("hidden")]
+    return {
+        "position": visible.index(session.index) + 1 if session.index in visible else "–",
+        "visible_total": len(visible),
+        "has_prev": any(i < session.index for i in visible),
+        "has_next": any(i > session.index for i in visible),
+        "outline": [{"index": i, "slide": s, "asked": i in session.opened, "current": i == session.index}
+                    for i, s in enumerate(session.slides)],
+    }
 
 
 @teacher_required
@@ -297,7 +348,8 @@ def present_fragment(request, pk):
 def present_action(request, pk):
     session = _own_session(request, pk)
     try:
-        engine.apply(session.pk, request.POST.get("action", ""))
+        raw = request.POST.get("index", "")
+        engine.apply(session.pk, request.POST.get("action", ""), index=int(raw) if raw.isdigit() else None)
     except engine.ActionError as exc:
         return HttpResponse(str(exc), status=409)
     return HttpResponse(status=204)
@@ -414,6 +466,8 @@ def _student_context(session: LiveSession, user, error: str = "") -> dict:
     if session.phase == Phase.RESULTS or session.status == Status.ENDED:
         board = engine.leaderboard(session, limit=None)
         context["leaderboard"] = board[:5]
+        context["my_points"] = sum(Response.objects.filter(session=session, student=user)
+                                   .values_list("points", flat=True))
         context["my_total"] = next((r["total"] for r in board if r["student"] == user.pk), 0)
         context["my_rank"] = next((i + 1 for i, r in enumerate(board) if r["student"] == user.pk), None)
     return context

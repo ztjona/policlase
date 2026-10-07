@@ -160,9 +160,11 @@ def course_manage(request, pk, tab="clases"):
         sections = list(Section.objects.filter(course=course))
         if link:
             sections.sort(key=lambda s: (not s.github_folder, sync.natural_key(s.github_folder), s.pk))
-        groups = [{"section": None, "decks": sorted([d for d in decks if d.section_id is None], key=key)}]
-        groups += [{"section": s, "decks": sorted([d for d in decks if d.section_id == s.pk], key=key)}
-                   for s in sections]
+        # Las secciones primero y las presentaciones sueltas al final: la unidad en curso no
+        # queda enterrada bajo una lista creciente de presentaciones sin sección.
+        groups = [{"section": s, "decks": sorted([d for d in decks if d.section_id == s.pk], key=key)}
+                  for s in sections]
+        groups.append({"section": None, "decks": sorted([d for d in decks if d.section_id is None], key=key)})
         context.update({
             "groups": groups, "has_decks": bool(decks),
             "past_sessions": LiveSession.objects.filter(course=course, status=LiveSession.Status.ENDED)[:10],

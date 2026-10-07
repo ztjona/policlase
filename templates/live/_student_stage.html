@@ -20,7 +20,8 @@
     {% include "live/_feedback_form.html" %}
     <div class="card status-card">
       <h2>{% translate "Clase terminada" %}</h2>
-      <p>{% blocktranslate with total=my_total|floatformat:"-1" max=session.max_points|floatformat:"-1" %}Tu puntaje: <strong>{{ total }}</strong> de {{ max }}{% endblocktranslate %}{% if my_rank %} · {% blocktranslate %}puesto {{ my_rank }}{% endblocktranslate %}{% endif %}</p>
+      <p>{% blocktranslate with total=my_total %}Tu puntaje: <strong>{{ total }}</strong>{% endblocktranslate %}{% if my_rank %} · {% blocktranslate %}puesto {{ my_rank }}{% endblocktranslate %}{% endif %}</p>
+      <p class="small muted">{% blocktranslate with got=my_points|floatformat:"-1" max=session.max_points|floatformat:"-1" %}Nota de participación: {{ got }} de {{ max }} puntos (solo cuenta acertar).{% endblocktranslate %}</p>
     </div>
     {% if leaderboard %}<ol class="board">{% for r in leaderboard %}<li><span>{{ forloop.counter }}. {{ r.name }}</span><strong>{{ r.total|floatformat:"-1" }}</strong></li>{% endfor %}</ol>{% endif %}
     {% if not user.is_guest %}<a class="btn secondary" href="{% url 'course_detail' session.course_id %}">{% translate "Volver al curso" %}</a>{% endif %}
@@ -92,7 +93,7 @@
         <div class="card status-card {% if mine.correct %}ok{% elif mine.points > 0 %}{% else %}bad{% endif %}">
           <div class="emoji" aria-hidden="true">{% if mine.correct %}✓{% elif mine.points > 0 %}≈{% else %}✗{% endif %}</div>
           <h2>{% if mine.correct %}{% translate "¡Correcto!" %}{% elif mine.points > 0 %}{% translate "Parcialmente correcto" %}{% else %}{% translate "Incorrecto" %}{% endif %}</h2>
-          <p>+{{ mine.points|floatformat:"-1" }} {% if mine.points == 1 %}{% translate "punto" %}{% else %}{% translate "puntos" %}{% endif %}</p>
+          <p class="score-gain">+{{ mine.score }}{% if session.speed_bonus and mine.score and mine.points %} <span class="small muted">{% translate "incluye el bono por rapidez" %}</span>{% endif %}</p>
         </div>
         <p class="small">{% translate "Respondiste:" %} {% for a in mine_display %}{{ a|md_inline }}{% if not forloop.last %} · {% endif %}{% endfor %}</p>
       {% else %}
@@ -101,7 +102,7 @@
       {% if correct_display %}
         <p><strong>{% translate "Respuesta correcta:" %}</strong> {% for c in correct_display %}{{ c|md_inline }}{% if not forloop.last %} · {% endif %}{% endfor %}</p>
       {% endif %}
-      <p class="small muted">{% blocktranslate with total=my_total|floatformat:"-1" %}Tu total: <strong>{{ total }}</strong>{% endblocktranslate %}{% if my_rank %} · {% blocktranslate %}puesto {{ my_rank }}{% endblocktranslate %}{% endif %}</p>
+      <p class="small muted">{% blocktranslate with total=my_total %}Tu total: <strong>{{ total }}</strong>{% endblocktranslate %}{% if my_rank %} · {% blocktranslate %}puesto {{ my_rank }}{% endblocktranslate %}{% endif %}</p>
     {% endif %}
   {% endif %}
 </div>

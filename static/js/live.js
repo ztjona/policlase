@@ -142,6 +142,7 @@
       function act(action, button) {
         if (button && button.dataset.confirm && !window.confirm(button.dataset.confirm)) return;
         var body = new URLSearchParams({ action: action });
+        if (button && button.dataset.index !== undefined) body.set("index", button.dataset.index);
         fetch(opts.action, {
           method: "POST", credentials: "same-origin", body: body,
           headers: { "X-CSRFToken": csrf() },
@@ -155,6 +156,18 @@
         var button = e.target.closest("[data-action]");
         if (button && !button.disabled) act(button.dataset.action, button);
       });
+
+      // Panel de diapositivas: se muestra u oculta y el navegador lo recuerda.
+      var shell = document.getElementById("shell"), toggle = document.getElementById("toggle-outline");
+      function setOutline(on) {
+        shell.classList.toggle("show-outline", on);
+        toggle.setAttribute("aria-pressed", on ? "true" : "false");
+        try { localStorage.setItem("policlase.outline", on ? "1" : "0"); } catch (e) {}
+      }
+      if (shell && toggle) {
+        try { if (localStorage.getItem("policlase.outline") === "0") setOutline(false); } catch (e) {}
+        toggle.addEventListener("click", function () { setOutline(!shell.classList.contains("show-outline")); });
+      }
 
       // Atajos para usar con un presentador inalámbrico: flechas y barra espaciadora.
       document.addEventListener("keydown", function (e) {
