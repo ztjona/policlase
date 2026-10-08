@@ -34,7 +34,7 @@
     {% include "live/_feedback_form.html" %}
 
   {% else %}
-    {% if session.phase == "open" and not mine %}
+    {% if session.phase == "open" and not mine and session.closes_at %}
       <div class="timer" data-closes-at="{{ session.closes_at|date:'c' }}" data-server-now="{{ now|date:'c' }}">–</div>
     {% endif %}
     {% if slide.stem %}<div>{{ slide.stem|md }}</div>{% endif %}
@@ -74,7 +74,7 @@
             <label for="answer-value" class="sr-only">{% translate "Respuesta" %}</label>
             <input id="answer-value" name="value" class="big-input" autocomplete="off" required
                    {% if q.type == "numeric" %}inputmode="decimal" placeholder="{% translate 'Número' %}"{% else %}placeholder="{% translate 'Respuesta' %}" data-math-preview autocapitalize="off" spellcheck="false"{% endif %}>
-            {% if q.type == "text" %}<div class="math-preview" aria-live="polite" hidden><span class="lp-label">{% translate "Así se verá" %}</span><span class="math-out"></span></div>{% endif %}
+            {% if q.type == "text" %}<div class="math-preview" aria-live="polite" hidden><span class="lp-label">{% translate "Vista previa" %}</span><span class="math-out"></span></div>{% endif %}
           {% endif %}
         {% endwith %}
         <button type="submit" class="big">{% translate "Enviar respuesta" %}</button>

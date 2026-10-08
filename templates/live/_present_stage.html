@@ -49,7 +49,8 @@
   {% else %}
     <div class="slide">
       {% if session.phase == "open" %}
-        <div class="timer" data-closes-at="{{ session.closes_at|date:'c' }}" data-server-now="{{ now|date:'c' }}">–</div>
+        {% if session.closes_at %}<div class="timer" data-closes-at="{{ session.closes_at|date:'c' }}" data-server-now="{{ now|date:'c' }}">–</div>
+        {% else %}<div class="timer" title="{% translate 'Sin límite de tiempo' %}">∞</div>{% endif %}
       {% endif %}
       {% if slide.stem %}<div>{{ slide.stem|md }}</div>{% endif %}
       <div class="prompt">{{ slide.question.prompt|md }}</div>
@@ -135,7 +136,8 @@
       <span class="progress">{{ position }} / {{ visible_total }}</span>
       {% if session.phase == "ready" %}<button data-action="open" title="{% translate 'Espacio' %}">{% translate "Abrir pregunta" %}</button>{% endif %}
       {% if session.phase == "open" %}<button data-action="close" title="{% translate 'Espacio' %}">{% translate "Cerrar ya" %}</button>{% endif %}
-      {% if session.phase == "open" %}<button data-action="extend" class="secondary" title="{% translate 'Da más tiempo a todos' %}">+15 s</button>{% endif %}
+      {% if session.phase == "open" and session.closes_at %}<button data-action="extend" class="secondary" title="{% translate 'Da más tiempo a todos' %}">+15 s</button>
+        <button data-action="unlimit" class="secondary" title="{% translate 'Quitar el límite: se cierra a mano o cuando respondan todos' %}">∞</button>{% endif %}
       {% if session.phase == "closed" %}<button data-action="extend" class="secondary" title="{% translate 'Quienes no alcanzaron pueden responder; las respuestas dadas se mantienen' %}">{% translate "Reabrir +15 s" %}</button>{% endif %}
       {% if session.phase == "closed" %}<button data-action="reveal" title="{% translate 'Espacio' %}">{% translate "Mostrar respuesta" %}</button>{% endif %}
       <button data-action="next" class="secondary" {% if not has_next or session.phase == "open" %}disabled{% endif %} title="{% translate 'Flecha derecha' %}">{% translate "Siguiente" %} ▶</button>

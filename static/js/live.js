@@ -201,13 +201,46 @@
         toggle.addEventListener("click", function () { setOutline(!shell.classList.contains("show-outline")); });
       }
 
-      // Atajos para usar con un presentador inalámbrico: flechas y barra espaciadora.
+      // Presentador inalámbrico (puntero láser): envía las mismas teclas que a PowerPoint.
+      // «Adelante» hace el paso que toca —abrir la pregunta, cerrarla, mostrar la respuesta,
+      // pasar a la siguiente—, así que el control basta para toda la clase.
+      var FORWARD = ["PageDown", "ArrowRight", "ArrowDown", " ", "Enter"];
+      var BACK = ["PageUp", "ArrowLeft", "ArrowUp"];
       document.addEventListener("keydown", function (e) {
-        if (e.target.closest("input, textarea, button")) return;
-        if (e.key === "ArrowRight" || e.key === "PageDown") { act("next"); e.preventDefault(); }
-        else if (e.key === "ArrowLeft" || e.key === "PageUp") { act("prev"); e.preventDefault(); }
-        else if (e.key === " " || e.key === "Enter") { act("primary"); e.preventDefault(); }
+        if (e.target.closest("input, textarea, select") || e.ctrlKey || e.metaKey || e.altKey) return;
+        if (e.target.closest("button") && (e.key === " " || e.key === "Enter")) return;  // botón con foco
+        if (FORWARD.indexOf(e.key) >= 0) { act("primary"); e.preventDefault(); }
+        else if (BACK.indexOf(e.key) >= 0) { act("prev"); e.preventDefault(); }
+        else if (e.key === "b" || e.key === "B" || e.key === ".") { toggleBlank(); e.preventDefault(); }
+        else if (e.key === "F5") { toggleFullscreen(); e.preventDefault(); }
       });
+
+      // Clic sobre la diapositiva (o el clic del puntero láser) también avanza, como en PowerPoint.
+      live.stage.addEventListener("click", function (e) {
+        if (e.target.closest("button, a, input, label, .live-outline, .controls, summary")) return;
+        if (!e.target.closest(".projector")) return;
+        act("primary");
+      });
+
+      // Pantalla en negro (tecla B o punto) y pantalla completa (F5 o su botón).
+      var blank = null;
+      function toggleBlank() {
+        if (!blank) {
+          blank = document.createElement("div");
+          blank.className = "blank-screen";
+          blank.addEventListener("click", toggleBlank);
+          document.body.appendChild(blank);
+        } else {
+          blank.remove();
+          blank = null;
+        }
+      }
+      function toggleFullscreen() {
+        if (document.fullscreenElement) document.exitFullscreen();
+        else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+      }
+      var full = document.getElementById("toggle-fullscreen");
+      if (full) full.addEventListener("click", toggleFullscreen);
     },
 
     student: function (opts) {

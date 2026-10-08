@@ -1,19 +1,18 @@
 /* policlase — estilos base. Sin dependencias externas: fuentes del sistema y KaTeX local. */
 
 :root {
-  --ground: #F4F6F9;
+  --ground: #F5F6FA;
   --surface: #FFFFFF;
-  --surface-alt: #EAEEF4;
-  --ink: #12213A;
-  --ink-soft: #3A4A63;
-  --muted: #66748A;
-  --rule: #D7DEE8;
-  --accent: #14386E;
+  --surface-alt: #F0F1F7;
+  --ink: #111827;
+  --ink-soft: #374151;
+  --muted: #6B7280;
+  --rule: #E2E4EE;
+  --accent: #4338CA;
   --accent-ink: #FFFFFF;
-  --accent-soft: #E3EAF5;
-  /* identidad (logo): azul, rojo y dorado institucionales */
-  --brand-red: #C8261C;
-  --brand-gold: #FFC600;
+  --accent-soft: #EEF0FF;
+  /* identidad del logo: violeta → índigo → cian */
+  --brand: #6D28D9;
   --danger: #A23A2F;
   --danger-soft: #F7E4E1;
   --warn: #8A6216;
@@ -41,17 +40,17 @@
 :root { color-scheme: light; }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --ground: #0B1220;
-  --surface: #121B2B;
-  --surface-alt: #182336;
-  --ink: #E6EAF2;
-  --ink-soft: #B9C3D3;
-  --muted: #8C97A9;
-  --rule: #26324A;
-  --accent: #FFC94D;
-  --accent-ink: #1A1300;
-  --accent-soft: #2B2611;
-  --brand-red: #F06A5E;
+  --ground: #0B0D17;
+  --surface: #12152A;
+  --surface-alt: #191D35;
+  --ink: #E7E9F5;
+  --ink-soft: #BAC0DA;
+  --muted: #8A90AE;
+  --rule: #272C4A;
+  --accent: #A5B4FC;
+  --accent-ink: #1E1B4B;
+  --accent-soft: #23214A;
+  --brand: #C4B5FD;
   --danger: #E6877A;
   --danger-soft: #3A211D;
   --warn: #DDB05C;
@@ -63,17 +62,17 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     color-scheme: dark;
-    --ground: #0B1220;
-    --surface: #121B2B;
-    --surface-alt: #182336;
-    --ink: #E6EAF2;
-    --ink-soft: #B9C3D3;
-    --muted: #8C97A9;
-    --rule: #26324A;
-    --accent: #FFC94D;
-    --accent-ink: #1A1300;
-    --accent-soft: #2B2611;
-    --brand-red: #F06A5E;
+    --ground: #0B0D17;
+    --surface: #12152A;
+    --surface-alt: #191D35;
+    --ink: #E7E9F5;
+    --ink-soft: #BAC0DA;
+    --muted: #8A90AE;
+    --rule: #272C4A;
+    --accent: #A5B4FC;
+    --accent-ink: #1E1B4B;
+    --accent-soft: #23214A;
+    --brand: #C4B5FD;
     --danger: #E6877A;
     --danger-soft: #3A211D;
     --warn: #DDB05C;
@@ -115,7 +114,7 @@ h3 { font-size: 1.02rem; margin: 1.2rem 0 .4rem; }
   font-weight: 700; letter-spacing: -.01em; font-size: 1.1rem;
   color: var(--ink); text-decoration: none;
 }
-.brand span { color: var(--brand-red); }
+.brand span { color: var(--brand); }
 .brand img { vertical-align: -6px; margin-right: 7px; border-radius: 6px; }
 .topbar nav { display: flex; gap: 14px; flex-wrap: wrap; margin-left: auto; align-items: center; font-size: .94rem; }
 .topbar nav a { color: var(--ink-soft); text-decoration: none; }
@@ -553,4 +552,10 @@ td.actions-col, th.actions-col { width: 1%; white-space: nowrap; padding-left: 2
 .site-foot a { color: inherit; }
 .about-head { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
 .brand-title { margin: 0; font-size: 2rem; }
-.brand-title span { color: var(--brand-red); }
+.brand-title span { color: var(--brand); }
+
+.blank-screen { position: fixed; inset: 0; background: #000; z-index: 100; cursor: none; }
+.projector { cursor: pointer; }
+.projector .controls, .projector .controls * { cursor: auto; }
+.projector button { cursor: pointer; }
+@media (max-width: 1100px) { .presenter-hint { display: none; } }

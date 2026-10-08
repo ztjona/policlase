@@ -947,3 +947,49 @@ class AboutTests(LiveBase):
         self.assertContains(page, "Jonathan Zea")
         self.assertContains(page, "github.com/ztjona/policlase")
         self.assertContains(self.client.get(reverse("account_login")), reverse("about"))
+
+
+class UnlimitedTimeTests(LiveBase):
+    def open_q(self, unlimited=True):
+        if unlimited:
+            source = DEMO.replace("defaults: { time_limit_s: 30 }", "defaults: { time_limit_s: null }")
+            source = source.replace("lecture: { time_limit_s: 20 }", "lecture: { time_limit_s: null }")
+            self.deck.compiled = deckfmt.compile_deck(deckfmt.load_deck_text(source)[0])
+            self.deck.save()
+        session = self.goto_first_question(self.start())
+        for student in (self.ana, self.bruno):
+            engine.join(session, student)
+        return engine.apply(session.pk, "open")
+
+    def test_sin_limite_no_vence_y_se_cierra_al_responder_todos(self):
+        session = self.open_q()
+        self.assertIsNone(session.closes_at)
+        LiveSession.objects.filter(pk=session.pk).update(opened_at=timezone.now() - timedelta(hours=1))
+        self.assertFalse(engine.expire_if_due(session.pk))
+        engine.submit(session.pk, self.ana, self.right_key(session))
+        self.assertEqual(Response.objects.get(student=self.ana).score, 1000)        # sin bono: no hay contra qué medir
+        engine.submit(session.pk, self.bruno, self.right_key(session))
+        self.assertEqual(LiveSession.objects.get(pk=session.pk).phase, Phase.CLOSED)
+
+    def test_pausar_y_reanudar_sigue_sin_limite(self):
+        session = self.open_q()
+        engine.apply(session.pk, "pause")
+        session = engine.apply(session.pk, "resume")
+        self.assertIsNone(session.closes_at)
+        with self.assertRaises(engine.ActionError):
+            engine.apply(session.pk, "extend")
+        session = engine.apply(session.pk, "close")
+        session = engine.apply(session.pk, "extend")                                # reabre, sin límite
+        self.assertEqual((session.phase, session.closes_at), (Phase.OPEN, None))
+
+    def test_quitar_el_limite_en_clase(self):
+        session = self.open_q(unlimited=False)
+        self.assertIsNotNone(session.closes_at)
+        session = engine.apply(session.pk, "unlimit")
+        self.assertIsNone(session.closes_at)
+        self.client.force_login(self.teacher)
+        page = self.client.get(reverse("present_fragment", args=[session.pk]))
+        self.assertContains(page, "∞")
+        self.assertNotContains(page, "data-closes-at")
+        self.client.force_login(self.ana)
+        self.assertNotContains(self.client.get(reverse("student_fragment", args=[session.pk])), "data-closes-at")

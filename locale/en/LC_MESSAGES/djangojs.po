@@ -4,14 +4,14 @@ msgid ""
 msgstr ""
 "Project-Id-Version: policlase\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-07 14:52-0500\n"
+"POT-Creation-Date: 2026-10-07 15:15-0500\n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: static/js/deck-editor.js:160 static/js/deck-editor.js:448
+#: static/js/deck-editor.js:160 static/js/deck-editor.js:449
 #, javascript-format
 msgid "línea %s"
 msgstr "line %s"
@@ -87,15 +87,15 @@ msgstr "Name of the method?"
 msgid "bisección"
 msgstr "bisection"
 
-#: static/js/deck-editor.js:380
+#: static/js/deck-editor.js:381
 msgid "Opción en una línea"
 msgstr "One-line option"
 
-#: static/js/deck-editor.js:381
+#: static/js/deck-editor.js:382
 msgid "Afirmación en una línea"
 msgstr "One-line statement"
 
-#: static/js/deck-editor.js:495
+#: static/js/deck-editor.js:496
 msgid "El archivo supera 512 KB."
 msgstr "The file is larger than 512 KB."
 
@@ -120,15 +120,15 @@ msgstr "class ended"
 msgid "No se pudo aplicar la acción (%s)."
 msgstr "Couldn't apply the action (%s)."
 
-#: static/js/live.js:241
+#: static/js/live.js:274
 msgid "Enviando…"
 msgstr "Sending…"
 
-#: static/js/live.js:246
+#: static/js/live.js:279
 msgid "Enviar respuesta"
 msgstr "Submit answer"
 
-#: static/js/live.js:247
+#: static/js/live.js:280
 msgid "No se pudo enviar. Revise su conexión e intente de nuevo."
 msgstr "Couldn't send. Check your connection and try again."
 

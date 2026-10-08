@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static i18n %}
+{% load static i18n policlase %}
 {% block title %}{{ session.title }} · {% translate "proyector" %}{% endblock %}
 {# Los proyectores lavan los fondos oscuros: claro, salvo que el docente haya elegido oscuro. #}
 {% block html_theme %} data-theme="{{ theme|default:'light' }}"{% endblock %}
@@ -14,6 +14,8 @@
     <span class="spacer"></span>
     <span>PIN <strong class="mono">{{ session.pin }}</strong></span>
     <span class="conn" id="conn">{% translate "conectando…" %}</span>
+    <button type="button" class="secondary small" id="toggle-fullscreen" title="{% translate 'Pantalla completa (F5)' %}">{% icon "fullscreen" 18 %}<span class="sr-only">{% translate "Pantalla completa" %}</span></button>
+    <span class="small muted presenter-hint" title="{% translate 'Con un presentador: adelante abre, cierra y muestra cada pregunta; atrás vuelve; B pone la pantalla en negro.' %}">{% translate "Clic o → para avanzar" %}</span>
     <form method="post" action="{% url 'set_theme' %}" class="themeswitch">
       {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
       {% if theme == "dark" %}

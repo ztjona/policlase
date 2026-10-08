@@ -56,14 +56,15 @@ def _phase_for(session: LiveSession, index: int) -> str:
     return Phase.RESULTS if index in session.opened else Phase.READY
 
 
-def speed_factor(elapsed_ms: int, limit_s: float) -> float:
-    """1.0 al instante, 0.5 al acabarse el tiempo (y después, si el docente lo extendió)."""
-    if limit_s <= 0:
+def speed_factor(elapsed_ms: int, limit_s: float | None) -> float:
+    """1.0 al instante, 0.5 al acabarse el tiempo (y después, si el docente lo extendió).
+    Sin límite de tiempo no hay contra qué medir: no hay bono."""
+    if not limit_s or limit_s <= 0:
         return 1.0
     return 1.0 - 0.5 * min(1.0, max(0, elapsed_ms) / (limit_s * 1000))
 
 
-def game_score(points: float, elapsed_ms: int, limit_s: float, speed_bonus: bool) -> int:
+def game_score(points: float, elapsed_ms: int, limit_s: float | None, speed_bonus: bool) -> int:
     factor = speed_factor(elapsed_ms, limit_s) if speed_bonus else 1.0
     return round(1000 * points * factor)
 
@@ -148,9 +149,10 @@ def apply(session_id: int, action: str, index: int | None = None) -> LiveSession
     elif action == "open":
         if session.phase != Phase.READY:
             raise ActionError(_("Esta diapositiva no tiene una pregunta lista para abrir."))
-        seconds = int(session.slide["time_limit_s"])
+        seconds = session.slide.get("time_limit_s")
         session.phase, session.opened_at = Phase.OPEN, now
-        session.closes_at = now + timedelta(seconds=seconds)
+        # Sin límite (`time_limit_s: null`): la cierra el docente o se cierra sola al responder todos.
+        session.closes_at = now + timedelta(seconds=int(seconds)) if seconds else None
         session.opened = sorted(set(session.opened) | {session.index})
 
     elif action == "close":
@@ -170,8 +172,8 @@ def apply(session_id: int, action: str, index: int | None = None) -> LiveSession
     elif action == "resume":
         if session.status != Status.PAUSED:
             raise ActionError(_("La clase no está en pausa."))
-        if session.phase == Phase.OPEN:
-            left = max(session.paused_remaining_ms or 0, 5000)      # al menos 5 s para releer
+        if session.phase == Phase.OPEN and session.paused_remaining_ms is not None:
+            left = max(session.paused_remaining_ms, 5000)            # al menos 5 s para releer
             session.closes_at = now + timedelta(milliseconds=left)
             if session.opened_at and session.paused_at:
                 # La pausa no cuenta como tiempo de respuesta (bono por rapidez).
@@ -180,13 +182,23 @@ def apply(session_id: int, action: str, index: int | None = None) -> LiveSession
         session.paused_remaining_ms = None
 
     elif action == "extend":
+        unlimited = not (session.slide or {}).get("time_limit_s")
         if session.phase == Phase.OPEN:
-            session.closes_at = max(session.closes_at or now, now) + timedelta(seconds=EXTEND_S)
+            if session.closes_at is None:
+                raise ActionError(_("Esta pregunta no tiene límite de tiempo."))
+            session.closes_at = max(session.closes_at, now) + timedelta(seconds=EXTEND_S)
         elif session.phase == Phase.CLOSED:
             # Reabrir: quienes no alcanzaron pueden responder; las respuestas ya dadas se quedan.
-            session.phase, session.closes_at = Phase.OPEN, now + timedelta(seconds=EXTEND_S)
+            session.phase = Phase.OPEN
+            session.closes_at = None if unlimited else now + timedelta(seconds=EXTEND_S)
         else:
             raise ActionError(_("No hay una pregunta abierta o cerrada a la que dar más tiempo."))
+
+    elif action == "unlimit":
+        # Quitar el límite a la pregunta abierta: se cierra a mano o al responder todos.
+        if session.phase != Phase.OPEN:
+            raise ActionError(_("La pregunta no está abierta."))
+        session.closes_at = None
 
     elif action in ("guests_on", "guests_off"):
         session.allow_guests = action == "guests_on"
@@ -263,7 +275,7 @@ def submit(session_id: int, student, answer) -> Response:
                 answer=answer, correct=result.correct, fraction=result.fraction,
                 points=result.points, auto_points=result.points, auto_correct=result.correct,
                 elapsed_ms=max(elapsed, 0),
-                score=game_score(result.points, elapsed, float(slide["time_limit_s"]), session.speed_bonus),
+                score=game_score(result.points, elapsed, slide.get("time_limit_s"), session.speed_bonus),
             )
     except IntegrityError:
         raise ActionError(_("Ya respondió esta pregunta.")) from None

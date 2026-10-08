@@ -336,12 +336,12 @@
             defaults: "Valores por omisión (time_limit_s)", slides: "Lista de diapositivas",
             feedback: "Retroalimentación anónima al final (true por omisión)",
             speed_bonus: "Bono por rapidez en el marcador (true por omisión)", meta: "Datos libres" },
-    defaults: { time_limit_s: "Segundos por pregunta (5–600; 30 por omisión)" },
+    defaults: { time_limit_s: "Segundos por pregunta (5–600; 30 por omisión; null: sin límite)" },
     slides: { markdown: "Contenido: markdown con $matemáticas$", item: "Una pregunta",
               notes: "Notas para el docente", hidden: "true: no se presenta en clase" },
     item: { id: "Identificador único del ítem", points: "Puntos (1 por omisión)", tags: "Etiquetas",
             lecture: "Opciones de clase en vivo (time_limit_s)", stem: "Enunciado común", questions: "La pregunta (una sola en vivo)" },
-    lecture: { time_limit_s: "Segundos para esta pregunta (5–600)" },
+    lecture: { time_limit_s: "Segundos para esta pregunta (5–600; null: sin límite)" },
     questions: { id: "Identificador de la pregunta (q1)", type: "choice · multi_choice · true_false · numeric · text",
                  points: "Puntos (1 por omisión)", prompt: "Enunciado (use comillas simples si lleva LaTeX)",
                  options: "Opciones (choice, multi_choice)", statements: "Afirmaciones (true_false)",
@@ -355,6 +355,7 @@
   };
   var VALUES = {
     schema: ["policlase.deck/v1"],
+    time_limit_s: ["20", "30", "60", "null"],                // null: sin límite
     type: ["choice", "multi_choice", "true_false", "numeric", "text"],
     hidden: ["true", "false"], feedback: ["true", "false"], speed_bonus: ["true", "false"],
     correct: ["true"], answer: ["true", "false"], integer: ["true", "false"],
