@@ -127,9 +127,10 @@
   <div class="controls">
     {% if session.status == "lobby" %}
       <button data-action="start" class="big">{% translate "Iniciar clase" %}</button>
-      <button data-action="{% if session.speed_bonus %}speed_off{% else %}speed_on{% endif %}" class="secondary"
-              title="{% translate 'En el marcador, responder rápido vale más (hasta el doble que al final del tiempo). La nota no cambia.' %}">
-        ⚡ {% if session.speed_bonus %}{% translate "Bono por rapidez: sí" %}{% else %}{% translate "Bono por rapidez: no" %}{% endif %}</button>
+      <label class="check-toggle" title="{% translate 'En el marcador, responder rápido vale más (hasta el doble que al final del tiempo). La nota no cambia.' %}">
+        <input type="checkbox" data-toggle-action="speed" {% if session.speed_bonus %}checked{% endif %}>
+        {% translate "Bono por rapidez" %}
+      </label>
       {% include "live/_guest_toggle.html" %}
     {% elif session.status == "live" %}
       <button data-action="prev" class="secondary" {% if not has_prev or session.phase == "open" %}disabled{% endif %} title="{% translate 'Flecha izquierda' %}">◀ {% translate "Anterior" %}</button>

@@ -559,3 +559,7 @@ td.actions-col, th.actions-col { width: 1%; white-space: nowrap; padding-left: 2
 .projector .controls, .projector .controls * { cursor: auto; }
 .projector button { cursor: pointer; }
 @media (max-width: 1100px) { .presenter-hint { display: none; } }
+
+.check-toggle { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-weight: 600; cursor: pointer;
+  padding: 8px 12px; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--surface); }
+.check-toggle input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; }

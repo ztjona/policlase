@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: policlase\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-07 15:15-0500\n"
+"POT-Creation-Date: 2026-10-08 16:03-0500\n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -1022,12 +1022,12 @@ msgid "diapositiva %(n)s de %(total)s"
 msgstr "slide %(n)s of %(total)s"
 
 #: templates/courses/course_manage.html:30
-#: templates/live/_present_stage.html:148
+#: templates/live/_present_stage.html:149
 msgid "Reanudar"
 msgstr "Resume"
 
 #: templates/courses/course_manage.html:31
-#: templates/live/_present_stage.html:150
+#: templates/live/_present_stage.html:151
 msgid "Resultados hasta ahora"
 msgstr "Results so far"
 
@@ -1424,19 +1424,13 @@ msgid "corregida a mano"
 msgstr "graded by hand"
 
 #: templates/live/_guest_toggle.html:1
-msgid "Quienes entraron por el enlace pierden el acceso"
-msgstr "People who joined through the link lose access"
+msgid ""
+"Cualquiera con el enlace entra sin cuenta; al desmarcar, quienes entraron "
+"así pierden el acceso"
+msgstr "Anyone with the link joins without an account; unchecking it removes access for those who joined that way"
 
 #: templates/live/_guest_toggle.html:1
-msgid "Cerrar a invitados"
-msgstr "Close to guests"
-
-#: templates/live/_guest_toggle.html:1
-msgid "Cualquiera con el enlace entra sin cuenta"
-msgstr "Anyone with the link can join without an account"
-
-#: templates/live/_guest_toggle.html:1
-msgid "Abrir a invitados"
+msgid "Abierta a invitados"
 msgstr "Open to guests"
 
 #: templates/live/_live_outline.html:3 templates/live/deck_edit.html:28
@@ -1594,7 +1588,7 @@ msgstr "%(correct)s of %(answered)s got it right."
 msgid "Notas:"
 msgstr "Notes:"
 
-#: templates/live/_present_stage.html:131
+#: templates/live/_present_stage.html:130
 msgid ""
 "En el marcador, responder rápido vale más (hasta el doble que al final del "
 "tiempo). La nota no cambia."
@@ -1603,88 +1597,84 @@ msgstr ""
 "the buzzer). The grade doesn't change."
 
 #: templates/live/_present_stage.html:132
-msgid "Bono por rapidez: sí"
-msgstr "Speed bonus: on"
+msgid "Bono por rapidez"
+msgstr "Speed bonus"
 
-#: templates/live/_present_stage.html:132
-msgid "Bono por rapidez: no"
-msgstr "Speed bonus: off"
-
-#: templates/live/_present_stage.html:135
+#: templates/live/_present_stage.html:136
 msgid "Flecha izquierda"
 msgstr "Left arrow"
 
-#: templates/live/_present_stage.html:135
+#: templates/live/_present_stage.html:136
 msgid "Anterior"
 msgstr "Previous"
 
-#: templates/live/_present_stage.html:137
 #: templates/live/_present_stage.html:138
-#: templates/live/_present_stage.html:142
-#: templates/live/_present_stage.html:148
+#: templates/live/_present_stage.html:139
+#: templates/live/_present_stage.html:143
+#: templates/live/_present_stage.html:149
 msgid "Espacio"
 msgstr "Space"
 
-#: templates/live/_present_stage.html:137
+#: templates/live/_present_stage.html:138
 msgid "Abrir pregunta"
 msgstr "Open question"
 
-#: templates/live/_present_stage.html:138
+#: templates/live/_present_stage.html:139
 msgid "Cerrar ya"
 msgstr "Close now"
 
-#: templates/live/_present_stage.html:139
+#: templates/live/_present_stage.html:140
 msgid "Da más tiempo a todos"
 msgstr "Gives everyone more time"
 
-#: templates/live/_present_stage.html:140
+#: templates/live/_present_stage.html:141
 msgid "Quitar el límite: se cierra a mano o cuando respondan todos"
 msgstr "Remove the limit: it closes by hand or when everyone has answered"
 
-#: templates/live/_present_stage.html:141
+#: templates/live/_present_stage.html:142
 msgid ""
 "Quienes no alcanzaron pueden responder; las respuestas dadas se mantienen"
 msgstr "Those who didn't make it can answer; answers already given are kept"
 
-#: templates/live/_present_stage.html:141
+#: templates/live/_present_stage.html:142
 msgid "Reabrir +15 s"
 msgstr "Reopen +15 s"
 
-#: templates/live/_present_stage.html:142
+#: templates/live/_present_stage.html:143
 msgid "Mostrar respuesta"
 msgstr "Show answer"
 
-#: templates/live/_present_stage.html:143
+#: templates/live/_present_stage.html:144
 msgid "Flecha derecha"
 msgstr "Right arrow"
 
-#: templates/live/_present_stage.html:143
+#: templates/live/_present_stage.html:144
 msgid "Siguiente"
 msgstr "Next"
 
-#: templates/live/_present_stage.html:145
+#: templates/live/_present_stage.html:146
 msgid "Para retomarla otro día donde quedó"
 msgstr "To pick it up another day where it left off"
 
-#: templates/live/_present_stage.html:145
+#: templates/live/_present_stage.html:146
 msgid "Pausar"
 msgstr "Pause"
 
-#: templates/live/_present_stage.html:146
+#: templates/live/_present_stage.html:147
 msgid "¿Terminar la clase? Los estudiantes ya no podrán responder."
 msgstr "End the class? Students won't be able to answer anymore."
 
-#: templates/live/_present_stage.html:146
+#: templates/live/_present_stage.html:147
 msgid "Terminar"
 msgstr "End"
 
-#: templates/live/_present_stage.html:151
+#: templates/live/_present_stage.html:152
 msgid ""
 "¿Terminar la clase en este punto? Los resultados cuentan solo las preguntas "
 "que se hicieron."
 msgstr "End the class here? Results only count the questions that were asked."
 
-#: templates/live/_present_stage.html:151
+#: templates/live/_present_stage.html:152
 msgid "Terminar aquí"
 msgstr "End here"
 
@@ -1992,7 +1982,9 @@ msgstr "Full screen"
 msgid ""
 "Con un presentador: adelante abre, cierra y muestra cada pregunta; atrás "
 "vuelve; B pone la pantalla en negro."
-msgstr "With a presenter remote: forward opens, closes and reveals each question; back goes back; B blacks out the screen."
+msgstr ""
+"With a presenter remote: forward opens, closes and reveals each question; "
+"back goes back; B blacks out the screen."
 
 #: templates/live/present.html:18
 msgid "Clic o → para avanzar"

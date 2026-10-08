@@ -67,6 +67,11 @@ $DEV run --rm web sh -c "python manage.py makemessages -l en --ignore 'staticfil
 
 Ver [`docs/deploy.md`](docs/deploy.md).
 
+## Más documentación
+
+- [`docs/github.md`](docs/github.md) — sincronización de presentaciones con GitHub.
+- [`docs/guia-de-estilo.md`](docs/guia-de-estilo.md) — guía de estilo y patrones de diseño.
+
 ## Licencia
 
 MIT.

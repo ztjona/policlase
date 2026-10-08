@@ -180,6 +180,12 @@
         if (button && !button.disabled) act(button.dataset.action, button);
       });
 
+      // Casillas de la sala de espera (p. ej. bono por rapidez): marcada = <nombre>_on.
+      live.stage.addEventListener("change", function (e) {
+        var box = e.target.closest("input[data-toggle-action]");
+        if (box) act(box.dataset.toggleAction + (box.checked ? "_on" : "_off"));
+      });
+
       // Posar el mouse sobre una miniatura muestra la diapositiva (sin marcar la respuesta:
       // el proyector lo ve la clase).
       if (window.policlaseHoverPreview) {
