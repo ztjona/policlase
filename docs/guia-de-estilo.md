@@ -185,5 +185,8 @@ lo pierde.
 - **Los commits los hace el autor del proyecto** tras revisar; quien colabora deja el árbol listo y
   propone el mensaje: título en español que describe el cambio (gitmoji opcional) y una lista breve
   de lo que cambió.
-- Versión en el archivo `VERSION` (se ve en «Acerca de»); se sube cuando un conjunto de cambios
-  llega a producción.
+- Versión en el archivo `VERSION` (se ve en el pie de página y en «Acerca de»). **Todo conjunto de
+  cambios en el código sube la versión en el mismo cambio**: el parche (0.5.0 → 0.5.1) para
+  correcciones y ajustes, la menor (0.5 → 0.6) para una funcionalidad nueva. Una subida por conjunto
+  de cambios, no por cada edición. Un cambio en `policlase-gen` sube además su `version` en
+  `pyproject.toml`. La plataforma lee `VERSION` al arrancar: la versión nueva se ve tras desplegar.
