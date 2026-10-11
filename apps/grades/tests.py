@@ -13,8 +13,8 @@ from apps.activities.models import Activity
 from apps.courses.models import Course, Enrollment
 from apps.live.models import LiveSession, Participant, Response
 
-from . import gradebook
-from .models import Category, Period
+from . import gradebook, matching
+from .models import Category, ManualRecord, Period
 
 ONE = """schema: policlase.activity/v1
 title: '{title}'
@@ -211,3 +211,125 @@ class GradebookViewTests(GradesBase):
         detail = self.client.get(reverse("course_gradebook", args=[self.course.pk]) + f"?parcial={self.p1.pk}")
         self.assertContains(detail, "Deberes")
         self.assertContains(detail, "(100 %)")
+
+
+class MatchingTests(TestCase):
+    """Los nombres pegados de otra plataforma se emparejan con los inscritos por apellido y nombre."""
+
+    def setUp(self):
+        def student(username, last, first):
+            user = make_user(username)
+            user.last_name, user.first_name = last, first
+            user.save()
+            return user
+        self.students = [
+            student("castro", "Castro Paredes", "Leandro David"),
+            student("ogonaga", "Ogonaga", "Jair"),
+            student("ona", "Oña", "Sebastian"),
+            student("pineda", "Pineda Oña", "Danny Jofre"),
+            student("avila", "Avila", "Cesar"),
+            student("morillo", "Morillo Tenorio", "Matías Alejandro"),
+        ]
+
+    def test_lineas_con_y_sin_posicion(self):
+        rows, bad = matching.parse_lines("1. Castro P Leandro\t20117\nRobalino.T.Valeria 20277\n\nsin número\n"
+                                         "Pineda O. Danny J.;8,5")
+        self.assertEqual(rows, [("Castro P Leandro", Decimal("20117")), ("Robalino.T.Valeria", Decimal("20277")),
+                                ("Pineda O. Danny J.", Decimal("8.5"))])
+        self.assertEqual(bad, ["sin número"])
+
+    def test_emparejar(self):
+        rows, _ = matching.parse_lines(
+            "Castro P Leandro 20117\nOgonaga M Jair 8220\nOgonaga M Jairr 1499\nOgonaga M Edison 611\n"
+            "Ona A. Sebastian G 7336\nPineda O. Danny J. 14992\nAvila V Ismael 14614\nReyes O Sebastián 12654\n"
+            "Morillo T. Matías 15700")
+        found = {m.name: m for m in matching.match_all(rows, self.students)}
+        by = lambda name: found[name].student.username if found[name].student else None
+        self.assertEqual(by("Castro P Leandro"), "castro")
+        self.assertEqual(by("Ogonaga M Jair"), "ogonaga")
+        self.assertIsNone(by("Ogonaga M Jairr"))                     # el mismo estudiante dos veces
+        self.assertEqual(found["Ogonaga M Jairr"].also, "Ogonaga M Jair")
+        self.assertIsNone(by("Ogonaga M Edison"))
+        self.assertEqual(by("Ona A. Sebastian G"), "ona")              # sin tilde
+        self.assertEqual(found["Ona A. Sebastian G"].strength, matching.STRONG)
+        self.assertEqual(by("Pineda O. Danny J."), "pineda")
+        self.assertEqual((by("Avila V Ismael"), found["Avila V Ismael"].strength), ("avila", matching.WEAK))
+        self.assertIsNone(by("Reyes O Sebastián"))                     # sin apellido en común: no se adivina
+        self.assertEqual(by("Morillo T. Matías"), "morillo")
+
+
+class ManualRecordTests(GradesBase):
+    def setUp(self):
+        super().setUp()
+        self.ana.last_name, self.ana.first_name = "Andrade", "Ana"
+        self.ana.save()
+        self.bruno.last_name, self.bruno.first_name = "Bravo", "Bruno"
+        self.bruno.save()
+        self.client.force_login(self.teacher)
+        self.url = reverse("manual_record_new", args=[self.course.pk])
+        self.row_live = self.row(self.p1, "Participación en clase")
+
+    def data(self, **extra):
+        return {"title": "Quiz 1 (Fuiz)", "category": self.row_live.pk, "on": str(timezone.localdate()),
+                "max_points": "20000", "note": "", **extra}
+
+    def test_pegar_rellena_sin_guardar_y_guardar_cuenta_en_la_fila(self):
+        page = self.client.post(self.url, self.data(action="paste", pasted="Andrade A 15000\nZapata Z 9000\n"))
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, 'value="15000"')
+        self.assertContains(page, "Zapata Z")
+        self.assertFalse(ManualRecord.objects.exists())                  # pegar no guarda
+
+        response = self.client.post(self.url, self.data(**{
+            "action": "save", f"s-{self.ana.pk}": "15000", f"s-{self.bruno.pk}": "",
+            "unmatched-count": "1", "u-0-name": "Zapata Z", "u-0-points": "9000", "u-0": ""}))
+        record = ManualRecord.objects.get()
+        self.assertRedirects(response, reverse("manual_record", args=[self.course.pk, record.pk]))
+        self.assertEqual(record.unmatched, [{"name": "Zapata Z", "points": "9000", "also": ""}])
+        live = lambda g: next(c for c in g.periods[0].cells if c.category == self.row_live)
+        self.assertAlmostEqual(live(self.grades_of(self.ana)).fraction, 0.75)
+        self.assertEqual(live(self.grades_of(self.bruno)).fraction, 0.0)  # sin nota: cero
+
+        # Bruno era «Zapata Z» en la otra plataforma: se le asigna lo que quedó pendiente.
+        url = reverse("manual_record", args=[self.course.pk, record.pk])
+        self.client.post(url, self.data(**{"action": "save", f"s-{self.ana.pk}": "15000",
+                                           "unmatched-count": "1", "u-0-name": "Zapata Z", "u-0-points": "9000",
+                                           "u-0": str(self.bruno.pk)}))
+        record.refresh_from_db()
+        self.assertEqual(record.unmatched, [])
+        self.assertAlmostEqual(live(self.grades_of(self.bruno)).fraction, 0.45)
+        self.assertContains(self.client.get(reverse("course_activities", args=[self.course.pk])), "Quiz 1 (Fuiz)")
+
+    def test_notas_fuera_de_rango_no_se_guardan(self):
+        page = self.client.post(self.url, self.data(**{"action": "save", f"s-{self.ana.pk}": "25000"}))
+        self.assertContains(page, "fuera de rango")
+        self.assertFalse(ManualRecord.objects.exists())
+
+    def test_otro_docente_no(self):
+        record = ManualRecord.objects.create(course=self.course, title="Q", on=timezone.localdate())
+        self.client.force_login(make_user("otra", User.Role.TEACHER))
+        for name, args in [("manual_record", [self.course.pk, record.pk]), ("manual_record_new", [self.course.pk]),
+                           ("manual_record_delete", [self.course.pk, record.pk])]:
+            self.assertEqual(self.client.post(reverse(name, args=args), self.data(action="save")).status_code, 404)
+        self.assertTrue(ManualRecord.objects.filter(pk=record.pk).exists())
+
+
+class RebindTests(GradesBase):
+    """El parcial lo decide la fecha: una unidad puede repartirse entre dos parciales."""
+
+    def test_la_actividad_sigue_a_su_fecha(self):
+        today = timezone.localdate()
+        Period.objects.filter(pk=self.p1.pk).update(ends_on=today + timedelta(days=10))
+        homework = self.activity("d1", self.row(self.p1, "Deberes"), due_in_days=20)
+        self.assertTrue(gradebook.rebind(homework))
+        self.assertEqual(homework.category, self.row(self.p2, "Deberes"))
+        homework.save()
+        self.row(self.p2, "Deberes").delete()                      # sin fila igual en el otro parcial
+        homework = self.activity("d2", self.row(self.p1, "Deberes"), due_in_days=20)
+        self.assertFalse(gradebook.rebind(homework))
+        self.assertEqual(gradebook.mismatch(homework, list(Period.objects.filter(course=self.course))), self.p2)
+
+    def test_sin_fechas_de_cierre_no_se_mueve_nada(self):
+        homework = self.activity("d1", self.row(self.p2, "Deberes"), due_in_days=20)
+        self.assertFalse(gradebook.rebind(homework))
+        self.assertIsNone(gradebook.mismatch(homework, list(Period.objects.filter(course=self.course))))

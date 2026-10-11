@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% load static i18n policlase %}
+{% block title %}{% if content %}{% blocktranslate with title=content.title %}Editar {{ title }}{% endblocktranslate %}{% elif kind == "activity" %}{% translate "Nueva actividad" %}{% else %}{% translate "Nueva presentación" %}{% endif %}{% endblock %}
+{% block page_class %}full{% endblock %}
+{% block main %}
+{% get_current_language as LANG %}
+{# Editor de contenido: el mismo para presentaciones y actividades. El tipo lo dice el `schema` del texto. #}
+<form method="post" enctype="multipart/form-data" id="deck-form" class="studio" data-kind="{{ kind }}"
+      data-new="{% if content %}{% else %}1{% endif %}"
+      data-preview="{% url 'content_preview' course.pk %}" data-ops="{% url 'content_ops' course.pk %}"
+      data-monaco="{% get_static_prefix %}vendor/monaco/" data-lang="{{ LANG }}">
+  {% csrf_token %}
+  <header class="studio-bar">
+    <a class="small" href="{% url 'course_manage' course.pk %}">← {{ course.name }}</a>
+    <strong class="studio-title" id="deck-title">{% if content %}{{ content.title }}{% elif kind == "activity" %}{% translate "Nueva actividad" %}{% else %}{% translate "Nueva presentación" %}{% endif %}</strong>
+    <span class="spacer"></span>
+    <span class="status-pill" id="preview-status" role="status" title="{% translate 'Validación' %}"></span>
+    {% if link %}<span class="chip gh-chip" title="{% blocktranslate with repo=link.repo %}Solo «Guardar» (o Ctrl+S) hace un commit en {{ repo }}; escribir y la vista previa no.{% endblocktranslate %}">{% icon "github" 14 %} GitHub</span>{% endif %}
+    <button type="button" class="icon-btn" id="toggle-preview" aria-pressed="true"
+            data-label-on="{% translate 'Ocultar la vista previa' %}" data-label-off="{% translate 'Mostrar la vista previa' %}"
+            title="{% translate 'Ocultar la vista previa' %}" aria-label="{% translate 'Ocultar la vista previa' %}">
+      <span class="when-on">{% icon "eye" %}</span><span class="when-off">{% icon "eye_off" %}</span></button>
+    <a class="btn secondary small" href="{{ back }}">{% translate "Cancelar" %}</a>
+    <button type="submit" class="small" title="{% if link %}{% translate 'Guardar y confirmar en GitHub (Ctrl+S)' %}{% else %}{% translate 'Guardar (Ctrl+S)' %}{% endif %}">{% translate "Guardar" %}</button>
+  </header>
+
+  <div class="studio-body" id="studio-body">
+    <aside class="studio-outline" aria-label="{% translate 'Panel lateral' %}">
+      <div class="outline-setup stack">
+        <fieldset class="segmented"{% if content %} disabled title="{% translate 'Un documento guardado conserva su tipo' %}"{% endif %}>
+          <legend class="small">{% translate "Tipo" %}</legend>
+          <label><input type="radio" name="kind" value="deck"{% if kind == "deck" %} checked{% endif %}> {% translate "Presentación" %}</label>
+          <label><input type="radio" name="kind" value="activity"{% if kind == "activity" %} checked{% endif %}> {% translate "Actividad" %}</label>
+        </fieldset>
+        <div>
+          <label class="small" for="id_section">{% translate "Sección" %}</label>
+          <select name="section" id="id_section" class="compact">
+            <option value="">{% translate "— Sin sección —" %}</option>
+            {% for s in sections %}<option value="{{ s.pk }}" {% if section and s.pk == section.pk %}selected{% endif %}>{{ s.title }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="outline-head">
+        <strong class="small"><span data-kinds="deck">{% translate "Diapositivas" %}</span><span data-kinds="activity">{% translate "Ítems" %}</span></strong>
+        <details class="insert">
+          <summary class="btn secondary small">+ {% translate "Insertar" %}</summary>
+          <div class="menu">
+            <button type="button" data-snippet="content" data-kinds="deck">{% translate "Contenido" %}</button>
+            <button type="button" data-snippet="choice">{% translate "Opción única" %}</button>
+            <button type="button" data-snippet="multi_choice">{% translate "Opción múltiple" %}</button>
+            <button type="button" data-snippet="true_false">{% translate "Verdadero/falso" %}</button>
+            <button type="button" data-snippet="numeric">{% translate "Numérica" %}</button>
+            <button type="button" data-snippet="text">{% translate "Texto corto" %}</button>
+            <button type="button" data-snippet="open" data-kinds="activity">{% translate "Respuesta abierta" %}</button>
+            <button type="button" data-snippet="image" data-kinds="activity">{% translate "Subir imágenes" %}</button>
+          </div>
+        </details>
+      </div>
+      <div id="outline"><p class="muted small">{% translate "Cargando…" %}</p></div>
+      <p class="small muted outline-hint" data-kinds="deck">{% translate "Arrastre para reordenar. ◉ se presenta en clase; ◌ está oculta. Los cambios van al texto y se guardan con «Guardar»." %}</p>
+      <p class="small muted outline-hint" data-kinds="activity">{% translate "Arrastre para reordenar los ítems. Aquí va solo el contenido: las fechas, la ponderación y los intentos se configuran después de guardar." %}</p>
+    </aside>
+
+    <div class="studio-editor">
+      <div id="monaco" class="monaco-host" aria-label="{% translate 'Editor YAML' %}"></div>
+      <div class="line-preview" id="line-preview" aria-live="polite" title="{% translate 'Vista previa de la línea del cursor' %}"></div>
+      <textarea id="source" name="source" class="code" spellcheck="false">{{ source }}</textarea>
+      <ul class="diag" id="diagnostics" aria-live="polite">
+        {% for d in diagnostics %}
+          <li class="{{ d.severity }}" data-line="{{ d.line|default:'' }}"><code>{{ d.code }}</code> {{ d.message }}{% if d.line %} · {% blocktranslate with line=d.line %}línea {{ line }}{% endblocktranslate %}{% endif %}{% if d.where %} · {{ d.where }}{% endif %}</li>
+        {% endfor %}
+      </ul>
+      <div class="row small">
+        <label for="file" style="margin:0;font-weight:400;cursor:pointer;color:var(--accent)">{% translate "Abrir un archivo .yaml…" %}</label>
+        <input type="file" id="file" name="file" accept=".yaml,.yml,text/yaml" class="sr-only">
+        <span class="muted">{% translate "Atajos de VS Code: Ctrl+D, Alt+↑/↓, Ctrl+/, Ctrl+F, F1…" %}</span>
+      </div>
+    </div>
+
+    <section class="studio-preview" id="preview-pane" aria-label="{% translate 'Vista previa' %}">
+      <div id="preview" class="stack"><p class="muted">{% translate "Cargando…" %}</p></div>
+    </section>
+  </div>
+</form>
+{{ templates|json_script:"studio-templates" }}
+{% endblock %}
+{% block scripts %}
+{% comment %} Monaco se carga desde studio.js, después de KaTeX: su cargador AMD define `define.amd` y,
+   si llegara antes, KaTeX se registraría como módulo AMD en vez de `window.katex`. {% endcomment %}
+<script defer src="{% static 'js/hover-preview.js' %}"></script>
+<script defer src="{% static 'js/studio.js' %}"></script>
+{% endblock %}

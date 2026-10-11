@@ -10,6 +10,7 @@ from django.utils.translation import ngettext
 
 from apps.courses.models import Course
 from apps.grades.models import Category, Milestone
+from apps.live.models import Section
 
 
 def course_tz(course) -> ZoneInfo:
@@ -35,6 +36,9 @@ class Activity(models.Model):
         BLOCK = "block", _("No se aceptan")
 
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="activities")
+    #: La unidad a la que pertenece (pestaña Clases); con GitHub, la carpeta donde está su archivo.
+    section = models.ForeignKey(Section, on_delete=models.SET_NULL, null=True, blank=True,
+                                related_name="activities", verbose_name=_("sección"))
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True,
                                  related_name="activities", verbose_name=_("ponderación"))
     title = models.CharField(_("título"), max_length=200)

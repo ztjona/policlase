@@ -5,7 +5,7 @@
 <div class="muted small"><a href="{% url 'course_manage' course.pk %}">{{ course.name }}</a></div>
 <h1>{{ session.title }}</h1>
 <p class="muted">{{ session.started_at|default:session.created_at|date:"DATETIME_FORMAT" }} · {% blocktranslate with max=max_points|floatformat:"-1" %}máximo {{ max }} puntos{% endblocktranslate %} · {% translate "categoría <em>participación</em>" %}</p>
-<div class="card table-wrap">
+<div class="card table-wrap" id="notas">
   <table>
     <thead><tr>
       <th>{% translate "Estudiante" %}</th>
@@ -17,7 +17,11 @@
         <tr>
           <td>{{ r.student.last_name }}, {{ r.student.first_name }}{% if not r.joined %} <span class="chip">{% translate "ausente" %}</span>{% endif %}</td>
           {% for c, full in r.cells %}<td class="num">{% include "live/_grade_cell.html" %}</td>{% endfor %}
-          <td class="num"><strong>{{ r.total|floatformat:"-1" }}</strong></td>
+          <td class="num"><button type="button" class="grade total{% if r.manual %} edited{% endif %}"
+              data-url="{% url 'session_grade' session.pk r.student.pk %}" data-points="{{ r.total|stringformat:'g' }}"
+              data-max="{{ max_points|stringformat:'g' }}" data-edited="{{ r.manual|yesno:'1,' }}"
+              data-restore-label="{% translate 'Volver a la suma de sus respuestas' %}"
+              title="{% if r.manual %}{% blocktranslate with sum=r.computed|floatformat:'-1' %}Nota manual de la clase (suma de sus respuestas: {{ sum }}). Clic para cambiarla.{% endblocktranslate %}{% else %}{% translate 'Clic para poner una nota manual en esta clase' %}{% endif %}"><strong>{{ r.total|floatformat:"-1" }}</strong>{% if r.manual %}<span class="edit-mark" aria-label="{% translate 'corregida a mano' %}">✎</span>{% endif %}</button></td>
           <td class="num">{{ r.percent }}</td>
         </tr>
       {% empty %}
@@ -38,7 +42,32 @@
   </table>
 </div>
 
-<p class="small muted">{% translate "Clic en una nota para corregirla a mano; ✎ marca las corregidas. El marcador de la clase no cambia." %}</p>
+<p class="small muted">{% translate "Clic en una nota para corregirla a mano; ✎ marca las corregidas. El total también se puede corregir: reemplaza la suma de toda la clase (por ejemplo, una inasistencia justificada). El marcador de la clase no cambia." %}</p>
+
+{% if guests %}
+  <h2 id="invitados">{% translate "Invitados" %}</h2>
+  <p class="small muted">{% translate "Los invitados no cuentan para ninguna nota. Si un invitado era un estudiante que aún no se había inscrito, asígnelo a su cuenta: sus respuestas pasan al estudiante y la cuenta de invitado se elimina." %}</p>
+  <div class="card stack">
+    {% for r in guests %}
+      <form method="post" action="{% url 'guest_link' session.pk r.student.pk %}" class="row guest-link"
+            onsubmit="return confirm('{% blocktranslate with g=r.student.display_name asvar msg %}¿Asignar las respuestas de «{{ g }}» al estudiante elegido? La cuenta de invitado se elimina.{% endblocktranslate %}{{ msg|escapejs }}')">
+        {% csrf_token %}
+        <span><strong>{{ r.student.display_name }}</strong> <span class="small muted">· {{ r.total|floatformat:"-1" }} / {{ max_points|floatformat:"-1" }}</span></span>
+        <span class="spacer"></span>
+        {% if session.status == "ended" %}
+          <label class="sr-only" for="guest-{{ r.student.pk }}">{% translate "Estudiante" %}</label>
+          <select name="student" id="guest-{{ r.student.pk }}" class="compact" required>
+            <option value="">{% translate "— Estudiante ausente —" %}</option>
+            {% for s in absent %}<option value="{{ s.pk }}">{{ s.last_name }}, {{ s.first_name }}</option>{% endfor %}
+          </select>
+          <button class="small secondary">{% translate "Asignar" %}</button>
+        {% else %}
+          <span class="small muted">{% translate "Se puede asignar cuando termine la clase." %}</span>
+        {% endif %}
+      </form>
+    {% endfor %}
+  </div>
+{% endif %}
 
 {% if review %}
   <h2>{% translate "Revisar respuestas" %}</h2>

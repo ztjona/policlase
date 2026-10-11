@@ -1,10 +1,12 @@
-// Editor de presentaciones: panel de diapositivas | YAML en Monaco (el editor de VS Code) | vista previa.
-// También edita actividades (data-kind="activity"): sin panel de diapositivas, con ítems en vez de
-// diapositivas y con los tipos de pregunta que solo existen fuera de clase (abierta, imagen).
+// Editor de contenido: panel lateral | YAML en Monaco (el editor de VS Code) | vista previa.
+// El mismo para presentaciones y actividades: el tipo lo dice la línea `schema` del texto
+// (form.dataset.kind lo sigue). En una actividad el panel lista ítems en vez de diapositivas y hay
+// tipos de pregunta que solo existen fuera de clase (abierta, imagen). En un documento nuevo, el
+// selector de tipo del panel cambia la plantilla.
 //
-// El servidor valida y renderiza (deck_preview) mientras se escribe; los errores aparecen
-// subrayados en su línea. El panel lateral reordena y oculta diapositivas editando el texto
-// (deck_ops), así que todo se deshace con Ctrl+Z y nada se guarda hasta «Guardar».
+// El servidor valida y renderiza (content_preview) mientras se escribe; los errores aparecen
+// subrayados en su línea. El panel lateral reordena (y oculta diapositivas) editando el texto
+// (content_ops), así que todo se deshace con Ctrl+Z y nada se guarda hasta «Guardar».
 // Si Monaco no carga, queda el área de texto de siempre.
 (function () {
   "use strict";
@@ -18,7 +20,17 @@
   var diag = document.getElementById("diagnostics");
   var titleEl = document.getElementById("deck-title");
   var body = document.getElementById("studio-body");
-  var isActivity = form.dataset.kind === "activity";
+  var TEMPLATES = JSON.parse(document.getElementById("studio-templates").textContent);
+  var SCHEMA = /^schema\s*:\s*['"]?policlase\.(deck|activity)\//m;
+
+  function kind() { return form.dataset.kind; }
+  function setKind(k) {
+    if (k === kind()) return;
+    form.dataset.kind = k;
+    var radio = form.querySelector('input[name=kind][value="' + k + '"]');
+    if (radio) radio.checked = true;
+    lines = [];
+  }
 
   var lines = [];            // línea (1-based) donde empieza cada diapositiva
   var timer = null, seq = 0, monaco = null, editor = null;
@@ -170,12 +182,16 @@
 
   function refresh() {
     var mine = ++seq;
+    var declared = SCHEMA.exec(ed.get());
+    if (declared && form.dataset.new) setKind(declared[1]);
     setStatus(gettext("validando…"));
     fetch(form.dataset.preview, {
-      method: "POST", credentials: "same-origin", body: new URLSearchParams({ source: ed.get() }),
+      method: "POST", credentials: "same-origin",
+      body: new URLSearchParams({ source: ed.get(), kind: kind(), fixed: form.dataset.new ? "" : "1" }),
       headers: { "X-CSRFToken": csrf() },
     }).then(function (r) { return r.json(); }).then(function (data) {
       if (mine !== seq) return;                       // llegó una respuesta más nueva
+      if (data.kind && form.dataset.new) setKind(data.kind);   // pegaron una actividad (o una presentación)
       lines = data.lines || [];
       showDiagnostics(data.diagnostics || []);
       var errors = (data.diagnostics || []).filter(function (d) { return d.severity === "error"; }).length;
@@ -234,10 +250,11 @@
     if (lines[index]) ed.goTo(lines[index]);
   });
 
-  // Posar el mouse sobre una miniatura: la diapositiva tal como se verá.
+  // Posar el mouse sobre una miniatura: la diapositiva (o el ítem) tal como se verá.
   if (outline && window.policlaseHoverPreview) {
     window.policlaseHoverPreview(outline, ".thumb", function (thumb) {
-      var card = preview.querySelector('.slide-card[data-index="' + thumb.dataset.index + '"]');
+      var i = thumb.dataset.index;
+      var card = preview.querySelector('.slide-card[data-index="' + i + '"], .item-card[data-index="' + i + '"]');
       return card ? card.outerHTML : "";
     });
   }
@@ -329,13 +346,15 @@
     return head("image") + "          prompt: " + q(gettext("Suba la foto de su desarrollo a mano.")) + "\n          max_files: 3\n";
   };
 
-  function insert(kind) {
+  function activity() { return kind() === "activity"; }
+
+  function insert(name) {
     // Después de la diapositiva (o el ítem) del cursor, antes del siguiente, o al final.
     var index = currentSlide(), parts = ed.get().split("\n");
     var next = index >= 0 && lines[index + 1] ? lines[index + 1] - 1 : parts.length;
     var before = parts.slice(0, next).join("\n").replace(/\n*$/, "\n");
     var after = parts.slice(next).join("\n");
-    var snippet = isActivity ? asItem(SNIPPETS[kind]()) : SNIPPETS[kind]();
+    var snippet = activity() ? asItem(SNIPPETS[name]()) : SNIPPETS[name]();
     ed.set(before + snippet + after);
     var first = before.split("\n").length;
     ed.select(first, first + snippet.split("\n").length - 1);
@@ -382,20 +401,23 @@
     partial: ["per_option", "per_statement", "all_or_nothing"],
     normalize: ["[lowercase, strip_accents, collapse_spaces]"],
   };
-  if (isActivity) {
-    KEYS.root = { schema: "Versión del formato: policlase.activity/v1", title: "Título de la actividad",
+  // Las de una actividad: mismas preguntas, más tipos, sin opciones de clase en vivo.
+  var A_KEYS = JSON.parse(JSON.stringify(KEYS)), A_VALUES = JSON.parse(JSON.stringify(VALUES));
+  A_KEYS.root = { schema: "Versión del formato: policlase.activity/v1", title: "Título de la actividad (obligatorio)",
                   instructions: "Indicaciones (markdown)", items: "Lista de ítems", meta: "Datos libres" };
-    KEYS.items = KEYS.item;
-    delete KEYS.items.lecture;
-    KEYS.questions.type = "choice · multi_choice · true_false · numeric · numeric_list · expression · text · open · image";
-    KEYS.questions.max_files = "image: cuántas imágenes (1–10)";
-    KEYS.grading.mode = "open/image: manual o ai (marcada para IA)";
-    KEYS.grading.rubric = "open/image: criterios con sus puntos";
-    KEYS.grading.reference = "open: respuesta esperada (no la ve el estudiante)";
-    VALUES.schema = ["policlase.activity/v1"];
-    VALUES.type = ["choice", "multi_choice", "true_false", "numeric", "numeric_list", "expression", "text", "open", "image"];
-    VALUES.mode = ["manual", "ai"];
-  }
+  A_KEYS.items = A_KEYS.item;
+  delete A_KEYS.items.lecture;
+  A_KEYS.questions.type = "choice · multi_choice · true_false · numeric · numeric_list · expression · text · open · image";
+  A_KEYS.questions.max_files = "image: cuántas imágenes (1–10)";
+  A_KEYS.grading.mode = "open/image: manual o ai (marcada para IA)";
+  A_KEYS.grading.rubric = "open/image: criterios con sus puntos";
+  A_KEYS.grading.reference = "open: respuesta esperada (no la ve el estudiante)";
+  A_VALUES.schema = ["policlase.activity/v1"];
+  A_VALUES.type = ["choice", "multi_choice", "true_false", "numeric", "numeric_list", "expression", "text", "open", "image"];
+  A_VALUES.mode = ["manual", "ai"];
+  KEYS.root.title = "Título de la clase (obligatorio)";
+  function keys() { return activity() ? A_KEYS : KEYS; }
+  function values() { return activity() ? A_VALUES : VALUES; }
   var KEY_LINE = /^(\s*)(-\s+)?([A-Za-z_][\w]*)\s*:/;
 
   function parents(model, lineNumber, keyIndent) {
@@ -424,8 +446,8 @@
         var range = { startLineNumber: position.lineNumber, endLineNumber: position.lineNumber,
                       startColumn: word.startColumn, endColumn: word.endColumn };
         var value = /^\s*(?:-\s+)?([A-Za-z_]\w*):\s+[\w./-]*$/.exec(before);
-        if (value && VALUES[value[1]]) {
-          return { suggestions: VALUES[value[1]].map(function (v) {
+        if (value && values()[value[1]]) {
+          return { suggestions: values()[value[1]].map(function (v) {
             return { label: v, kind: monaco.languages.CompletionItemKind.EnumMember, insertText: v, range: range };
           }) };
         }
@@ -434,9 +456,9 @@
         var at = key[1].length + (key[2] ? key[2].length : 0);
         var path = parents(model, position.lineNumber, at);
         var where = path.length ? path[path.length - 1] : "root";
-        var keys = KEYS[where] || {};
-        var out = Object.keys(keys).map(function (k) {
-          return { label: k, kind: monaco.languages.CompletionItemKind.Property, detail: keys[k],
+        var here = keys()[where] || {};
+        var out = Object.keys(here).map(function (k) {
+          return { label: k, kind: monaco.languages.CompletionItemKind.Property, detail: here[k],
                    insertText: k + ": ", range: range, command: { id: "editor.action.triggerSuggest" } };
         });
         if (where === "options") {
@@ -516,14 +538,35 @@
     if (card && lines[Number(card.dataset.index)]) ed.goTo(lines[Number(card.dataset.index)]);
   });
 
+  // Ojo abierto: con vista previa; cerrado: el editor ocupa su lugar.
   var toggle = document.getElementById("toggle-preview");
   function setPreview(on) {
     body.classList.toggle("no-preview", !on);
     toggle.setAttribute("aria-pressed", on ? "true" : "false");
+    var label = on ? toggle.dataset.labelOn : toggle.dataset.labelOff;
+    toggle.title = label;
+    toggle.setAttribute("aria-label", label);
     try { localStorage.setItem("policlase.preview", on ? "1" : "0"); } catch (e) {}
   }
   toggle.addEventListener("click", function () { setPreview(body.classList.contains("no-preview")); });
   try { if (localStorage.getItem("policlase.preview") === "0") setPreview(false); } catch (e) {}
+
+  // Tipo de un documento nuevo: cambia la plantilla (si ya escribió algo, pregunta antes).
+  form.querySelectorAll("input[name=kind]").forEach(function (radio) {
+    radio.addEventListener("change", function () {
+      var wanted = radio.value, text = ed.get().trim();
+      if (wanted === kind()) return;
+      var untouched = Object.keys(TEMPLATES).some(function (k) { return TEMPLATES[k].trim() === text; });
+      if (!untouched && !window.confirm(gettext("Se reemplaza el texto por la plantilla del otro tipo. ¿Continuar?"))) {
+        form.querySelector('input[name=kind][value="' + kind() + '"]').checked = true;
+        return;
+      }
+      setKind(wanted);
+      ed.set(TEMPLATES[wanted]);
+      titleEl.textContent = wanted === "activity" ? gettext("Nueva actividad") : gettext("Nueva presentación");
+      refresh();
+    });
+  });
 
   function load(f) {
     if (!f) return;

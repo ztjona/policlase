@@ -121,13 +121,43 @@ docker exec n8n-nginx nginx -t && docker exec n8n-nginx nginx -s reload
   (`docker compose down && sudo rm -rf /mnt/mydrive/policlase/postgres`) y vuelva a levantar. Con
   estudiantes registrados, **nunca**: borra todas las cuentas y resultados. Cree su cuenta con
   `create_teacher --admin` (los colegas se registran en `/cuenta/registro-docente/`).
-- Respalde `/mnt/mydrive/policlase` fuera del VPS.
+- Configure los respaldos (abajo) y una copia fuera del VPS.
+
+## Respaldos
+
+`ops/respaldar.sh` guarda la base (`pg_dump` en formato personalizado, comprobado con `pg_restore -l`)
+y las imágenes entregadas en `/mnt/mydrive/policlase-respaldos/`, solo legibles por su dueño. Conserva
+los diarios de 30 días y el del día 1 de cada mes durante un año. Solo lee: se puede correr en
+cualquier momento, también con clases en curso.
+
+```bash
+ops/respaldar.sh                       # a mano; conviene antes de cada despliegue (corre migraciones)
+# diario, a las 04:30 (crontab -e del usuario ubuntu):
+30 4 * * * /home/ubuntu/policlase/policlase/ops/respaldar.sh >> /mnt/mydrive/policlase-respaldos/respaldo.log 2>&1
+```
+
+Restaurar (en una base vacía; **nunca** sobre la de producción en uso):
+
+```bash
+docker compose exec -T db pg_restore -U policlase -d policlase --no-owner < /mnt/mydrive/policlase-respaldos/policlase-AAAA-MM-DD_HHMM.dump
+docker compose exec -T web tar -C /data -xzf - < /mnt/mydrive/policlase-respaldos/media-AAAA-MM-DD_HHMM.tar.gz
+```
+
+Para probar un respaldo sin tocar nada, restáurelo en un contenedor desechable
+(`docker run --rm -d --name prueba -e POSTGRES_PASSWORD=x -e POSTGRES_USER=policlase postgres:16-alpine`)
+y compare los conteos de tablas con producción.
+
+**Fuera del VPS.** El disco `/mnt/mydrive` es un volumen aparte, pero un respaldo en el mismo
+servidor no protege de perder la cuenta o el centro de datos. Copie `policlase-respaldos/` a otro
+lugar: la política de respaldos del volumen en la consola de Oracle Cloud, o `rclone` a un
+almacenamiento en la nube. El contenido de los cursos ya está en GitHub; las cuentas, inscripciones
+y notas solo están en la base.
 
 ## Actualizar con clases en curso
 
-`docker compose ... up -d --build` reinicia la plataforma: los teléfonos se reconectan solos en
-unos segundos, pero es mejor no actualizar en medio de una clase. Antes, revise que no haya ninguna
-en vivo con gente conectada:
+`docker compose ... up -d --build` reinicia la plataforma y aplica las migraciones: corra antes
+`ops/respaldar.sh`. Los teléfonos se reconectan solos en unos segundos, pero es mejor no actualizar
+en medio de una clase. Antes, revise que no haya ninguna en vivo con gente conectada:
 
 ```bash
 docker compose exec web python manage.py shell -c "

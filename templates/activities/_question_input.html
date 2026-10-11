@@ -47,6 +47,8 @@
   {% elif q.type == "open" %}
     <label for="a-{{ key }}" class="sr-only">{% translate "Respuesta" %}</label>
     <textarea id="a-{{ key }}" name="a-{{ key }}" rows="6" maxlength="10000" data-open {% if activity.block_paste %}data-no-paste{% endif %}>{{ value|default:"" }}</textarea>
+    <div class="open-preview" data-math-preview="a-{{ key }}" aria-live="polite" hidden></div>
+    <p class="small muted">{% translate "Fórmulas en LaTeX entre signos de dólar ($x^2$, $$\int_0^1 x\,dx$$): debajo se ven como las leerá el docente." %}</p>
     {% if activity.block_paste %}<p class="small muted">{% translate "En esta respuesta no se puede pegar texto: escríbala usted." %}</p>{% endif %}
     {% if q.rubric %}{% include "activities/_rubric.html" with rubric=q.rubric %}{% endif %}
 

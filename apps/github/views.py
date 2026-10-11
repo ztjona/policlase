@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.http import HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.translation import gettext as _
+from django.utils.translation import ngettext
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
@@ -79,14 +80,16 @@ def course_link(request, pk):
         candidate.last_synced_at = None
         candidate.save()
         try:
-            exported = sync.export_local_decks(candidate)
+            exported = sync.export_local(candidate)
             result = sync.pull(candidate)
         except GitHubError as exc:
             messages.error(request, str(exc))
         else:
             text = _summary(result)
             if exported:
-                text += " " + _("%(n)d presentaciones de policlase se subieron a GitHub.") % {"n": len(exported)}
+                text += " " + ngettext("%(n)d archivo de policlase se subió a GitHub.",
+                                       "%(n)d archivos de policlase (presentaciones y actividades) se subieron a GitHub.",
+                                       len(exported)) % {"n": len(exported)}
             messages.success(request, text)
     return redirect("course_settings", pk=pk)
 

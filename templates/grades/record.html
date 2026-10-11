@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% if record %}{{ record.title }}{% else %}{% translate "Registrar notas" %}{% endif %} · {{ course.name }}{% endblock %}
+{% block main %}
+<div class="muted small"><a href="{% url 'course_activities' course.pk %}">← {{ course.name }}</a></div>
+<h1>{% if record %}{{ record.title }}{% else %}{% translate "Registrar notas" %}{% endif %}</h1>
+<p class="muted">{% translate "Notas de algo que se hizo fuera de policlase: una prueba en papel, un cuestionario en otra plataforma, una exposición. Cuentan en la fila de la ponderación que elija, como una actividad más (o como una clase más, en la fila de participación). Quien no tenga nota registrada cuenta cero." %}</p>
+
+<form method="post" class="stack" id="record">
+  {% csrf_token %}
+  <section class="card stack">
+    {% if form.non_field_errors %}<div class="notice">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="grid two">
+      <div>{{ form.title.label_tag }}{{ form.title }}{{ form.title.errors }}</div>
+      <div>{{ form.category.label_tag }}{{ form.category }}{{ form.category.errors }}<span class="helptext">{{ form.category.help_text }}</span></div>
+      <div>{{ form.on.label_tag }}{{ form.on }}{{ form.on.errors }}</div>
+      <div>{{ form.max_points.label_tag }}{{ form.max_points }}{{ form.max_points.errors }}
+        <span class="helptext">{% translate "Cada nota se divide para este valor. Para un cuestionario con puntaje por rapidez, use el puntaje máximo posible o el mayor obtenido, según su criterio." %}</span></div>
+    </div>
+    <div>{{ form.note.label_tag }}{{ form.note }}{{ form.note.errors }}</div>
+  </section>
+
+  <details class="card"{% if report %} open{% endif %}>
+    <summary><strong>{% translate "Pegar una lista" %}</strong> <span class="small muted">· {% translate "una línea por estudiante: nombre y puntaje" %}</span></summary>
+    <div class="stack" style="margin-top:10px">
+      <textarea name="pasted" rows="8" class="code pasted" spellcheck="false"
+                placeholder="{% translate 'Castro P Leandro 20117' %}&#10;{% translate 'Robalino.T.Valeria 20277' %}"></textarea>
+      <span class="helptext">{% translate "Sirve lo que se copie de una tabla de resultados o de una hoja de cálculo. Los nombres se emparejan con los inscritos por apellido y nombre, sin tildes; revise el resultado antes de guardar." %}</span>
+      <div><button type="submit" name="action" value="paste" class="secondary" formnovalidate>{% translate "Rellenar las notas" %}</button></div>
+    </div>
+  </details>
+
+  {% if report %}
+    <div class="notice small" role="status">
+      {% blocktranslate count n=report.matched %}{{ n }} nombre emparejado{% plural %}{{ n }} nombres emparejados{% endblocktranslate %}{% if report.weak %} · {% blocktranslate count n=report.weak %}{{ n }} por confirmar (coincide solo el apellido){% plural %}{{ n }} por confirmar (coincide solo el apellido){% endblocktranslate %}{% endif %}{% if report.unmatched %} · {% blocktranslate count n=report.unmatched %}{{ n }} sin asignar{% plural %}{{ n }} sin asignar{% endblocktranslate %}{% endif %}.
+      {% if report.over %}{% blocktranslate with top=report.top|floatformat:"-2" %}El mayor puntaje pegado ({{ top }}) supera el puntaje máximo: escriba arriba el que corresponde.{% endblocktranslate %}{% endif %}
+      {% translate "Nada se guarda hasta «Guardar»." %}
+      {% if report.bad %}<div>{% translate "No se entendieron estas líneas:" %} {% for line in report.bad %}<code>{{ line }}</code>{% if not forloop.last %} · {% endif %}{% endfor %}</div>{% endif %}
+    </div>
+  {% endif %}
+
+  <section class="card table-wrap">
+    <table class="record">
+      <thead><tr><th>{% translate "Estudiante" %}</th><th class="num">{% translate "Puntaje" %}</th><th>{% translate "De la lista" %}</th></tr></thead>
+      <tbody>
+        {% for r in rows %}
+          <tr{% if r.pasted.strength == "weak" %} class="confirm"{% endif %}>
+            <td><label for="s-{{ r.student.pk }}">{{ r.student.last_name }}, {{ r.student.first_name }}</label></td>
+            <td class="num"><input type="text" inputmode="decimal" id="s-{{ r.student.pk }}" name="s-{{ r.student.pk }}" value="{{ r.value }}" class="score" autocomplete="off"></td>
+            <td class="small">{% if r.pasted %}«{{ r.pasted.name }}»{% if r.pasted.strength == "weak" %} <span class="chip warn">{% translate "confirmar" %}</span>{% endif %}{% endif %}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3" class="muted">{% translate "Sin estudiantes inscritos." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <input type="hidden" name="unmatched-count" value="{{ unmatched|length }}">
+  {% if unmatched %}
+    <section class="card stack">
+      <h2>{% translate "Sin asignar" %}</h2>
+      <p class="small muted" style="margin:0">{% translate "Nombres de la lista que no coinciden con ningún inscrito, o que coinciden con alguien que ya tiene nota. Quedan guardados aquí: cuando el estudiante se inscriba, asígnelo." %}</p>
+      {% for u in unmatched %}
+        <div class="row unmatched">
+          <input type="hidden" name="u-{{ forloop.counter0 }}-name" value="{{ u.name }}">
+          <input type="hidden" name="u-{{ forloop.counter0 }}-points" value="{{ u.points }}">
+          <input type="hidden" name="u-{{ forloop.counter0 }}-also" value="{{ u.also }}">
+          <span><strong>«{{ u.name }}»</strong> · {{ u.points }}{% if u.also %} <span class="small muted">{% blocktranslate with other=u.also %}(coincide con el mismo estudiante que «{{ other }}»){% endblocktranslate %}</span>{% endif %}</span>
+          <span class="spacer"></span>
+          <label class="sr-only" for="u-{{ forloop.counter0 }}">{% translate "Asignar a" %}</label>
+          <select name="u-{{ forloop.counter0 }}" id="u-{{ forloop.counter0 }}" class="compact">
+            <option value="">{% translate "— Asignar a —" %}</option>
+            {% for s in students %}<option value="{{ s.pk }}"{% if u.suggest|stringformat:"s" == s.pk|stringformat:"s" %} selected{% endif %}>{{ s.last_name }}, {{ s.first_name }}</option>{% endfor %}
+          </select>
+          <label class="small"><input type="checkbox" name="u-{{ forloop.counter0 }}-discard"{% if u.discard %} checked{% endif %}> {% translate "Descartar" %}</label>
+        </div>
+      {% endfor %}
+    </section>
+  {% endif %}
+
+  <div class="row"><button type="submit" name="action" value="save">{% translate "Guardar" %}</button>
+    <a class="btn secondary" href="{% url 'course_activities' course.pk %}">{% translate "Cancelar" %}</a></div>
+</form>
+
+{% if record %}
+  <form method="post" action="{% url 'manual_record_delete' course.pk record.pk %}" style="margin-top:24px"
+        onsubmit="return confirm('{% blocktranslate with t=record.title asvar msg %}¿Eliminar «{{ t }}» y todas sus notas?{% endblocktranslate %}{{ msg|escapejs }}')">
+    {% csrf_token %}<button class="danger small">{% translate "Eliminar registro" %}</button>
+  </form>
+{% endif %}
+{% endblock %}

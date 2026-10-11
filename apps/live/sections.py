@@ -1,4 +1,4 @@
-"""Secciones (unidades) de la pestaña Clases: crear, renombrar, eliminar y minimizar.
+"""Secciones (unidades) de la pestaña Clases: crear, renombrar y eliminar.
 
 En un curso vinculado a GitHub, cada operación hace primero el commit (carpeta nueva, carpeta
 renombrada con todos sus archivos, marcador borrado) y solo después cambia la base de datos.
@@ -6,7 +6,6 @@ renombrada con todos sus archivos, marcador borrado) y solo después cambia la b
 
 from django.contrib import messages
 from django.db.models import Max
-from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils.translation import gettext as _
@@ -86,8 +85,9 @@ def section_delete(request, course_pk, pk):
 
     course = owned_course(request, course_pk)
     section = get_object_or_404(Section, pk=pk, course=course)
-    if section.decks.exists():
-        messages.error(request, _("Solo se pueden eliminar secciones vacías: mueva o elimine antes sus presentaciones."))
+    if section.decks.exists() or section.activities.exists():
+        messages.error(request, _("Solo se pueden eliminar secciones vacías: mueva o elimine antes sus "
+                                  "presentaciones y actividades."))
         return redirect("course_manage", pk=course.pk)
     link = _link(course)
     if link:
@@ -99,13 +99,3 @@ def section_delete(request, course_pk, pk):
     section.delete()
     messages.success(request, _("Sección eliminada."))
     return redirect("course_manage", pk=course.pk)
-
-
-@teacher_required
-@require_POST
-def section_toggle(request, course_pk, pk):
-    """Minimizar o desplegar: preferencia de la vista del docente, se guarda sin recargar."""
-    course = owned_course(request, course_pk)
-    collapsed = request.POST.get("collapsed") == "1"
-    Section.objects.filter(pk=pk, course=course).update(collapsed=collapsed)
-    return JsonResponse({"collapsed": collapsed})

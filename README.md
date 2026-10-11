@@ -16,25 +16,32 @@ Aula virtual autoalojada para cursos universitarios con carga matemática.
   se escriben en YAML (`policlase.deck/v1`) y se validan con [`policlase-gen`](../policlase-gen).
   El docente puede **abrir la clase a invitados**: un enlace (y su QR en el proyector) deja entrar
   sin cuenta, para charlas o visitas.
-- **Editor de presentaciones** con Monaco (el editor de VS Code, mismos atajos) y autocompletado
-  según el esquema, panel lateral de diapositivas para reordenar y ocultar (como PowerPoint), vista
-  previa en vivo, LaTeX de la línea del cursor renderizado y plantillas para cada tipo de pregunta.
+- **Un solo editor** para presentaciones y actividades, con Monaco (el editor de VS Code, mismos
+  atajos) y autocompletado según el esquema: el tipo lo dice el `schema` del texto (pegar una
+  actividad convierte el editor). Panel lateral con el tipo, la sección y las diapositivas o ítems
+  para reordenar (y ocultar diapositivas, como en PowerPoint), vista previa en vivo, LaTeX de la línea
+  del cursor renderizado y plantillas para cada tipo de pregunta.
 - **Clases en vivo**: pausar y retomar otro día donde quedó, +15 s / reabrir una pregunta, cierre
   automático cuando respondieron todos los conectados, panel de diapositivas en el proyector (saltar,
   ocultar o mostrar sobre la marcha), **bono por rapidez** en el marcador (100 % al instante, 50 % al
   final del tiempo; la nota de participación solo cuenta acertar) y una pregunta final de
   **retroalimentación anónima** (sin vínculo con el estudiante; el docente ve el resumen desde 3 respuestas).
-- **Curso en pestañas** Clases | Evaluaciones | Actividades; en Clases, **secciones** (unidades) que
-  se minimizan. Con GitHub, cada carpeta con presentaciones es una sección.
+- **Curso en pestañas** Clases | Evaluaciones | Actividades. En Clases, **secciones** (unidades) con
+  sus presentaciones y sus actividades; solo la unidad en curso viene desplegada. Actividades reúne
+  todas, por parcial y filtrables por componente de la ponderación. Con GitHub, cada carpeta con
+  presentaciones o actividades es una sección.
 - **Actividades** (`policlase.activity/v1`): deberes que cada estudiante llena en línea a su paso,
   entregas de **imágenes** (evidencia, certificados, el desarrollo a mano; JPEG, PNG o WebP
   re-codificados sin metadatos) o ambas cosas. Fechas fijas o **relativas a una fecha clave** (mover
   la prueba mueve sus deberes), intentos (cuenta el último), atrasos bloqueados o con penalización,
   rúbrica visible, revisión **por pregunta**, preguntas marcadas para IA (aún sin activar), marca de
-  agua con el nombre y señales para el docente (pegar texto, salir de la página).
+  agua con el nombre y señales para el docente (pegar texto, salir de la página). En las respuestas
+  abiertas, el LaTeX entre `$…$` se ve renderizado.
 - **Ponderaciones por parcial** con componentes obligatorios (100 %) y opcionales que suman encima,
   nota del parcial topada en su máximo, reglas de aprobación y supletorio configurables, libro de
-  calificaciones del docente y vista de calificaciones del estudiante.
+  calificaciones del docente y vista de calificaciones del estudiante. **Registros manuales** para lo
+  hecho fuera de policlase (pegar una lista «nombre puntaje» la empareja con los inscritos), **nota
+  manual** de un estudiante en una clase e invitados que se asignan a su cuenta al inscribirse.
 - **Sincronización con GitHub** por curso: cada docente conecta un token *fine-grained* (Contents:
   lectura y escritura) y vincula una carpeta de su repositorio. Lo que se empuja a GitHub aparece en
   la plataforma (al abrir el curso, o al instante con el webhook opcional); lo que se guarda en el

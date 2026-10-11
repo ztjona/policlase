@@ -6,11 +6,17 @@ La nota de un parcial es la suma, sobre las filas de su tabla, de
 
 topada en la nota máxima: las filas opcionales suman encima de las obligatorias y compensan lo que
 falte, pero un parcial no pasa de 20. La fracción de una fila es el promedio de sus actividades
-(o de las clases en vivo del parcial, para la participación):
+(o de las clases en vivo del parcial, para la participación) y de sus registros manuales:
 
 - una actividad cuenta desde que vence, o desde que el estudiante la entregó; vencida y sin
   entregar, vale cero. La que cuenta es la última entrega.
-- una clase en vivo terminada cuenta para todos los inscritos: faltar vale cero.
+- una clase en vivo terminada cuenta para todos los inscritos: faltar vale cero. Si el docente le
+  puso una nota manual a un estudiante en esa clase (`SessionGrade`), cuenta esa.
+- un registro manual (`ManualRecord`) cuenta desde que existe: quien no tiene nota registrada,
+  cero.
+
+Las unidades (secciones) y los parciales son ejes distintos: una unidad puede repartirse entre dos
+parciales. El parcial de una actividad o de un registro lo decide su fecha (`rebind`).
 
 Una fila sin nada que contar todavía no aporta. Por eso lo que se muestra durante el semestre es
 el **acumulado**: lo ganado hasta hoy y lo que estaba en juego hasta hoy.
@@ -72,12 +78,78 @@ def period_for(periods: list[Period], day) -> Period | None:
     return periods[-1] if periods else None
 
 
-def recompute_due_dates(milestone) -> int:
-    """Una fecha clave cambió: sus actividades vencen de nuevo en relación con ella."""
+def dates_known(periods: list[Period]) -> bool:
+    """¿Se puede saber el parcial de una fecha? Hace falta el cierre de todos menos el último."""
+    return bool(periods) and all(p.ends_on for p in periods[:-1])
+
+
+def day_of(content):
+    """La fecha que ubica en un parcial a una actividad (su vencimiento, en la zona del curso) o a
+    un registro manual (su fecha)."""
+    if hasattr(content, "due_at"):
+        if not content.due_at:
+            return None
+        from apps.activities.models import course_tz
+        return content.due_at.astimezone(course_tz(content.course)).date()
+    return content.on
+
+
+def rebind(content, periods: list[Period] | None = None) -> bool:
+    """La ponderación sigue a la fecha: si la actividad (o el registro) cae en otro parcial que su
+    fila, pasa a la fila del mismo nombre en ese parcial, si existe. No guarda; dice si cambió."""
+    category, day = content.category, day_of(content)
+    if category is None or day is None:
+        return False
+    if periods is None:
+        periods = list(Period.objects.filter(course_id=content.course_id))
+    if not dates_known(periods):
+        return False
+    period = period_for(periods, day)
+    if period is None or period.pk == category.period_id:
+        return False
+    twin = Category.objects.filter(period=period, name__iexact=category.name).first()
+    if twin is None:
+        return False
+    content.category = twin
+    return True
+
+
+def mismatch(content, periods: list[Period]) -> Period | None:
+    """El parcial de su fecha cuando no es el de su fila de ponderación (no había fila del mismo
+    nombre a dónde pasarla): para avisarle al docente."""
+    day = day_of(content)
+    if content.category_id is None or day is None or not dates_known(periods):
+        return None
+    period = period_for(periods, day)
+    return period if period and period.pk != content.category.period_id else None
+
+
+def rebind_all(course) -> int:
+    """Tras cambiar las fechas de los parciales: cada actividad y registro, a su parcial."""
+    from apps.activities.models import Activity
+
+    from .models import ManualRecord
+
+    periods = list(Period.objects.filter(course=course))
     count = 0
-    for activity in milestone.activities.select_related("course__owner", "due_milestone"):
+    for model in (Activity, ManualRecord):
+        for content in model.objects.filter(course=course, category__isnull=False).select_related(
+                "category", "course__owner"):
+            if rebind(content, periods):
+                content.save(update_fields=["category"])
+                count += 1
+    return count
+
+
+def recompute_due_dates(milestone) -> int:
+    """Una fecha clave cambió: sus actividades vencen de nuevo en relación con ella (y, si cruzan
+    al otro parcial, cuentan en él)."""
+    count = 0
+    periods = list(Period.objects.filter(course_id=milestone.course_id))
+    for activity in milestone.activities.select_related("course__owner", "due_milestone", "category"):
         activity.compute_due()
-        activity.save(update_fields=["due_at"])
+        rebind(activity, periods)
+        activity.save(update_fields=["due_at", "category"])
         count += 1
     return count
 
@@ -167,7 +239,9 @@ class StudentGrades:
 def course_grades(course, students, now=None) -> list[StudentGrades]:
     """Notas de cada estudiante en cada parcial. Pocas consultas: todo se arma en memoria."""
     from apps.activities.models import Activity, Attempt
-    from apps.live.models import LiveSession, Response
+    from apps.live.models import LiveSession, Response, SessionGrade
+
+    from .models import ManualRecord, ManualScore
 
     now = now or timezone.now()
     rules = ensure_defaults(course)
@@ -194,12 +268,22 @@ def course_grades(course, students, now=None) -> list[StudentGrades]:
     for r in Response.objects.filter(session__in=sessions, student_id__in=student_ids):
         if r.slide_index in asked[r.session_id]:
             live_points[(r.session_id, r.student_id)] = live_points.get((r.session_id, r.student_id), 0) + r.points
+    for g in SessionGrade.objects.filter(session__in=sessions, student_id__in=student_ids):
+        live_points[(g.session_id, g.student_id)] = g.points          # la nota manual reemplaza la suma
     sessions_in: dict[int, list] = {}
     for s in sessions:
         when = timezone.localdate(s.started_at or s.created_at)
         period = period_for(periods, when)
         if period:
             sessions_in.setdefault(period.pk, []).append(s)
+
+    # Registros manuales: cada uno cuenta como una actividad (o una clase) más de su fila.
+    records = list(ManualRecord.objects.filter(course=course, category__isnull=False))
+    scores = {(m.record_id, m.student_id): float(m.points)
+              for m in ManualScore.objects.filter(record__in=records, student_id__in=student_ids)}
+    records_in: dict[int, list] = {}
+    for record in records:
+        records_in.setdefault(record.category_id, []).append(record)
 
     out = []
     for student in students:
@@ -220,6 +304,9 @@ def course_grades(course, students, now=None) -> list[StudentGrades]:
                             cell.pending += 1 if attempt.pending else 0
                         elif activity.is_past_due(now):
                             values.append(0.0)
+                for record in records_in.get(category.pk, []):
+                    top = float(record.max_points)
+                    values.append(min(1.0, scores.get((record.pk, student.pk), 0.0) / top) if top > 0 else 0.0)
                 if values:
                     cell.fraction, cell.counted = sum(values) / len(values), len(values)
                 pg.cells.append(cell)

@@ -13,55 +13,16 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext as _
 from django.utils.translation import ngettext
 from django.views.decorators.http import require_POST
-from policlase_gen import activity as activityfmt
-from policlase_gen import loader
 
 from apps.courses.access import is_approved, owned_course, teacher_required
 from apps.courses.models import Course, Enrollment
 from apps.grades import gradebook
 from apps.grades.forms import MilestoneForm
-from apps.grades.models import Milestone
+from apps.grades.models import Milestone, Period
 
 from . import engine, images
 from .forms import ActivitySettingsForm
 from .models import Activity, Answer, Attempt, Upload
-
-ACTIVITY_TEMPLATE = r"""schema: policlase.activity/v1
-title: 'Deber 1'
-instructions: |
-  Resuelva cada ejercicio. Las fechas, el peso y los intentos se configuran en policlase,
-  no en este archivo.
-
-# El LaTeX va entre comillas simples: en las dobles, \t, \f, \b… son escapes de YAML.
-items:
-  - id: D01-ejemplo
-    questions:
-      - id: q1
-        type: numeric
-        prompt: '¿Cuánto vale $\sqrt{2}$ con cuatro decimales?'
-        solution: 1.4142
-        grading: { atol: 0.0001 }
-      - id: q2
-        type: open
-        points: 2
-        prompt: 'Explique con sus palabras qué es el error de truncamiento.'
-        grading:
-          mode: manual            # ai: marcada para calificación con IA (aún no activa)
-          rubric:
-            - { criterion: 'Define el error de truncamiento', points: 1 }
-            - { criterion: 'Da un ejemplo', points: 1 }
-      - id: q3
-        type: image
-        prompt: 'Suba la foto de su desarrollo a mano.'
-        max_files: 3
-"""
-
-
-def _diagnostics(report) -> list[dict]:
-    return [{"code": d.code, "severity": d.severity.value, "message": d.message,
-             "line": d.line, "where": ".".join(p for p in (d.item_id, d.question_id) if p)}
-            for d in report]
-
 
 def _course_link(course):
     from apps.github.models import CourseRepo
@@ -77,88 +38,6 @@ def _approved(course):
 
 
 @teacher_required
-def activity_edit(request, course_pk, pk=None):
-    from apps.github import sync
-
-    course = owned_course(request, course_pk)
-    link = _course_link(course)
-    if link and request.method != "POST":
-        sync.maybe_pull(link)
-    activity = get_object_or_404(Activity, pk=pk, course=course) if pk else None
-    source = activity.source if activity else ACTIVITY_TEMPLATE
-    diagnostics = []
-
-    if request.method == "POST":
-        upload = request.FILES.get("file")
-        if upload:
-            if upload.size > 512 * 1024:
-                messages.error(request, _("El archivo supera 512 KB."))
-                return redirect(request.path)
-            source = upload.read().decode("utf-8", errors="replace")
-        else:
-            source = request.POST.get("source", "")
-
-        document, report = activityfmt.load_activity_text(source)
-        diagnostics = _diagnostics(report)
-        if document is not None and not report.errors:
-            compiled = activityfmt.compile_activity(document)
-            new = activity is None
-            activity = activity or Activity(course=course)
-            activity.title = compiled["title"]
-            saved = True
-            if link:
-                try:
-                    activity.github_path, activity.github_sha = sync.push_activity(link, activity, source)
-                except sync.Conflict:
-                    saved = False
-                    messages.error(request, _("La actividad cambió en GitHub después de que la abrió; "
-                                              "no se guardó para no perder esos cambios. Copie su texto, "
-                                              "recargue el editor y vuelva a aplicarlo."))
-                except sync.GitHubError as exc:
-                    saved = False
-                    messages.error(request, _("No se guardó: %(error)s") % {"error": exc})
-            if saved:
-                activity.source, activity.compiled = source, compiled
-                activity.save()
-                messages.success(request, _("Actividad «%(title)s» guardada: %(questions)d preguntas, "
-                                            "%(points)s puntos.")
-                                 % {"title": activity.title, "questions": len(activity.questions),
-                                    "points": f"{activity.points:g}"})
-                if link:
-                    messages.info(request, _("Confirmada en GitHub: %(path)s") % {"path": activity.github_path})
-                if new:
-                    messages.info(request, _("Elija su ponderación y su fecha de entrega, y publíquela."))
-                return redirect("activity_detail", course_pk=course.pk, pk=activity.pk)
-        else:
-            messages.error(request, _("La actividad tiene errores; no se guardó."))
-
-    return render(request, "activities/edit.html", {
-        "course": course, "activity": activity, "source": source, "diagnostics": diagnostics, "link": link,
-    })
-
-
-@teacher_required
-@require_POST
-def activity_preview(request, course_pk):
-    """Vista previa del editor. Las actividades no admiten generadores todavía (E092): compilar
-    aquí no ejecuta código del docente."""
-    owned_course(request, course_pk)
-    source = request.POST.get("source", "")
-    if len(source) > 512 * 1024:
-        return JsonResponse({"diagnostics": [{"code": "", "severity": "error", "line": None, "where": "",
-                                              "message": _("El archivo supera 512 KB.")}]})
-    document, report = activityfmt.load_activity_text(source)
-    payload = {"diagnostics": _diagnostics(report), "html": None, "lines": []}
-    if document is not None and not report.errors:
-        compiled = activityfmt.compile_activity(document)
-        payload["html"] = render_to_string("activities/_preview.html", {"content": compiled}, request)
-        payload["title"] = compiled["title"]
-    if document is not None and isinstance(document.get("items"), list):
-        payload["lines"] = [loader.line_of(document["items"], i) for i in range(len(document["items"]))]
-    return JsonResponse(payload)
-
-
-@teacher_required
 @require_POST
 def activity_delete(request, course_pk, pk):
     course = owned_course(request, course_pk)
@@ -167,14 +46,43 @@ def activity_delete(request, course_pk, pk):
     if link and activity.github_path:
         from apps.github import sync
         try:
-            sync.delete_activity(link, activity)
+            sync.delete(link, activity)
         except sync.GitHubError as exc:
             messages.error(request, _("No se eliminó: %(error)s") % {"error": exc})
             return redirect("activity_detail", course_pk=course.pk, pk=activity.pk)
     title = activity.title
     activity.delete()
-    messages.success(request, _("Actividad «%(title)s» eliminada, con sus entregas.") % {"title": title})
+    if link and activity.github_path:
+        messages.success(request, _("Actividad «%(title)s» eliminada, con sus entregas; su archivo se borró de "
+                                    "GitHub.") % {"title": title})
+    else:
+        messages.success(request, _("Actividad «%(title)s» eliminada, con sus entregas.") % {"title": title})
     return redirect("course_activities", pk=course.pk)
+
+
+@teacher_required
+@require_POST
+def activity_move(request, course_pk, pk):
+    """Arrastrarla a otra sección en la pestaña Clases. Con GitHub, el archivo cambia de carpeta en
+    un solo commit (y solo si allá sigue como lo conocemos)."""
+    from apps.live.models import Section
+
+    course = owned_course(request, course_pk)
+    activity = get_object_or_404(Activity, pk=pk, course=course)
+    wanted = request.POST.get("section", "")
+    section = get_object_or_404(Section, pk=wanted, course=course) if wanted else None
+    if section == activity.section:
+        return JsonResponse({"ok": True})
+    activity.section = section
+    link = _course_link(course)
+    if link and activity.github_path:
+        from apps.github import sync
+        try:
+            activity.github_path, activity.github_sha = sync.push(link, activity, activity.source)
+        except sync.GitHubError as exc:
+            return JsonResponse({"error": _("No se movió: %(error)s") % {"error": exc}}, status=409)
+    activity.save(update_fields=["section", "github_path", "github_sha"])
+    return JsonResponse({"ok": True})
 
 
 # -------------------------------------------------------------------- docente: configuración y resultados
@@ -226,6 +134,8 @@ def activity_detail(request, course_pk, pk):
         if form.is_valid():
             form.save()
             messages.success(request, _("Configuración guardada."))
+            if form.rebound:
+                messages.info(request, _("Vence en otro parcial: ahora cuenta en «%(row)s».") % {"row": activity.category})
             return redirect("activity_detail", course_pk=course.pk, pk=activity.pk)
         messages.error(request, _("Revise los campos marcados."))
     students = _approved(course)
@@ -237,6 +147,7 @@ def activity_detail(request, course_pk, pk):
         pending[key] = pending.get(key, 0) + 1
     return render(request, "activities/detail.html", {
         "course": course, "activity": activity, "form": form, "rows": rows,
+        "mismatch": gradebook.mismatch(activity, list(Period.objects.filter(course=course))),
         "submitted": sum(1 for r in rows if r["attempt"]),
         "review": [{"question": q, "pending": pending.get(q["key"], 0)} for q in review],
         "milestones": Milestone.objects.filter(course=course),
@@ -419,6 +330,7 @@ def _shift(activities, days: int) -> int:
     su desfase y siguen atadas a ella."""
     moved = 0
     delta = timedelta(days=days)
+    periods = None
     for activity in activities:
         fields = []
         if activity.due_milestone_id:
@@ -431,6 +343,10 @@ def _shift(activities, days: int) -> int:
         if activity.opens_at and activity.opens_at > timezone.now():
             activity.opens_at += delta
             fields.append("opens_at")
+        if periods is None:
+            periods = list(Period.objects.filter(course_id=activity.course_id))
+        if fields and gradebook.rebind(activity, periods):
+            fields.append("category")
         if fields:
             activity.save(update_fields=fields)
             moved += 1

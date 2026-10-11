@@ -19,7 +19,7 @@
         {% if q.type == "image" %}
           {% include "activities/_uploads.html" with question=q uploads=r.uploads editable=False %}
         {% elif q.type == "open" %}
-          <div class="answer-text">{% if a.value %}{{ a.value|linebreaksbr }}{% else %}<span class="muted">{% translate "Sin respuesta." %}</span>{% endif %}</div>
+          <div class="answer-text">{% if a.value %}{{ a.value|student_math }}{% else %}<span class="muted">{% translate "Sin respuesta." %}</span>{% endif %}</div>
         {% else %}
           <p class="mono">{{ a.value|default:"—" }}</p>
         {% endif %}

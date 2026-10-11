@@ -8,7 +8,7 @@
   <h1>{% translate "Calificaciones" %}</h1>
   <a class="small" href="{% url 'grading_settings' course.pk %}">{% translate "Ponderaciones y aprobación" %}</a>
 </div>
-<p class="muted small">{% blocktranslate with max=rules.period_max|floatformat:"-2" %}Acumulado de cada parcial sobre {{ max }}: lo calificado hasta hoy. Una actividad cuenta desde que vence (sin entregar, cero) y cada clase en vivo terminada cuenta para todos (faltar, cero). Las pruebas, el examen y el proyecto llegarán con la pestaña Evaluaciones.{% endblocktranslate %}</p>
+<p class="muted small">{% blocktranslate with max=rules.period_max|floatformat:"-2" %}Nota acumulada de cada parcial sobre {{ max }} puntos, con lo calificado a la fecha. Una actividad se califica desde su fecha de entrega (sin entrega, cero); cada clase en vivo finalizada se califica para todos los inscritos (inasistencia, cero); los registros manuales, desde que se registran. Las pruebas, el examen y el proyecto se incorporarán con la pestaña Evaluaciones.{% endblocktranslate %}</p>
 
 <nav class="tabs" aria-label="{% translate 'Parciales' %}">
   <a href="{% url 'course_gradebook' course.pk %}" {% if not chosen %}aria-current="page"{% endif %}>{% translate "Resumen" %}</a>
@@ -29,7 +29,7 @@
             <tr>
               <td>{% include "activities/_name.html" with s=g.student %}</td>
               {% for c in pg.cells %}<td class="num small">{% if c.fraction is None %}<span class="muted">—</span>{% else %}{{ c.points|floatformat:2 }} <span class="muted">({% widthratio c.fraction 1 100 %} %)</span>{% if c.pending %} <span class="chip warn" title="{% translate 'entregas con preguntas por revisar' %}">{{ c.pending }}</span>{% endif %}{% endif %}</td>{% endfor %}
-              <td class="num"><strong>{{ pg.total|floatformat:2 }}</strong>{% if pg.capped %} <span class="small muted" title="{% translate 'Con los extras pasa del máximo; se topa' %}">({{ pg.raw|floatformat:2 }})</span>{% endif %}</td>
+              <td class="num"><strong>{{ pg.total|floatformat:2 }}</strong>{% if pg.capped %} <span class="small muted" title="{% translate 'Con los componentes opcionales supera el máximo; se registra el máximo' %}">({{ pg.raw|floatformat:2 }})</span>{% endif %}</td>
             </tr>
           {% endfor %}
         </tbody>
@@ -43,7 +43,7 @@
           {% for g in grades %}
             <tr>
               <td>{% include "activities/_name.html" with s=g.student %}</td>
-              {% for pg in g.periods %}<td class="num">{{ pg.total|floatformat:2 }}{% if pg.capped %} <span class="small muted" title="{% translate 'Con los extras pasa del máximo; se topa' %}">({{ pg.raw|floatformat:2 }})</span>{% endif %}</td>{% endfor %}
+              {% for pg in g.periods %}<td class="num">{{ pg.total|floatformat:2 }}{% if pg.capped %} <span class="small muted" title="{% translate 'Con los componentes opcionales supera el máximo; se registra el máximo' %}">({{ pg.raw|floatformat:2 }})</span>{% endif %}</td>{% endfor %}
               <td class="num"><strong>{{ g.total|floatformat:2 }}</strong></td>
               <td>{% include "grades/_status.html" %}</td>
             </tr>
@@ -52,7 +52,7 @@
       {% endif %}
     </table>
   </div>
-  <p class="small muted">{% if chosen %}{% translate "Cada celda: los puntos que aporta el componente al parcial y, entre paréntesis, el porcentaje logrado en él." %}{% else %}{% translate "El estado (aprueba, supletorio, pierde) aparece cuando cierran todos los parciales." %}{% endif %}</p>
+  <p class="small muted">{% if chosen %}{% translate "Cada celda: los puntos que aporta el componente al parcial y, entre paréntesis, el porcentaje logrado en él." %}{% else %}{% translate "El estado (aprobado, supletorio, reprobado) se muestra cuando han cerrado todos los parciales." %}{% endif %}</p>
 {% else %}
   <p class="muted">{% translate "Aún no hay estudiantes aprobados en el curso." %}</p>
 {% endif %}

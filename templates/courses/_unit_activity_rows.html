@@ -1,0 +1,20 @@
+{% load i18n policlase %}
+{# Actividades de una unidad en la pestaña Clases: se arrastran entre secciones como las presentaciones. #}
+{% for a in activities %}
+  <div class="deck-row" draggable="true" data-move="{% url 'activity_move' course.pk a.pk %}">
+    <span class="grip" title="{% translate 'Arrastre para mover a otra sección' %}">{% icon "grip" 16 %}</span>
+    <span class="row-kind" title="{% translate 'Actividad' %}">{% icon "task" 16 %}</span>
+    <div class="deck-info">
+      <a href="{% url 'activity_detail' course.pk a.pk %}"><strong>{{ a.title }}</strong></a>
+      {% if not a.published %}<span class="chip warn">{% translate "Borrador" %}</span>{% endif %}
+      <div class="small muted">
+        {% if a.category %}{{ a.category.name }} · {{ a.category.period.name }}{% else %}{% translate "sin ponderación" %}{% endif %} ·
+        {% if a.due_at %}{% blocktranslate with when=a.due_at|date:"D d M, H:i" %}vence {{ when }}{% endblocktranslate %}{% else %}{% translate "sin fecha" %}{% endif %}
+      </div>
+    </div>
+    <div class="row-actions">
+      <a class="icon-btn" href="{% url 'activity_edit' course.pk a.pk %}" title="{% translate 'Editar contenido' %}" aria-label="{% translate 'Editar contenido' %}">{% icon "edit" %}</a>
+      <a class="icon-btn primary" href="{% url 'activity_detail' course.pk a.pk %}" title="{% translate 'Configuración y entregas' %}" aria-label="{% translate 'Configuración y entregas' %}">{% icon "results" %}</a>
+    </div>
+  </div>
+{% endfor %}

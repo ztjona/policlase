@@ -17,7 +17,7 @@
 </div>
 
 <form method="post" action="{% url 'deck_delete' course.pk deck.pk %}" style="margin-top:24px"
-      onsubmit="return confirm('{% translate "¿Eliminar esta presentación? Las clases ya dictadas conservan sus resultados." as msg %}{{ msg|escapejs }}')">
+      onsubmit="return confirm('{% if deck.github_path %}{% blocktranslate with path=deck.github_path asvar msg %}¿Eliminar esta presentación? También se borra su archivo en GitHub ({{ path }}). Las clases ya dictadas conservan sus resultados.{% endblocktranslate %}{% else %}{% translate "¿Eliminar esta presentación? Las clases ya dictadas conservan sus resultados." as msg %}{% endif %}{{ msg|escapejs }}')">
   {% csrf_token %}<button class="danger">{% translate "Eliminar presentación" %}</button>
 </form>
 {% endblock %}

@@ -2,7 +2,7 @@ from django import forms
 from django.forms import inlineformset_factory
 from django.utils.translation import gettext_lazy as _
 
-from .models import Category, GradingRules, Milestone, Period
+from .models import Category, GradingRules, ManualRecord, Milestone, Period
 
 DATE = forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")
 
@@ -57,3 +57,24 @@ class MilestoneForm(forms.ModelForm):
         model = Milestone
         fields = ["name", "on"]
         widgets = {"on": DATE, "name": forms.TextInput(attrs={"placeholder": _("p. ej. Prueba 1")})}
+
+
+class ManualRecordForm(forms.ModelForm):
+    class Meta:
+        model = ManualRecord
+        fields = ["title", "category", "on", "max_points", "note"]
+        widgets = {"on": DATE, "max_points": forms.NumberInput(attrs={"step": "any", "min": "0.01"}),
+                   "note": forms.TextInput(attrs={"placeholder": _("p. ej. «Fuiz, código 20226»")})}
+
+    def __init__(self, *args, course, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["category"].queryset = Category.objects.filter(period__course=course).select_related("period")
+        self.fields["category"].empty_label = _("— Sin ponderación (no cuenta) —")
+        self.fields["category"].help_text = _("Si la fecha cae en otro parcial, cuenta en la fila del mismo nombre "
+                                              "de ese parcial.")
+
+    def clean_max_points(self):
+        value = self.cleaned_data["max_points"]
+        if value is None or value <= 0:
+            raise forms.ValidationError(_("Debe ser mayor que cero."))
+        return value

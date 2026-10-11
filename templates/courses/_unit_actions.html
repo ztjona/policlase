@@ -6,5 +6,6 @@
     <button class="icon-btn" title="{% translate 'Crear' %}" aria-label="{% translate 'Crear' %}">{% icon "check" %}</button>
   </form>
   <button type="button" class="ghost" data-new-section>{% icon "folder_add" 16 %} {% translate "Nueva sección" %}</button>
-  <a class="ghost" href="{% url 'deck_new' course.pk %}">{% icon "file_add" 16 %} {% translate "Presentación suelta" %}</a>
+  <a class="ghost" href="{% url 'deck_new' course.pk %}">{% icon "file_add" 16 %} {% translate "Presentación" %}</a>
+  <a class="ghost" href="{% url 'activity_new' course.pk %}">{% icon "task" 16 %} {% translate "Actividad" %}</a>
 </div>

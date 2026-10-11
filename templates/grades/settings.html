@@ -4,7 +4,7 @@
 {% block main %}
 <div class="muted small"><a href="{% url 'course_settings' course.pk %}">← {% translate "Configuración del curso" %}</a></div>
 <h1>{% translate "Ponderaciones y aprobación" %}</h1>
-<p class="muted">{% translate "Cada parcial tiene su tabla. Las filas obligatorias suman 100 %; las opcionales se suman encima y permiten compensar lo que falte, pero la nota del parcial no pasa del máximo. Los estudiantes ven esta tabla en «Calificaciones»." %}</p>
+<p class="muted">{% translate "Cada parcial tiene su propia tabla de ponderaciones. Los componentes obligatorios suman 100 %; los opcionales se añaden a ellos y permiten compensar los puntos no obtenidos, sin que la nota del parcial exceda el máximo. Los estudiantes consultan esta tabla en «Calificaciones»." %}</p>
 
 <form method="post" class="stack">
   {% csrf_token %}
@@ -54,7 +54,7 @@
     <div class="grid rules">
       {% for f in rules_form %}<div>{{ f.label_tag }}{{ f }}{{ f.errors }}{% if f.help_text %}<span class="helptext">{{ f.help_text }}</span>{% endif %}</div>{% endfor %}
     </div>
-    <p class="small muted" style="margin:0">{% blocktranslate with max=rules_form.instance.period_max|floatformat:"-2" fail=rules_form.instance.fail_below|floatformat:"-2" ok=rules_form.instance.pass_from|floatformat:"-2" total=rules_form.instance.makeup_total|floatformat:"-2" min=rules_form.instance.makeup_min|floatformat:"-2" %}Cada parcial se topa en {{ max }}. Con la suma de parciales por debajo de {{ fail }} se pierde; desde {{ ok }}, se aprueba; en medio, el supletorio se aprueba si parciales más supletorio llegan a {{ total }} y el supletorio no baja de {{ min }}.{% endblocktranslate %}</p>
+    <p class="small muted" style="margin:0">{% blocktranslate with max=rules_form.instance.period_max|floatformat:"-2" fail=rules_form.instance.fail_below|floatformat:"-2" ok=rules_form.instance.pass_from|floatformat:"-2" total=rules_form.instance.makeup_total|floatformat:"-2" min=rules_form.instance.makeup_min|floatformat:"-2" %}La nota de cada parcial no excede {{ max }} puntos. Con una suma de parciales inferior a {{ fail }} se reprueba la asignatura y con {{ ok }} o más se aprueba; entre ambos valores se rinde el examen supletorio, que se aprueba con un mínimo de {{ min }} puntos en el examen y una suma de parciales y supletorio de al menos {{ total }} puntos.{% endblocktranslate %}</p>
   </section>
 
   <div class="row"><button type="submit">{% translate "Guardar" %}</button></div>

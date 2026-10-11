@@ -15,6 +15,7 @@ from apps.accounts.models import User
 from apps.courses.models import Course, Enrollment
 from apps.grades import gradebook
 from apps.grades.models import Milestone
+from apps.live.models import Section
 
 from . import engine
 from .models import Activity, Answer, Attempt, Upload
@@ -120,7 +121,7 @@ class EditorTests(ActivityBase):
 
     def test_vista_previa_muestra_rubrica_y_referencia_al_docente(self):
         self.client.force_login(self.teacher)
-        data = self.client.post(reverse("activity_preview", args=[self.course.pk]), {"source": SOURCE}).json()
+        data = self.client.post(reverse("content_preview", args=[self.course.pk]), {"source": SOURCE}).json()
         self.assertIn("División entre cero", data["html"])
         self.assertIn("Tangente horizontal", data["html"])
 
@@ -458,6 +459,8 @@ class CoursePagesTests(ActivityBase):
 
 
 class GitHubActivityTests(ActivityBase):
+    """Las actividades viven en la carpeta de su unidad, como las presentaciones."""
+
     def setUp(self):
         super().setUp()
         from apps.github.models import CourseRepo, GitHubAccount
@@ -466,19 +469,20 @@ class GitHubActivityTests(ActivityBase):
         account = GitHubAccount(user=self.teacher, login="profe-gh")
         account.token = "github_pat_secreto"
         account.save()
-        self.gh = FakeGitHub({"mn/clases/actividades/deber-2.yaml": SOURCE.replace("Deber 1", "Deber 2")})
+        self.gh = FakeGitHub({"mn/clases/unidad-01/deber-2.yaml": SOURCE.replace("Deber 1", "Deber 2")})
         patcher = mock.patch("apps.github.sync.client_for", return_value=self.gh)
         patcher.start()
         self.addCleanup(patcher.stop)
         self.link = CourseRepo.objects.create(course=self.course, repo="profe/cursos", folder="mn/clases")
 
-    def test_actividad_de_github_llega_como_borrador(self):
+    def test_actividad_de_github_llega_como_borrador_en_su_unidad(self):
         from apps.github import sync
 
         sync.pull(self.link)
-        pulled = Activity.objects.get(github_path="mn/clases/actividades/deber-2.yaml")
+        pulled = Activity.objects.get(github_path="mn/clases/unidad-01/deber-2.yaml")
         self.assertEqual(pulled.title, "Deber 2")
         self.assertFalse(pulled.published)
+        self.assertEqual(pulled.section.title, "Unidad 01")         # una carpeta con solo actividades es sección
 
     def test_borrada_en_github_con_entregas_se_conserva(self):
         from apps.github import sync
@@ -488,17 +492,45 @@ class GitHubActivityTests(ActivityBase):
         Activity.objects.filter(pk=pulled.pk).update(published=True)
         pulled.refresh_from_db()
         engine.submit(engine.start(pulled, self.ana))
-        del self.gh.files["mn/clases/actividades/deber-2.yaml"]
+        del self.gh.files["mn/clases/unidad-01/deber-2.yaml"]
         result = sync.pull(self.link)
         pulled.refresh_from_db()
         self.assertEqual(pulled.github_path, "")
         self.assertTrue(result.issues[0]["note"])
 
-    def test_nueva_actividad_en_la_web_se_confirma_en_github(self):
+    def test_nueva_actividad_en_la_web_va_a_la_carpeta_de_su_seccion(self):
+        from apps.github import sync
+
+        sync.pull(self.link)
+        unit = Section.objects.get(course=self.course)
         self.client.force_login(self.teacher)
         self.client.post(reverse("activity_new", args=[self.course.pk]),
                          {"source": SOURCE.replace("Deber 1", "Taller 3")})
-        self.assertIn("mn/clases/actividades/taller-3.yaml", self.gh.files)
+        self.assertIn("mn/clases/taller-3.yaml", self.gh.files)          # sin sección: en la raíz
+        self.client.post(reverse("activity_new", args=[self.course.pk]),
+                         {"source": SOURCE.replace("Deber 1", "Taller 4"), "section": unit.pk})
+        self.assertIn("mn/clases/unidad-01/taller-4.yaml", self.gh.files)
+
+    def test_mover_y_renombrar_la_seccion_mueven_el_archivo(self):
+        from apps.github import sync
+
+        sync.pull(self.link)
+        pulled = Activity.objects.get(title="Deber 2")
+        self.client.force_login(self.teacher)
+        self.client.post(reverse("section_create", args=[self.course.pk]), {"title": "Unidad 02"})
+        unit2 = Section.objects.get(title="Unidad 02")
+        self.assertEqual(self.client.post(reverse("activity_move", args=[self.course.pk, pulled.pk]),
+                                          {"section": unit2.pk}).json(), {"ok": True})
+        pulled.refresh_from_db()
+        self.assertEqual(pulled.github_path, "mn/clases/Unidad 02/deber-2.yaml")
+        self.assertNotIn("mn/clases/unidad-01/deber-2.yaml", self.gh.files)
+        self.client.post(reverse("section_rename", args=[self.course.pk, unit2.pk]), {"title": "Unidad 2 - Raíces"})
+        pulled.refresh_from_db()
+        self.assertEqual(pulled.github_path, "mn/clases/Unidad 2 - Raíces/deber-2.yaml")
+        self.assertIn(pulled.github_path, self.gh.files)
+        self.client.force_login(make_user("otra", User.Role.TEACHER))
+        self.assertEqual(self.client.post(reverse("activity_move", args=[self.course.pk, pulled.pk]),
+                                          {"section": ""}).status_code, 404)
 
 
 class PagesRenderTests(ActivityBase):

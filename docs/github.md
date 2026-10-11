@@ -21,10 +21,10 @@ no pisa nada.
 3. **Vincular un curso:** Configuración del curso → Sincronización con GitHub → repositorio
    (`usuario/repositorio`, también acepta la URL), rama (`main`) y carpeta del curso (relativa a la
    raíz; vacía = raíz). policlase comprueba que el token pueda escribir en esa rama.
-4. Al vincular, las presentaciones que ya existían en la web **se suben** a la carpeta (cada una en
-   la de su sección) y luego se trae todo lo que hay en GitHub.
+4. Al vincular, las presentaciones y actividades que ya existían en la web **se suben** a la carpeta
+   (cada una en la de su sección) y luego se trae todo lo que hay en GitHub.
 
-Desvincular deja las presentaciones en policlase y deja de sincronizarlas.
+Desvincular deja las presentaciones y actividades en policlase y deja de sincronizarlas.
 
 ## 2. Qué se lee
 
@@ -45,18 +45,21 @@ hasta que cambien.
 ## 3. Secciones = carpetas
 
 - Cada **subcarpeta de primer nivel** de la carpeta vinculada que contenga **al menos una
-  presentación** es una sección (unidad). Las subcarpetas más profundas pertenecen a la sección de
-  primer nivel que las contiene.
-- Una carpeta **sin presentaciones no es una sección** (así `generators/` o una carpeta de ítems no
-  aparecen como unidades), **salvo** que tenga el archivo vacío **`.policlase-seccion`**: es el
-  marcador que policlase crea para una sección nueva todavía vacía (git no guarda carpetas vacías).
-- Las presentaciones en la raíz de la carpeta vinculada quedan en **«Sin sección»**.
+  presentación o una actividad** es una sección (unidad), y lo que está en ella le pertenece: sus
+  presentaciones y sus deberes aparecen juntos en la pestaña Clases. Las subcarpetas más profundas
+  pertenecen a la sección de primer nivel que las contiene.
+- Una carpeta **sin presentaciones ni actividades no es una sección** (así `generators/` o una
+  carpeta de ítems no aparecen como unidades), **salvo** que tenga el archivo vacío
+  **`.policlase-seccion`**: es el marcador que policlase crea para una sección nueva todavía vacía
+  (git no guarda carpetas vacías).
+- Lo que está en la raíz de la carpeta vinculada queda en **«Sin sección»**.
 - **Nombre:** el de la carpeta. Si no tiene espacios, los `-` y `_` se vuelven espacios y la
   primera letra va en mayúscula (`unidad-01` → «Unidad 01»); con espacios se respeta tal cual
   (`Unidad 3 - Interpolación`).
 - **Orden:** por nombre, con orden natural (`unidad-2` antes que `unidad-10`). Lo mismo para las
   presentaciones dentro de una sección: use prefijos numéricos (`01-biseccion.yaml`) para fijarlo.
-- Minimizar una sección es una preferencia de la vista del docente: no va a GitHub.
+- La sección y el parcial son cosas distintas: una unidad puede repartirse entre dos parciales. El
+  parcial de una actividad lo decide su fecha de entrega, que vive en policlase, no en GitHub.
 
 Estructura recomendada (vincule el curso a `metodos-numericos/clases`):
 
@@ -65,12 +68,12 @@ repositorio-de-cursos/                  ← privado: los ítems llevan las respu
 └── metodos-numericos/
     ├── clases/                         ← carpeta vinculada al curso
     │   ├── unidad-01/
-    │   │   ├── 01-biseccion.yaml
-    │   │   └── 02-newton.yaml
+    │   │   ├── 01-biseccion.yaml        ← presentación (schema: policlase.deck/v1)
+    │   │   ├── 02-newton.yaml
+    │   │   └── deber-01.yaml            ← actividad de la unidad (schema: policlase.activity/v1)
     │   ├── unidad-02/
     │   │   └── 01-interpolacion.yaml
     │   └── repaso-general.yaml         ← «Sin sección»
-    │   └── actividades/                ← deberes y talleres (no es una sección: no tiene presentaciones)
     ├── items/                          ← evaluaciones (próximamente)
     └── generators/
 ```
@@ -108,8 +111,9 @@ su nombre):
 | Crear una sección | crea `<carpeta>/.policlase-seccion` | Crea la sección «…» desde policlase |
 | Renombrar una sección (doble clic) | mueve **todos** los archivos de la carpeta | Renombra la sección «…» a «…» desde policlase |
 | Eliminar una sección vacía | borra el marcador | Elimina la sección «…» desde policlase |
-| «Guardar» una actividad nueva | crea `actividades/<título>.yaml` dentro de la carpeta del curso | Crea «…» desde policlase |
-| «Guardar» una actividad existente | actualiza su archivo, donde esté | Actualiza «…» desde policlase |
+| «Guardar» una actividad nueva | crea `<sección>/<título>.yaml`, igual que una presentación | Crea «…» desde policlase |
+| «Guardar» una actividad existente | actualiza su archivo | Actualiza «…» desde policlase |
+| Arrastrar una actividad a otra sección (o cambiar «Sección» en el editor) | la mueve, conservando el nombre del archivo | Mueve «…» a … desde policlase |
 | Eliminar una actividad | borra su archivo (y en policlase, sus entregas) | Elimina «…» desde policlase |
 
 - La carpeta de una sección creada en la web lleva el nombre tal como se escribió (git admite
@@ -117,8 +121,9 @@ su nombre):
 - Mover y renombrar son **un solo commit** aunque toquen varios archivos (API de datos de git).
   Renombrar reutiliza los archivos de la carpeta por su sha: las imágenes u otros binarios que haya
   ahí no se alteran.
-- **No generan commits:** escribir en el editor, reordenar u ocultar diapositivas desde el panel
-  (cambian el texto; se confirman al «Guardar»), ocultar diapositivas durante una clase (solo valen
+- **Solo «Guardar» (o Ctrl+S, como en VS Code) hace commit.** No generan commits: escribir en el
+  editor, la vista previa, reordenar u ocultar diapositivas o ítems desde el panel (cambian el
+  texto; se confirman al «Guardar»), ocultar diapositivas durante una clase (solo valen
   para esa clase), y todo lo que vive en la base de datos: clases dictadas, respuestas, notas,
   retroalimentación, inscripciones, y de las actividades sus fechas, ponderación, intentos,
   entregas e imágenes.

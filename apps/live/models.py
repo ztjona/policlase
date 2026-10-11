@@ -9,17 +9,18 @@ from apps.courses.models import Course
 
 
 class Section(models.Model):
-    """Una unidad dentro de «Clases» (Unidad 1, Unidad 2…) que agrupa presentaciones.
+    """Una unidad dentro de «Clases» (Unidad 1, Unidad 2…): agrupa sus presentaciones y sus
+    actividades (`Activity.section`).
 
     En un curso vinculado a GitHub, cada sección es una carpeta (`github_folder`) dentro de la
     carpeta del curso: crear, renombrar o mover en la web hace el commit correspondiente.
+    La unidad en curso se despliega sola (`courses.views.current_section`); las demás aparecen
+    minimizadas.
     """
 
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="sections")
     title = models.CharField(_("título"), max_length=200)
     position = models.PositiveIntegerField(default=0)
-    #: Minimizada en la vista del docente (preferencia de interfaz, no va a GitHub).
-    collapsed = models.BooleanField(default=False)
     github_folder = models.CharField(max_length=300, blank=True)
 
     class Meta:
@@ -239,6 +240,24 @@ class Response(models.Model):
             # Una respuesta por pregunta y estudiante: la primera es la que cuenta.
             models.UniqueConstraint(fields=["session", "slide_index", "student"],
                                     name="one_answer_per_question"),
+        ]
+
+
+class SessionGrade(models.Model):
+    """Nota de un estudiante en una clase puesta a mano por el docente: reemplaza la suma de sus
+    respuestas (faltó con justificación, se quedó sin conexión, entró como invitado…). Las
+    respuestas no se tocan: quitar la nota manual vuelve a la suma."""
+
+    session = models.ForeignKey(LiveSession, on_delete=models.CASCADE, related_name="manual_grades")
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
+    points = models.FloatField()
+    edited_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
+                                  blank=True, related_name="+")
+    edited_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["session", "student"], name="one_manual_grade_per_session"),
         ]
 
 

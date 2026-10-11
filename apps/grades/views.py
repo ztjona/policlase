@@ -5,15 +5,17 @@ from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.utils.translation import gettext as _
+from django.utils.translation import ngettext
 from django.views.decorators.http import require_POST
 
 from apps.courses.access import can_view_course, owned_course, teacher_required
 from apps.courses.models import Course, Enrollment
 
-from . import gradebook
-from .forms import CategoryFormSet, PeriodForm, RulesForm
-from .models import Category, Period
+from . import gradebook, matching
+from .forms import CategoryFormSet, ManualRecordForm, PeriodForm, RulesForm
+from .models import Category, ManualRecord, ManualScore, Period
 
 
 def _period_forms(course, data=None):
@@ -62,6 +64,12 @@ def grading_settings(request, pk):
                         if row.position != position:
                             Category.objects.filter(pk=row.pk).update(position=position)
             messages.success(request, _("Ponderaciones guardadas."))
+            moved = gradebook.rebind_all(course)
+            if moved:
+                messages.info(request, ngettext(
+                    "Con las fechas nuevas, %(n)d actividad o registro pasó a la fila de su parcial.",
+                    "Con las fechas nuevas, %(n)d actividades o registros pasaron a la fila de su parcial.", moved)
+                    % {"n": moved})
             for period in Period.objects.filter(course=course):
                 required, _extra = _sums(period)
                 if required != 100:
@@ -129,3 +137,159 @@ def my_grades(request, pk):
         raise Http404
     mine = gradebook.course_grades(course, [request.user])[0]
     return render(request, "grades/mine.html", {"course": course, "grades": mine, "rules": mine.rules})
+
+
+# ------------------------------------------------------------------------ registros manuales
+
+
+def _number(raw: str):
+    """Lo que el docente escribió en una casilla de nota: vacío, un número (con coma o punto) o
+    algo inválido (None)."""
+    raw = (raw or "").strip().replace(",", ".")
+    if not raw:
+        return ""
+    try:
+        return Decimal(raw)
+    except ArithmeticError:
+        return None
+
+
+def _students(course):
+    return [e.student for e in Enrollment.objects.filter(course=course, status=Enrollment.Status.APPROVED)
+            .select_related("student").order_by("student__last_name", "student__first_name")]
+
+
+@teacher_required
+def manual_record(request, pk, record_pk=None):
+    """Registrar notas de algo hecho fuera de policlase. Una sola página: los datos del registro,
+    una casilla por estudiante y, para no escribir nota por nota, pegar una lista «nombre puntaje»
+    que se empareja con los inscritos. Pegar solo rellena las casillas: nada se guarda hasta
+    «Guardar», para que el docente revise."""
+    course = owned_course(request, pk)
+    gradebook.ensure_defaults(course)
+    record = get_object_or_404(ManualRecord, pk=record_pk, course=course) if record_pk else None
+    students = _students(course)
+    action = request.POST.get("action", "save") if request.method == "POST" else ""
+    form = ManualRecordForm(request.POST or None, instance=record, course=course,
+                            initial=None if record else {"on": timezone.localdate()})
+    saved = {m.student_id: m.points for m in record.scores.all()} if record else {}
+    unmatched = list(record.unmatched) if record else []
+    values = {s.pk: ("" if saved.get(s.pk) is None else saved[s.pk]) for s in students}
+    pasted: dict[int, matching.Match] = {}
+    report = None
+
+    if request.method == "POST":
+        values = {s.pk: request.POST.get(f"s-{s.pk}", "").strip() for s in students}
+        unmatched = _posted_unmatched(request)
+    if action == "paste":
+        rows, bad = matching.parse_lines(request.POST.get("pasted", ""))
+        matches = matching.match_all(rows, students)
+        for m in matches:
+            if m.student:
+                pasted[m.student.pk] = m
+                values[m.student.pk] = f"{m.score.normalize():f}"
+        known = {(u["name"], u["points"]) for u in unmatched}
+        for m in matches:
+            if not m.student and (m.name, f"{m.score.normalize():f}") not in known:
+                unmatched.append({"name": m.name, "points": f"{m.score.normalize():f}", "also": m.also})
+        report = {"matched": sum(1 for m in matches if m.student),
+                  "weak": sum(1 for m in matches if m.strength == matching.WEAK),
+                  "unmatched": sum(1 for m in matches if not m.student), "bad": bad,
+                  "top": max((m.score for m in matches), default=None)}
+        limit = _number(request.POST.get("max_points", ""))
+        report["over"] = bool(report["top"] and isinstance(limit, Decimal) and report["top"] > limit)
+    elif action == "save":
+        response = _save_record(request, course, form, record, students, values, unmatched)
+        if response:
+            return response
+
+    # Sugerencias para lo que sigue sin asignar (estudiantes que se inscribieron después).
+    assigned = {pk for pk, v in values.items() if v not in ("", None)}
+    for u in unmatched:
+        if "suggest" not in u:
+            student, strength, _weight = matching.best(u["name"], [s for s in students if s.pk not in assigned])
+            u["suggest"] = student.pk if student and strength == matching.STRONG else ""
+    rows = []
+    for s in students:
+        value = values.get(s.pk, "")
+        rows.append({"student": s, "value": value if not isinstance(value, Decimal) else f"{value.normalize():f}",
+                     "pasted": pasted.get(s.pk)})
+    return render(request, "grades/record.html", {
+        "course": course, "record": record, "form": form, "rows": rows, "unmatched": unmatched,
+        "report": report, "students": students,
+    })
+
+
+def _posted_unmatched(request) -> list[dict]:
+    """Los nombres sin asignar viajan en el formulario mientras no se guardan."""
+    out = []
+    for i in range(int(request.POST.get("unmatched-count") or 0)):
+        name = request.POST.get(f"u-{i}-name", "")[:200]
+        points = _number(request.POST.get(f"u-{i}-points", ""))
+        if name and isinstance(points, Decimal):
+            out.append({"name": name, "points": f"{points.normalize():f}", "also": request.POST.get(f"u-{i}-also", "")[:200],
+                        "suggest": request.POST.get(f"u-{i}", ""),
+                        "discard": bool(request.POST.get(f"u-{i}-discard"))})
+    return out
+
+
+def _save_record(request, course, form, record, students, values, unmatched):
+    by_pk = {s.pk: s for s in students}
+    if not form.is_valid():
+        messages.error(request, _("Revise los campos marcados."))
+        return None
+    top = form.cleaned_data["max_points"]
+    scores, errors = {}, []
+    for pk, raw in values.items():
+        value = raw if isinstance(raw, Decimal) else _number(str(raw))
+        if value == "":
+            continue
+        if value is None or value < 0 or value > top:
+            errors.append(by_pk[pk].display_name)
+        else:
+            scores[pk] = value
+    keep = []
+    for u in unmatched:
+        target = int(u["suggest"]) if str(u.get("suggest", "")).isdigit() else None
+        if u.get("discard"):
+            continue
+        if target in by_pk:
+            points = Decimal(u["points"])
+            if points < 0 or points > top:
+                errors.append(by_pk[target].display_name)
+            else:
+                scores[target] = points
+            continue
+        keep.append({"name": u["name"], "points": u["points"], "also": u.get("also", "")})
+    if errors:
+        messages.error(request, _("Notas fuera de rango (entre 0 y el puntaje máximo, %(top)s): %(names)s.")
+                       % {"top": f"{top.normalize():f}", "names": ", ".join(errors)})
+        return None
+    with transaction.atomic():
+        record = form.save(commit=False)
+        record.course = course
+        record.unmatched = keep
+        rebound = gradebook.rebind(record)
+        record.save()
+        record.scores.exclude(student_id__in=scores).delete()
+        for pk, points in scores.items():
+            ManualScore.objects.update_or_create(record=record, student_id=pk, defaults={"points": points})
+    messages.success(request, ngettext("«%(title)s» guardado: %(n)d nota.", "«%(title)s» guardado: %(n)d notas.",
+                                       len(scores)) % {"title": record.title, "n": len(scores)})
+    if rebound:
+        messages.info(request, _("La fecha cae en otro parcial: cuenta en «%(row)s».") % {"row": record.category})
+    if keep:
+        messages.warning(request, ngettext("Queda %(n)d nombre sin asignar.", "Quedan %(n)d nombres sin asignar.",
+                                           len(keep)) % {"n": len(keep)})
+    return redirect("manual_record", pk=course.pk, record_pk=record.pk)
+
+
+@teacher_required
+@require_POST
+def manual_record_delete(request, pk, record_pk):
+    course = owned_course(request, pk)
+    record = get_object_or_404(ManualRecord, pk=record_pk, course=course)
+    title = record.title
+    record.delete()
+    messages.success(request, _("«%(title)s» eliminado, con sus notas.") % {"title": title})
+    return redirect("course_activities", pk=course.pk)

@@ -75,6 +75,30 @@
   function schedule() { clearTimeout(timer); timer = setTimeout(save, 2500); }
   function flush() { clearTimeout(timer); save(true); }
 
+  // Respuestas abiertas: las fórmulas $…$ y $$…$$ se ven renderizadas debajo, como las verá el docente.
+  var MATH = /\$\$([\s\S]+?)\$\$|\$([^$\n]+?)\$/g;
+  function escapeHtml(t) {
+    return t.replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; });
+  }
+  function mathPreview(area) {
+    var box = form.querySelector('[data-math-preview="' + CSS.escape(area.id) + '"]');
+    if (!box || !window.katex) return;
+    var text = area.value, html = "", last = 0, any = false;
+    text.replace(MATH, function (all, block, inline, offset) {
+      any = true;
+      html += escapeHtml(text.slice(last, offset)).replace(/\n/g, "<br>");
+      html += window.katex.renderToString(block !== undefined ? block : inline,
+                                          { displayMode: block !== undefined, throwOnError: false });
+      last = offset + all.length;
+    });
+    box.hidden = !any;
+    box.innerHTML = any ? html + escapeHtml(text.slice(last)).replace(/\n/g, "<br>") : "";
+  }
+  form.querySelectorAll("textarea[data-open]").forEach(function (area) {
+    area.addEventListener("input", function () { mathPreview(area); });
+    window.addEventListener("load", function () { mathPreview(area); });
+  });
+
   form.addEventListener("input", function (e) { if (!e.target.matches("[data-upload]")) { dirty = true; schedule(); } });
   form.addEventListener("change", function (e) { if (!e.target.matches("[data-upload]")) { dirty = true; schedule(); } });
   setInterval(function () { if (delta.pastes || delta.blurs || delta.blocked_pastes) save(); }, 60000);

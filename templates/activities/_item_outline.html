@@ -1,0 +1,17 @@
+{% load policlase i18n %}
+{# Panel lateral del editor para una actividad: un renglón por ítem, para ordenarlos. #}
+<ol class="outline" id="outline-list">
+  {% for item in items %}
+    <li class="thumb" data-index="{{ forloop.counter0 }}" data-kind="item" draggable="true">
+      <span class="num">{{ forloop.counter }}</span>
+      <span class="body">
+        <span class="kind">{{ item.item_id }} · {% blocktranslate count n=item.questions|length %}{{ n }} pregunta{% plural %}{{ n }} preguntas{% endblocktranslate %}</span>
+        <span class="title">{{ item|slide_title|md_inline }}</span>
+      </span>
+      <span class="tools">
+        <button type="button" class="icon" data-op="up" title="{% translate 'Subir' %}" aria-label="{% translate 'Subir' %}">↑</button>
+        <button type="button" class="icon" data-op="down" title="{% translate 'Bajar' %}" aria-label="{% translate 'Bajar' %}">↓</button>
+      </span>
+    </li>
+  {% endfor %}
+</ol>

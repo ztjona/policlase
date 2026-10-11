@@ -215,6 +215,24 @@ select.compact { width: auto; padding: 4px 8px; font-size: .88rem; }
 button.icon { background: none; border: 0; color: var(--ink-soft); padding: 0 4px; font-size: .95rem; line-height: 1.4; }
 button.icon:hover { color: var(--accent); filter: none; }
 .outline-hint { margin-top: 10px; }
+/* Editor único: lo que solo es de un tipo se esconde según data-kind (lo dice el schema del texto). */
+.studio[data-kind="deck"] [data-kinds="activity"], .studio[data-kind="activity"] [data-kinds="deck"] { display: none !important; }
+.outline-setup { gap: 8px; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid var(--rule); }
+.outline-setup label { margin: 0 0 2px; font-weight: 400; }
+.outline-setup select { width: 100%; }
+fieldset.segmented { display: flex; border: 0; margin: 0; padding: 0; min-width: 0; flex-wrap: wrap; }
+fieldset.segmented legend { width: 100%; padding: 0; margin-bottom: 2px; }
+fieldset.segmented label { flex: 1; text-align: center; padding: 5px 8px; border: 1px solid var(--rule); background: var(--surface);
+  cursor: pointer; font-size: .85rem; margin: 0; }
+fieldset.segmented label:first-of-type { border-radius: var(--radius) 0 0 var(--radius); }
+fieldset.segmented label:last-of-type { border-radius: 0 var(--radius) var(--radius) 0; border-left: 0; }
+fieldset.segmented input { position: absolute; opacity: 0; pointer-events: none; }
+fieldset.segmented label:has(input:checked) { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+fieldset.segmented label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 1px; }
+fieldset.segmented:disabled label { cursor: default; }
+fieldset.segmented:disabled label:not(:has(input:checked)) { opacity: .5; }
+#toggle-preview .when-off, #toggle-preview[aria-pressed=false] .when-on { display: none; }
+#toggle-preview[aria-pressed=false] .when-off { display: inline-flex; }
 .slide-card { cursor: pointer; transition: box-shadow .15s, border-color .15s; }
 .slide-card.current { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
 .slide-card.is-hidden { opacity: .5; }
@@ -258,6 +276,7 @@ svg.i { display: inline-block; vertical-align: -4px; }
 .unit-body .deck-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--rule); }
 .deck-row .deck-info { flex: 1; min-width: 0; }
 .deck-row .grip { color: var(--muted); cursor: grab; display: inline-flex; }
+.deck-row .row-kind { color: var(--muted); display: inline-flex; }
 .deck-row.dragging { opacity: .4; }
 .deck-row.moving { opacity: .6; pointer-events: none; }
 .drop-section.drop-target > summary, .drop-section.drop-target .unit-body, .loose.drop-target { outline: 2px dashed var(--accent); outline-offset: -2px; background: var(--accent-soft); }
@@ -565,8 +584,6 @@ td.actions-col, th.actions-col { width: 1%; white-space: nowrap; padding-left: 2
 .check-toggle input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; }
 
 /* ---------------------------------------------------------------- actividades */
-.studio-body.no-outline { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
-.studio-body.no-outline.no-preview { grid-template-columns: minmax(0, 1fr); }
 .item-card { cursor: pointer; transition: box-shadow .15s, border-color .15s; }
 .item-card.current { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
 .q-block { border: 0; margin: 0; padding: 10px 0 0; border-top: 1px solid var(--rule); display: flex; flex-direction: column; gap: 8px; min-width: 0; }
@@ -636,3 +653,16 @@ table.weights input[type=number] { width: 6.5em; text-align: right; }
 .grid.rules { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
 table.gradebook th, table.gradebook td { padding-right: 12px; }
 table.mine td.num { white-space: nowrap; }
+
+/* ---------------------------------------------------------------- notas manuales e invitados */
+button.grade.total { background: var(--surface-alt); color: var(--ink); }
+.guest-link, .unmatched { gap: 8px; align-items: center; flex-wrap: wrap; }
+.guest-link select, .unmatched select { width: auto; max-width: 100%; }
+nav.filters { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+nav.filters a { padding: 3px 10px; border: 1px solid var(--rule); border-radius: 999px; color: var(--ink-soft); text-decoration: none; }
+nav.filters a[aria-current] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+table.record input.score { width: 7em; text-align: right; padding: 3px 6px; }
+table.record tr.confirm td { background: var(--warn-soft); }
+.open-preview { padding: 8px 10px; border: 1px dashed var(--rule); border-radius: var(--radius); background: var(--surface-alt);
+  overflow-x: auto; }
+textarea.code.pasted { min-height: 0; }

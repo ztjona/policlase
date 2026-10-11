@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -96,3 +97,41 @@ class Milestone(models.Model):
 
     def __str__(self) -> str:
         return f"{self.name} ({self.on:%Y-%m-%d})"
+
+
+class ManualRecord(models.Model):
+    """Notas registradas a mano: algo que se hizo fuera de policlase (una prueba en papel, un
+    cuestionario en otra plataforma, una exposición). Cuenta en su fila de la ponderación como una
+    actividad más, o como una clase más si la fila es la de participación.
+
+    Quien no tiene nota registrada cuenta cero, como quien falta a una clase. Los nombres pegados
+    que no coincidieron con ningún inscrito se guardan en `unmatched` para asignarlos después: los
+    estudiantes que se inscriben tarde.
+    """
+
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="manual_records")
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True,
+                                 related_name="manual_records", verbose_name=_("ponderación"))
+    title = models.CharField(_("título"), max_length=200)
+    on = models.DateField(_("fecha"))
+    max_points = models.DecimalField(_("puntaje máximo"), max_digits=9, decimal_places=2, default=Decimal("20"))
+    note = models.CharField(_("observación"), max_length=300, blank=True)
+    unmatched = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["on", "pk"]
+
+    def __str__(self) -> str:
+        return self.title
+
+
+class ManualScore(models.Model):
+    record = models.ForeignKey(ManualRecord, on_delete=models.CASCADE, related_name="scores")
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
+    points = models.DecimalField(max_digits=9, decimal_places=2)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["record", "student"], name="one_score_per_record"),
+        ]

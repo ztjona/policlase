@@ -28,7 +28,7 @@ from django.utils.translation import gettext as _
 from django.utils.translation import pgettext
 from policlase_gen.grading import grade
 
-from .models import Feedback, LiveSession, Participant, Response
+from .models import Feedback, LiveSession, Participant, Response, SessionGrade
 
 Phase = LiveSession.Phase
 Status = LiveSession.Status
@@ -311,6 +311,43 @@ def set_grade(response: Response, points: float | None, by) -> Response:
     response.fraction = response.points / full if full else 0.0
     response.save(update_fields=["points", "correct", "fraction", "edited_by", "edited_at"])
     return response
+
+
+def set_session_grade(session: LiveSession, student, points: float | None, by) -> SessionGrade | None:
+    """Nota manual de un estudiante en toda la clase (entre 0 y lo preguntado); `None` la quita y
+    vuelve a contar la suma de sus respuestas."""
+    if points is None:
+        SessionGrade.objects.filter(session=session, student=student).delete()
+        return None
+    points = min(max(0.0, float(points)), float(session.max_points))
+    grade, _created = SessionGrade.objects.update_or_create(
+        session=session, student=student, defaults={"points": points, "edited_by": by})
+    return grade
+
+
+class LinkError(Exception):
+    """No se puede asignar el invitado: el mensaje dice por qué."""
+
+
+@transaction.atomic
+def link_guest(session: LiveSession, guest, student) -> int:
+    """El invitado era un estudiante que aún no estaba inscrito: sus respuestas pasan a la cuenta
+    del estudiante, como si hubiera entrado con ella, y la cuenta de invitado se borra.
+
+    Solo con la clase terminada (el teléfono del invitado ya no la usa) y si el estudiante no
+    participó con su cuenta: así no hay dos respuestas suyas a la misma pregunta.
+    """
+    if session.status != Status.ENDED:
+        raise LinkError(_("Termine la clase antes de asignar a sus invitados."))
+    if not getattr(guest, "is_guest", False):
+        raise LinkError(_("Solo se pueden asignar invitados."))
+    if Participant.objects.filter(session=session, student=student).exists():
+        raise LinkError(_("%(name)s ya participó en esta clase con su cuenta.") % {"name": student.display_name})
+    moved = Response.objects.filter(session=session, student=guest).update(student=student)
+    Participant.objects.filter(session=session, student=guest).update(student=student)
+    if not Participant.objects.filter(student=guest).exists():
+        guest.delete()                       # un invitado vive para una sola clase
+    return moved
 
 
 def answer_groups(session: LiveSession, index: int) -> list[dict]:

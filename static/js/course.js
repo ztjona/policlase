@@ -1,5 +1,6 @@
 // Pestaña Clases: secciones minimizables, renombrar con doble clic, eliminar con la X y
-// arrastrar presentaciones entre secciones (en un curso con GitHub, el archivo cambia de carpeta).
+// arrastrar presentaciones y actividades entre secciones (en un curso con GitHub, el archivo
+// cambia de carpeta).
 (function () {
   "use strict";
   var root = document.getElementById("units");
@@ -11,10 +12,11 @@
                         body: new URLSearchParams(data || {}) });
   }
 
-  // Minimizar o desplegar se recuerda sin recargar.
-  root.querySelectorAll("details.unit[data-toggle]").forEach(function (d) {
-    d.addEventListener("toggle", function () { post(d.dataset.toggle, { collapsed: d.open ? "0" : "1" }); });
-  });
+  // Solo la unidad en curso viene desplegada; un enlace a otra (#seccion-N, p. ej. tras crearla) la abre.
+  if (/^#seccion-\d+$/.test(location.hash)) {
+    var linked = document.getElementById(location.hash.slice(1));
+    if (linked && linked.tagName === "DETAILS") linked.open = true;
+  }
 
   // Doble clic en el título: renombrar en el lugar. Enter o salir del campo guarda; Esc cancela.
   root.querySelectorAll(".unit-title[data-rename]").forEach(function (title) {
@@ -62,7 +64,7 @@
     });
   });
 
-  // Arrastrar y soltar presentaciones entre secciones.
+  // Arrastrar y soltar presentaciones y actividades entre secciones.
   var dragged = null;
   root.querySelectorAll(".deck-row[draggable=true]").forEach(function (row) {
     row.addEventListener("dragstart", function (e) {

@@ -8,5 +8,9 @@ urlpatterns = [
     path("docente/cursos/<int:pk>/ponderaciones/parciales/<int:period_pk>/eliminar/", views.period_delete,
          name="period_delete"),
     path("docente/cursos/<int:pk>/calificaciones/", views.course_gradebook, name="course_gradebook"),
+    path("docente/cursos/<int:pk>/registros/nuevo/", views.manual_record, name="manual_record_new"),
+    path("docente/cursos/<int:pk>/registros/<int:record_pk>/", views.manual_record, name="manual_record"),
+    path("docente/cursos/<int:pk>/registros/<int:record_pk>/eliminar/", views.manual_record_delete,
+         name="manual_record_delete"),
     path("cursos/<int:pk>/calificaciones/", views.my_grades, name="my_grades"),
 ]

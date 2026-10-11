@@ -1,19 +1,28 @@
 {% load i18n policlase %}
-{# Pestaña Actividades: agrupadas por parcial según su ponderación; las que no tienen ponderación, al final. #}
+{% comment %} Pestaña Actividades: todas las actividades del curso, por parcial, con su unidad; se filtran por fila de la
+   ponderación. Cada una vive en su unidad (pestaña Clases); los registros manuales, solo aquí. {% endcomment %}
 {% include "courses/_sync_issues.html" %}
 
+{% if filters|length > 1 %}
+  <nav class="filters small" aria-label="{% translate 'Filtrar por ponderación' %}">
+    <a href="{% url 'course_activities' course.pk %}" {% if not wanted %}aria-current="true"{% endif %}>{% translate "Todas" %}</a>
+    {% for name in filters %}<a href="{% url 'course_activities' course.pk %}?fila={{ name|urlencode }}" {% if name == wanted %}aria-current="true"{% endif %}>{{ name }}</a>{% endfor %}
+  </nav>
+{% endif %}
+
 {% for group in activity_groups %}
-  {% if group.activities or group.period %}
+  {% if group.activities or group.records or group.period and not wanted %}
     <section class="unit">
       <div class="spread loose-head">
         <h3 style="margin:0">{% if group.period %}{{ group.period.name }}{% else %}{% translate "Sin ponderación" %}{% endif %}</h3>
-        {% if not group.period %}<span class="small muted">{% translate "no cuentan para la nota hasta que elija su fila de la ponderación" %}</span>{% endif %}
+        {% if not group.period %}<span class="small muted">{% translate "No cuentan para la nota hasta que se les asigne una fila de la ponderación." %}</span>{% endif %}
       </div>
-      {% if group.activities %}
+      {% if group.activities or group.records %}
         <div class="card table-wrap">
           <table>
             <thead><tr>
               <th>{% translate "Actividad" %}</th>
+              <th>{% translate "Unidad" %}</th>
               <th>{% translate "Ponderación" %}</th>
               <th>{% translate "Vence" %}</th>
               <th class="center">{% translate "Entregas" %}</th>
@@ -27,7 +36,9 @@
                     <a href="{% url 'activity_detail' course.pk a.pk %}"><strong>{{ a.title }}</strong></a>
                     {% if not a.published %}<span class="chip warn">{% translate "Borrador" %}</span>{% endif %}
                     {% if a.uses_ai %}<span class="chip" title="{% translate 'Tiene preguntas marcadas para calificación con IA (aún no activa: las califica usted)' %}">IA</span>{% endif %}
+                    {% if a.mismatch %}<span class="chip danger" title="{% blocktranslate with p=a.mismatch.name %}Vence en «{{ p }}», pero cuenta en otro parcial.{% endblocktranslate %}">{% translate "otro parcial" %}</span>{% endif %}
                   </td>
+                  <td class="small">{% if a.section %}{{ a.section.title }}{% else %}<span class="muted">—</span>{% endif %}</td>
                   <td class="small">{% if a.category %}{{ a.category.name }}{% else %}<span class="muted">—</span>{% endif %}</td>
                   <td class="small">
                     {% if a.due_at %}{{ a.due_at|date:"D d M, H:i" }}
@@ -42,6 +53,21 @@
                   </div></td>
                 </tr>
               {% endfor %}
+              {% for r in group.records %}
+                <tr>
+                  <td><a href="{% url 'manual_record' course.pk r.pk %}"><strong>{{ r.title }}</strong></a>
+                    <span class="chip" title="{% translate 'Notas registradas a mano: algo que se hizo fuera de policlase' %}">{% translate "registro manual" %}</span>
+                    {% if r.unmatched %}<span class="chip warn" title="{% translate 'Nombres pegados que todavía no se asignaron a un estudiante' %}">{% blocktranslate count n=r.unmatched|length %}{{ n }} sin asignar{% plural %}{{ n }} sin asignar{% endblocktranslate %}</span>{% endif %}</td>
+                  <td class="small"><span class="muted">—</span></td>
+                  <td class="small">{{ r.category.name }}</td>
+                  <td class="small">{{ r.on|date:"D d M" }}</td>
+                  <td class="center"><span class="muted">—</span></td>
+                  <td class="center"><span class="muted">—</span></td>
+                  <td class="actions-col"><div class="row-actions">
+                    <a class="icon-btn primary" href="{% url 'manual_record' course.pk r.pk %}" title="{% translate 'Ver y editar las notas' %}" aria-label="{% translate 'Ver y editar las notas' %}">{% icon "results" %}</a>
+                  </div></td>
+                </tr>
+              {% endfor %}
             </tbody>
           </table>
         </div>
@@ -53,5 +79,5 @@
 {% endfor %}
 
 {% if not has_activities %}
-  <p class="muted">{% translate "Todavía no hay actividades. Cree una con «Nueva actividad»: un formulario en línea, la entrega de imágenes (evidencia, certificados, el desarrollo a mano) o ambas cosas." %}</p>
+  <p class="muted">{% if wanted %}{% blocktranslate with row=wanted %}Ninguna actividad cuenta como «{{ row }}» todavía.{% endblocktranslate %}{% else %}{% translate "Todavía no hay actividades. Cree una en su unidad (pestaña Clases) o con «Nueva actividad»: un formulario en línea, la entrega de imágenes (evidencia, certificados, el desarrollo a mano) o ambas cosas." %}{% endif %}</p>
 {% endif %}

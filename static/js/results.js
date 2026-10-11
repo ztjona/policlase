@@ -1,4 +1,5 @@
-// Resultados: clic en una nota para corregirla a mano (o volver a la automática).
+// Resultados: clic en una nota (o en el total de un estudiante) para corregirla a mano, o volver a la
+// automática.
 (function () {
   "use strict";
   var token = document.querySelector("input[name=csrfmiddlewaretoken]");
@@ -31,7 +32,8 @@
     box.append(input, ok);
     if (button.dataset.edited) {
       var auto = document.createElement("button");
-      auto.type = "button"; auto.className = "icon-btn"; auto.textContent = "↺"; auto.title = gettext("Volver a la nota automática");
+      auto.type = "button"; auto.className = "icon-btn"; auto.textContent = "↺";
+      auto.title = button.dataset.restoreLabel || gettext("Volver a la nota automática");
       auto.addEventListener("click", function () { save(button, { restore: "1" }); });
       box.append(auto);
     }

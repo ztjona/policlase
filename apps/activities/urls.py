@@ -7,11 +7,9 @@ S = "cursos/<int:course_pk>/actividades/<int:pk>/"
 
 urlpatterns = [
     # docente
-    path(T + "nueva/", views.activity_edit, name="activity_new"),
-    path(T + "vista-previa/", views.activity_preview, name="activity_preview"),
     path(T + "fechas/", views.dates_panel, name="activity_dates"),
     path(T + "<int:pk>/", views.activity_detail, name="activity_detail"),
-    path(T + "<int:pk>/editar/", views.activity_edit, name="activity_edit"),
+    path(T + "<int:pk>/mover/", views.activity_move, name="activity_move"),
     path(T + "<int:pk>/eliminar/", views.activity_delete, name="activity_delete"),
     path(T + "<int:pk>/intentos/<int:attempt_pk>/", views.attempt_review, name="attempt_review"),
     path(T + "<int:pk>/revisar/<str:key>/", views.question_review, name="question_review"),

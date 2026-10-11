@@ -65,7 +65,7 @@ oscuro: los proyectores lavan los fondos oscuros.
 
 - Íconos tradicionales en SVG con `{% icon "nombre" tamaño %}` (`apps/core/templatetags/policlase.py`):
   `gear`, `edit`, `trash`, `play`, `close`, `check`, `grip`, `folder_add`, `file_add`, `results`,
-  `fullscreen`, `github`, `calendar`, `image`. Para uno nuevo, agregar su trazo a `ICONS`.
+  `fullscreen`, `github`, `calendar`, `image`, `task` (actividad), `eye` / `eye_off` (mostrar u ocultar). Para uno nuevo, agregar su trazo a `ICONS`.
 - **Nada de emojis ni de caracteres poco comunes como ícono** (⛶, 🔒, 🙂…): no todos los sistemas los
   tienen y aparecen como cajas vacías. Si hace falta un dibujo, SVG (`_face.html`, `_lock.html`).
 - Todo botón de solo ícono lleva `title` (tooltip) y `aria-label`.
@@ -76,14 +76,15 @@ oscuro: los proyectores lavan los fondos oscuros.
 |---|---|
 | `button`, `.btn` | acción principal; `.secondary` acción secundaria; `.danger` destructiva; `.big`, `.small` tamaños |
 | `.icon-btn` | acción con ícono (editar, iniciar, eliminar); `.primary`, `.danger` |
-| `.ghost` | acción discreta (crear sección, presentación suelta) |
+| `.ghost` | acción discreta (crear sección, presentación, actividad) |
 | `.check-toggle` | **ajuste binario** (bono por rapidez, abierta a invitados) |
 | `.chip` (`.ok`, `.warn`, `.danger`, `.live`) | estado o conteo breve |
 | `.status-pill` (`.ok`, `.bad`) | estado vivo de un proceso (validación del editor) |
 | `.tip[data-tip]` | tooltip propio, varias líneas, aparece al instante |
 | `.notice` | aviso importante que requiere acción; **no** se esconde en un tooltip |
 | `.messages` | confirmación tras una acción |
-| `details.unit` | sección minimizable |
+| `details.unit` | sección minimizable; solo la unidad en curso viene desplegada |
+| `fieldset.segmented` | elegir entre dos o tres opciones excluyentes (tipo de documento en el editor) |
 
 Reglas de interacción:
 
@@ -101,8 +102,10 @@ Reglas de interacción:
   `{% translate %}`, `{% blocktranslate %}` o `gettext()` (en Python y en JavaScript).
 - **Trato:** *usted* en la plataforma («Ingrese el código que le dio su docente»); *tú* solo en las
   pantallas del juego en el teléfono («Ya estás dentro», «Tu puntaje»).
-- **Registro sobrio.** Nada coloquial ni efectista («Así se verá» → «Vista previa»). Botones con
-  verbo en infinitivo o sustantivo breve: «Guardar», «Iniciar clase», «Vista previa».
+- **Registro sobrio y formal.** Nada coloquial ni efectista («Así se verá» → «Vista previa»; «aún
+  nada» → «Sin calificaciones»; «se pierde la materia» → «se reprueba la asignatura»). Frases
+  completas e impersonales en lo que tiene peso institucional (notas, aprobación). Botones con verbo
+  en infinitivo o sustantivo breve: «Guardar», «Iniciar clase», «Registrar notas».
 - Los mensajes de error dicen **qué pasó y qué hacer**: «La presentación cambió en GitHub después de
   que la abrió; no se guardó para no perder esos cambios. Copie su texto, recargue el editor…».
 - Comillas latinas «…» para nombres y títulos en mensajes.
@@ -115,9 +118,9 @@ Reglas de interacción:
 |---|---|
 | `accounts` | usuarios (estudiante, docente, invitado), registro, preferencias (idioma, zona horaria, tema) |
 | `courses` | cursos, inscripción con código y aprobación, **reglas de acceso** (`access.py`) |
-| `live` | presentaciones, secciones, clases en vivo (`engine.py`), resultados, retroalimentación |
+| `live` | secciones, presentaciones, el **editor único** de presentaciones y actividades (`studio.py`), clases en vivo (`engine.py`), resultados, nota manual de una clase, invitados, retroalimentación |
 | `github` | cuentas (token cifrado), vínculo curso-carpeta, sincronización |
-| `grades` | parciales, tabla de ponderaciones, reglas de aprobación, fechas clave, cálculo de notas (`gradebook.py`) |
+| `grades` | parciales, tabla de ponderaciones, reglas de aprobación, fechas clave, registros manuales (`matching.py` empareja listas pegadas), cálculo de notas (`gradebook.py`) |
 | `activities` | actividades, intentos (`engine.py`), respuestas calificadas, imágenes entregadas (`images.py`) |
 | `core` | markdown y matemáticas, íconos, «Acerca de» |
 
@@ -144,6 +147,17 @@ Reglas de interacción:
   ya se respondió. La nota del docente no borra la automática (`auto_points`).
 - Las fechas y la ponderación viven en la plataforma, nunca en el YAML. Un vencimiento relativo a
   una fecha clave se recalcula al moverla (`gradebook.recompute_due_dates`).
+- **Unidad y parcial son ejes distintos.** La unidad (sección) organiza el contenido: sus
+  presentaciones y sus actividades van juntas en la pestaña Clases, y la pestaña Actividades es una
+  vista de todas, por parcial y filtrable por fila de la ponderación. El parcial lo decide la fecha:
+  si una actividad vence en otro parcial que su fila, pasa a la fila del mismo nombre de ese parcial
+  (`gradebook.rebind`); si no la hay, se avisa.
+- **Notas fuera de policlase:** registros manuales (`ManualRecord`) que cuentan como una actividad
+  (o una clase) más de su fila. Pegar una lista solo rellena: nada se guarda sin que el docente lo
+  revise, y lo que no coincide queda «sin asignar» para cuando el estudiante se inscriba.
+- **Invitados:** nunca cuentan para una nota. Si uno era un estudiante que aún no estaba inscrito,
+  se le asigna su cuenta (`engine.link_guest`, con la clase terminada). Para todo lo demás, la nota
+  manual de la clase (`SessionGrade`), que reemplaza la suma sin tocar las respuestas.
 - **Imágenes:** solo JPEG, PNG y WebP, verificadas por contenido y **re-codificadas** a JPEG (sin
   EXIF ni GPS); se sirven solo por `upload_file`, con permisos y `nosniff`, nunca desde `/media/`.
 - **Señales, no sanciones:** pegar texto y salir de la página se registran y se muestran al
@@ -170,6 +184,9 @@ Reglas de interacción:
 
 - JavaScript sin dependencias ni paso de compilación: un archivo por página (`static/js/`), en
   `(function () { … })()`, con atributos `data-*` como contrato con la plantilla.
+- **Un solo editor de contenido** (`studio.html` + `studio.js`): el tipo lo dice la línea `schema`
+  del texto; lo que es de un solo tipo lleva `data-kinds="deck"` o `"activity"`. Guardar es la única
+  acción que confirma en GitHub, y su botón lo dice.
 - Mejora progresiva: sin JavaScript, los formularios siguen funcionando (`<details>`, formularios
   normales); `fetch` con `X-CSRFToken`.
 - Monaco se carga **después** de KaTeX (su cargador AMD haría que KaTeX no se registre).
@@ -197,6 +214,7 @@ lo pierde.
 
 - **Nadie conectado antes de desplegar**: ver «Actualizar con clases en curso» en
   [`deploy.md`](deploy.md). Hay clases reales con estudiantes.
+- **Respaldo antes de desplegar** (`ops/respaldar.sh`): un despliegue corre migraciones.
 - **Nunca borrar la base** de producción. `tests/e2e/reiniciar-demo.sh` se niega si hay dominio.
 - Pruebas de carga (`tests/carga/`) solo en el curso de demostración, fuera de horario, y borrando
   después los invitados «Carga NN» y la sesión.

@@ -26,7 +26,7 @@
   {% elif q.type == "image" %}
     {% include "activities/_uploads.html" with question=q uploads=row.uploads editable=False %}
   {% elif q.type == "open" %}
-    <div class="answer-text">{% if a.value %}{{ a.value|linebreaksbr }}{% else %}<span class="muted">{% translate "Sin respuesta." %}</span>{% endif %}</div>
+    <div class="answer-text">{% if a.value %}{{ a.value|student_math }}{% else %}<span class="muted">{% translate "Sin respuesta." %}</span>{% endif %}</div>
   {% else %}
     <p><strong>{% translate "Respondió:" %}</strong> {% if a.value %}<span class="mono">{% if q.type == "numeric_list" %}{{ a.value|join:" · " }}{% else %}{{ a.value }}{% endif %}</span>{% else %}<span class="muted">{% translate "sin respuesta" %}</span>{% endif %}</p>
     {% if reveal %}

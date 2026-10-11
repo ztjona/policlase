@@ -18,7 +18,8 @@
     {% if form.non_field_errors %}<div class="notice">{{ form.non_field_errors }}</div>{% endif %}
     <label class="check-toggle">{{ form.published }} {% translate "Publicada: la ven los estudiantes" %}</label>
     <div>{{ form.category.label_tag }}{{ form.category }}{{ form.category.errors }}
-      <span class="helptext">{% translate "Las filas salen de las ponderaciones del curso." %} <a href="{% url 'grading_settings' course.pk %}">{% translate "Editar ponderaciones" %}</a></span></div>
+      <span class="helptext">{% translate "Las filas salen de las ponderaciones del curso. Si el vencimiento cae en otro parcial, la actividad pasa a la fila del mismo nombre en ese parcial." %} <a href="{% url 'grading_settings' course.pk %}">{% translate "Editar ponderaciones" %}</a></span>
+      {% if mismatch %}<div class="notice small">{% blocktranslate with p=mismatch.name row=activity.category %}Vence en «{{ p }}», pero cuenta en «{{ row }}»: ese parcial no tiene una fila con el mismo nombre. Elija la fila que corresponde.{% endblocktranslate %}</div>{% endif %}</div>
     <div>{{ form.opens_at.label_tag }}{{ form.opens_at }}{{ form.opens_at.errors }}<span class="helptext">{{ form.opens_at.help_text }}</span></div>
 
     <fieldset class="due">
@@ -66,7 +67,7 @@
       <div class="stack" style="margin-top:10px">{% include "activities/_preview.html" with content=activity.compiled %}</div>
     </details>
     <form method="post" action="{% url 'activity_delete' course.pk activity.pk %}"
-          onsubmit="return confirm('{% blocktranslate with t=activity.title n=submitted asvar msg %}¿Eliminar «{{ t }}»? Se pierden sus entregas ({{ n }}) y sus notas.{% endblocktranslate %}{{ msg|escapejs }}')">
+          onsubmit="return confirm('{% if activity.github_path %}{% blocktranslate with t=activity.title n=submitted path=activity.github_path asvar msg %}¿Eliminar «{{ t }}»? Se pierden sus entregas ({{ n }}) y sus notas, y se borra su archivo en GitHub ({{ path }}).{% endblocktranslate %}{% else %}{% blocktranslate with t=activity.title n=submitted asvar msg %}¿Eliminar «{{ t }}»? Se pierden sus entregas ({{ n }}) y sus notas.{% endblocktranslate %}{% endif %}{{ msg|escapejs }}')">
       {% csrf_token %}<button class="danger small">{% translate "Eliminar actividad" %}</button>
     </form>
   </section>

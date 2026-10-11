@@ -1,15 +1,22 @@
 from django.urls import path
 
-from . import sections, views
+from . import sections, studio, views
 from .guests import guest_entry
 
 urlpatterns = [
+    # editor (presentaciones y actividades)
+    path("docente/cursos/<int:course_pk>/editor/vista-previa/", studio.preview, name="content_preview"),
+    path("docente/cursos/<int:course_pk>/editor/panel/", studio.ops, name="content_ops"),
+    path("docente/cursos/<int:course_pk>/presentaciones/nueva/", studio.editor, {"kind": studio.DECK},
+         name="deck_new"),
+    path("docente/cursos/<int:course_pk>/presentaciones/<int:pk>/editar/", studio.editor, {"kind": studio.DECK},
+         name="deck_edit"),
+    path("docente/cursos/<int:course_pk>/actividades/nueva/", studio.editor, {"kind": studio.ACTIVITY},
+         name="activity_new"),
+    path("docente/cursos/<int:course_pk>/actividades/<int:pk>/editar/", studio.editor, {"kind": studio.ACTIVITY},
+         name="activity_edit"),
     # presentaciones
-    path("docente/cursos/<int:course_pk>/presentaciones/nueva/", views.deck_edit, name="deck_new"),
-    path("docente/cursos/<int:course_pk>/presentaciones/vista-previa/", views.deck_preview, name="deck_preview"),
-    path("docente/cursos/<int:course_pk>/presentaciones/panel/", views.deck_ops, name="deck_ops"),
     path("docente/cursos/<int:course_pk>/presentaciones/<int:pk>/", views.deck_view, name="deck_view"),
-    path("docente/cursos/<int:course_pk>/presentaciones/<int:pk>/editar/", views.deck_edit, name="deck_edit"),
     path("docente/cursos/<int:course_pk>/presentaciones/<int:pk>/eliminar/", views.deck_delete, name="deck_delete"),
     path("docente/cursos/<int:course_pk>/presentaciones/<int:pk>/mover/", views.deck_move, name="deck_move"),
     path("docente/cursos/<int:course_pk>/presentaciones/<int:deck_pk>/iniciar/",
@@ -20,8 +27,6 @@ urlpatterns = [
          name="section_rename"),
     path("docente/cursos/<int:course_pk>/secciones/<int:pk>/eliminar/", sections.section_delete,
          name="section_delete"),
-    path("docente/cursos/<int:course_pk>/secciones/<int:pk>/minimizar/", sections.section_toggle,
-         name="section_toggle"),
     # docente en clase
     path("docente/en-vivo/<int:pk>/", views.present, name="present"),
     path("docente/en-vivo/<int:pk>/escena/", views.present_fragment, name="present_fragment"),
@@ -30,6 +35,8 @@ urlpatterns = [
     path("docente/en-vivo/<int:pk>/eliminar/", views.session_delete, name="session_delete"),
     path("docente/en-vivo/<int:pk>/respuestas/<int:response_pk>/nota/", views.response_grade, name="response_grade"),
     path("docente/en-vivo/<int:pk>/preguntas/<int:index>/calificar/", views.answer_grade, name="answer_grade"),
+    path("docente/en-vivo/<int:pk>/estudiantes/<int:student_pk>/nota/", views.session_grade, name="session_grade"),
+    path("docente/en-vivo/<int:pk>/invitados/<int:guest_pk>/asignar/", views.guest_link, name="guest_link"),
     # estudiante en clase
     path("en-vivo/", views.join_by_pin, name="live_join"),
     path("en-vivo/abierta/<str:token>/", guest_entry, name="live_guest"),

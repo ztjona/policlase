@@ -3,19 +3,18 @@
 - `pull`: GitHub → policlase. Compara los blob sha del árbol con los guardados y solo descarga
   lo que cambió. Un archivo con errores no reemplaza la versión válida anterior: queda anotado en
   `CourseRepo.issues` para mostrarlo en el curso.
-- `push_deck` / `delete_deck`: policlase → GitHub, con el sha conocido. Si alguien cambió el
-  archivo en GitHub entretanto, GitHub responde conflicto y no se pisa nada.
+- `push` / `delete`: policlase → GitHub, con el sha conocido. Si alguien cambió el archivo en
+  GitHub entretanto, GitHub responde conflicto y no se pisa nada.
 
 Cada YAML se reconoce por su `schema`: `policlase.deck/v1` es una presentación y
-`policlase.activity/v1` una actividad; los demás (ítems, configuración) se ignoran. Las
-actividades nuevas creadas en la web van a la subcarpeta `ACTIVITIES_FOLDER`. De GitHub llega solo
-su contenido: fechas, ponderación y publicación se deciden en policlase, y una actividad que llega
-por primera vez nace como borrador.
+`policlase.activity/v1` una actividad; los demás (ítems, configuración) se ignoran. De una
+actividad llega solo su contenido: fechas, ponderación y publicación se deciden en policlase, y
+una actividad que llega por primera vez nace como borrador.
 
 Secciones: cada subcarpeta (primer nivel bajo la carpeta del curso) que contenga al menos una
-presentación —o el marcador `SECTION_MARKER`, para unidades aún vacías— es una sección. Así una
-carpeta de generadores o de ítems no aparece como unidad. Mover y renombrar se hacen en un solo
-commit (`GitHubClient.commit`).
+presentación o una actividad —o el marcador `SECTION_MARKER`, para unidades aún vacías— es una
+sección, y lo que está en ella le pertenece. Así una carpeta de generadores o de ítems no aparece
+como unidad. Mover y renombrar se hacen en un solo commit (`GitHubClient.commit`).
 """
 
 from __future__ import annotations
@@ -38,10 +37,8 @@ from .client import Blob, Conflict, GitHubClient, GitHubError  # noqa: F401  (re
 from .models import CourseRepo
 
 YAML_SUFFIXES = (".yaml", ".yml")
-#: Archivo vacío que mantiene en git una sección sin presentaciones todavía.
+#: Archivo vacío que mantiene en git una sección sin presentaciones ni actividades todavía.
 SECTION_MARKER = ".policlase-seccion"
-#: Donde se guardan las actividades creadas en la web (las que llegan de GitHub quedan donde estén).
-ACTIVITIES_FOLDER = "actividades"
 #: Al abrir el curso se sincroniza si pasó al menos esto desde la última vez.
 AUTO_PULL_AFTER = timedelta(seconds=60)
 
@@ -177,15 +174,18 @@ def pull(link: CourseRepo) -> PullResult:
                 activity.delete()
             result.deleted.append(path)
 
-    _sync_sections(link, decks, markers)
+    _sync_sections(link, decks, activities, markers)
     link.issues, link.skipped, link.last_error, link.last_synced_at = result.issues, skipped, "", timezone.now()
     link.save(update_fields=["issues", "skipped", "last_error", "last_synced_at"])
     return result
 
 
-def _sync_sections(link: CourseRepo, decks: dict[str, Deck], markers: set[str]) -> None:
-    """Una sección por carpeta con presentaciones (o marcador); el orden es el de los nombres."""
-    folders = {_folder_of(link, path) for path in decks} | markers
+def _sync_sections(link: CourseRepo, decks: dict[str, Deck], activities: dict[str, Activity],
+                   markers: set[str]) -> None:
+    """Una sección por carpeta con presentaciones o actividades (o marcador); el orden es el de los
+    nombres, y cada archivo pertenece a la sección de su carpeta."""
+    contents = {**decks, **activities}
+    folders = {_folder_of(link, path) for path in contents} | markers
     folders.discard("")
     sections = {s.github_folder: s for s in Section.objects.filter(course=link.course).exclude(github_folder="")}
     for folder in folders - set(sections):
@@ -198,11 +198,11 @@ def _sync_sections(link: CourseRepo, decks: dict[str, Deck], markers: set[str]) 
         if section.position != position or section.title != folder_title(folder):
             section.position, section.title = position, folder_title(folder)
             section.save(update_fields=["position", "title"])
-    for path, deck in decks.items():
+    for path, content in contents.items():
         section = sections.get(_folder_of(link, path))
-        if deck.section_id != (section.pk if section else None):
-            deck.section = section
-            deck.save(update_fields=["section"])
+        if content.section_id != (section.pk if section else None):
+            content.section = section
+            content.save(update_fields=["section"])
 
 
 def maybe_pull(link: CourseRepo) -> PullResult | None:
@@ -232,60 +232,46 @@ def _path_for(prefix: str, title: str, taken: set[str]) -> str:
     return path
 
 
-def push_deck(link: CourseRepo, deck: Deck, source: str) -> tuple[str, str]:
-    """Confirma la fuente en GitHub; devuelve (ruta, sha nuevo). No guarda el Deck.
+def _taken(link: CourseRepo, client: GitHubClient) -> set[str]:
+    """Rutas ocupadas: las del repositorio y las que policlase ya asignó."""
+    taken = set(Deck.objects.filter(course=link.course).values_list("github_path", flat=True))
+    taken |= set(Activity.objects.filter(course=link.course).values_list("github_path", flat=True))
+    return taken | set(client.tree(link.repo, link.branch))
 
-    Si la presentación cambió de sección, el archivo se mueve a la carpeta nueva en el mismo
-    commit (y solo si el original sigue como lo conocemos).
+
+def push(link: CourseRepo, content: Deck | Activity, source: str) -> tuple[str, str]:
+    """Confirma la fuente de una presentación o una actividad en GitHub; devuelve (ruta, sha
+    nuevo). No guarda nada en la base.
+
+    Va a la carpeta de su sección. Si cambió de sección, el archivo se mueve a la carpeta nueva en
+    el mismo commit (y solo si el original sigue como lo conocemos).
     """
     client = client_for(link.course.owner)
-    prefix = _section_prefix(link, deck.section)
-    path = deck.github_path
-    folder = deck.section.github_folder if deck.section else ""
+    prefix = _section_prefix(link, content.section)
+    path = content.github_path
+    folder = content.section.github_folder if content.section else ""
     if path and _folder_of(link, path) == folder:      # sigue en su sección: se actualiza en su sitio
         sha = client.write(link.repo, link.branch, path, source,
-                           f"Actualiza «{deck.title}» desde policlase", sha=deck.github_sha)
+                           f"Actualiza «{content.title}» desde policlase", sha=content.github_sha)
         return path, sha
 
-    taken = set(Deck.objects.filter(course=link.course).values_list("github_path", flat=True))
-    taken |= set(client.tree(link.repo, link.branch))
-    taken -= {path}
-    # Al mover se conserva el nombre del archivo; solo una presentación nueva se nombra por su título.
+    taken = _taken(link, client) - {path}
+    # Al mover se conserva el nombre del archivo; solo lo nuevo se nombra por su título.
     keep = f"{prefix}{path.rsplit('/', 1)[-1]}" if path else ""
-    new_path = keep if keep and keep not in taken else _path_for(prefix, deck.title, taken)
+    new_path = keep if keep and keep not in taken else _path_for(prefix, content.title, taken)
     if not path:
-        sha = client.write(link.repo, link.branch, new_path, source, f"Crea «{deck.title}» desde policlase")
+        sha = client.write(link.repo, link.branch, new_path, source, f"Crea «{content.title}» desde policlase")
         return new_path, sha
     shas = client.commit(link.repo, link.branch, {path: None, new_path: source},
-                         f"Mueve «{deck.title}» a {prefix or '/'} desde policlase",
-                         expected={path: deck.github_sha})
+                         f"Mueve «{content.title}» a {prefix or '/'} desde policlase",
+                         expected={path: content.github_sha})
     return new_path, shas[new_path]
 
 
-def push_activity(link: CourseRepo, activity: Activity, source: str) -> tuple[str, str]:
-    """Confirma la fuente de una actividad en GitHub; devuelve (ruta, sha nuevo). No la guarda."""
-    client = client_for(link.course.owner)
-    if activity.github_path:
-        sha = client.write(link.repo, link.branch, activity.github_path, source,
-                           f"Actualiza «{activity.title}» desde policlase", sha=activity.github_sha)
-        return activity.github_path, sha
-    taken = set(Activity.objects.filter(course=link.course).values_list("github_path", flat=True))
-    taken |= set(client.tree(link.repo, link.branch))
-    path = _path_for(f"{link.prefix}{ACTIVITIES_FOLDER}/", activity.title, taken)
-    sha = client.write(link.repo, link.branch, path, source, f"Crea «{activity.title}» desde policlase")
-    return path, sha
-
-
-def delete_activity(link: CourseRepo, activity: Activity) -> None:
-    if activity.github_path and activity.github_sha:
-        client_for(link.course.owner).delete(link.repo, link.branch, activity.github_path,
-                                             f"Elimina «{activity.title}» desde policlase", activity.github_sha)
-
-
-def delete_deck(link: CourseRepo, deck: Deck) -> None:
-    if deck.github_path and deck.github_sha:
-        client_for(link.course.owner).delete(link.repo, link.branch, deck.github_path,
-                                             f"Elimina «{deck.title}» desde policlase", deck.github_sha)
+def delete(link: CourseRepo, content: Deck | Activity) -> None:
+    if content.github_path and content.github_sha:
+        client_for(link.course.owner).delete(link.repo, link.branch, content.github_path,
+                                             f"Elimina «{content.title}» desde policlase", content.github_sha)
 
 
 def create_section(link: CourseRepo, section: Section) -> None:
@@ -318,10 +304,11 @@ def rename_section(link: CourseRepo, section: Section, title: str) -> None:
     with transaction.atomic():
         section.github_folder, section.title = new_folder, folder_title(new_folder)
         section.save(update_fields=["github_folder", "title"])
-        for deck in Deck.objects.filter(course=link.course, github_path__startswith=old):
-            deck.github_path = new + deck.github_path[len(old):]
-            deck.github_sha = shas.get(deck.github_path, deck.github_sha)
-            deck.save(update_fields=["github_path", "github_sha"])
+        for model in (Deck, Activity):
+            for content in model.objects.filter(course=link.course, github_path__startswith=old):
+                content.github_path = new + content.github_path[len(old):]
+                content.github_sha = shas.get(content.github_path, content.github_sha)
+                content.save(update_fields=["github_path", "github_sha"])
 
 
 def delete_section(link: CourseRepo, section: Section) -> None:
@@ -335,19 +322,15 @@ def delete_section(link: CourseRepo, section: Section) -> None:
                       f"Elimina la sección «{section.title}» desde policlase")
 
 
-def export_local_decks(link: CourseRepo) -> list[str]:
-    """Al vincular: las presentaciones creadas antes en la web también pasan a GitHub, cada una
-    en la carpeta de su sección."""
+def export_local(link: CourseRepo) -> list[str]:
+    """Al vincular: las presentaciones y actividades creadas antes en la web también pasan a
+    GitHub, cada una en la carpeta de su sección."""
     exported = []
-    for deck in Deck.objects.filter(course=link.course, github_path="").select_related("section"):
-        path, sha = push_deck(link, deck, deck.source)
-        with transaction.atomic():
-            Deck.objects.filter(pk=deck.pk).update(github_path=path, github_sha=sha)
-        exported.append(path)
-    for section in Section.objects.filter(course=link.course, decks__isnull=True):
+    for model in (Deck, Activity):
+        for content in model.objects.filter(course=link.course, github_path="").select_related("section"):
+            path, sha = push(link, content, content.source)
+            model.objects.filter(pk=content.pk).update(github_path=path, github_sha=sha)
+            exported.append(path)
+    for section in Section.objects.filter(course=link.course, decks__isnull=True, activities__isnull=True):
         create_section(link, section)
-    for activity in Activity.objects.filter(course=link.course, github_path=""):
-        path, sha = push_activity(link, activity, activity.source)
-        Activity.objects.filter(pk=activity.pk).update(github_path=path, github_sha=sha)
-        exported.append(path)
     return exported

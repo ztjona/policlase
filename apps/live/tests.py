@@ -409,7 +409,7 @@ class GuestTests(LiveBase):
 class PreviewTests(LiveBase):
     def preview(self, source, user=None):
         self.client.force_login(user or self.teacher)
-        return self.client.post(reverse("deck_preview", args=[self.course.pk]), {"source": source})
+        return self.client.post(reverse("content_preview", args=[self.course.pk]), {"source": source})
 
     def test_vista_previa_renderiza_y_ubica_diapositivas(self):
         data = self.preview(DEMO).json()
@@ -612,7 +612,7 @@ class HiddenSlidesTests(LiveBase):
 class DeckOpsTests(LiveBase):
     def op(self, user=None, **data):
         self.client.force_login(user or self.teacher)
-        return self.client.post(reverse("deck_ops", args=[self.course.pk]), {"source": DEMO, **data})
+        return self.client.post(reverse("content_ops", args=[self.course.pk]), {"source": DEMO, **data})
 
     def test_mover_ocultar_y_retroalimentacion(self):
         moved = self.op(op="move", index=0, target=2).json()["source"]
@@ -624,7 +624,7 @@ class DeckOpsTests(LiveBase):
 
     def test_con_errores_explica(self):
         self.client.force_login(self.teacher)
-        response = self.client.post(reverse("deck_ops", args=[self.course.pk]),
+        response = self.client.post(reverse("content_ops", args=[self.course.pk]),
                                     {"source": "slides: [ :", "op": "hide", "index": 0})
         self.assertEqual(response.status_code, 400)
         self.assertIn("error", response.json())
@@ -638,20 +638,39 @@ class SectionsAndTabsTests(LiveBase):
         super().setUp()
         self.client.force_login(self.teacher)
 
-    def test_crear_renombrar_minimizar_y_eliminar(self):
+    def test_crear_renombrar_y_eliminar(self):
         self.client.post(reverse("section_create", args=[self.course.pk]), {"title": "Unidad 1"})
         section = Section.objects.get()
         self.client.post(reverse("section_rename", args=[self.course.pk, section.pk]), {"title": "Unidad 1: Raíces"})
         section.refresh_from_db()
         self.assertEqual(section.title, "Unidad 1: Raíces")
-        self.client.post(reverse("section_toggle", args=[self.course.pk, section.pk]), {"collapsed": "1"})
-        section.refresh_from_db()
-        self.assertTrue(section.collapsed)
         page = self.client.get(reverse("course_manage", args=[self.course.pk]))
         self.assertContains(page, f'id="seccion-{section.pk}"')
-        self.assertNotContains(page, f'id="seccion-{section.pk}" open')
         self.client.post(reverse("section_delete", args=[self.course.pk, section.pk]))
         self.assertFalse(Section.objects.exists())
+
+    def test_solo_la_unidad_en_curso_aparece_desplegada(self):
+        u1 = Section.objects.create(course=self.course, title="U1", position=0)
+        u2 = Section.objects.create(course=self.course, title="U2", position=1)
+        self.deck.section = u1
+        self.deck.save()
+        other = Deck.objects.create(course=self.course, section=u1, title="Otra", source=DEMO,
+                                    compiled=self.deck.compiled)
+        later = Deck.objects.create(course=self.course, section=u2, title="Siguiente", source=DEMO,
+                                    compiled=self.deck.compiled)
+        url = reverse("course_manage", args=[self.course.pk])
+
+        def opened():
+            html = self.client.get(url).content.decode()
+            return [pk for pk in (u1.pk, u2.pk) if f'id="seccion-{pk}" open' in html]
+
+        self.assertEqual(opened(), [u1.pk])                       # sin clases: la primera
+        engine.apply(self.start().pk, "end")
+        self.assertEqual(opened(), [u1.pk])                       # le falta «Otra»
+        self.client.post(reverse("session_start", args=[self.course.pk, other.pk]))
+        engine.apply(LiveSession.objects.get(deck=other).pk, "end")
+        self.assertEqual(opened(), [u2.pk])                       # U1 dictada entera: la siguiente
+        self.assertEqual(later.section, u2)
 
     def test_presentacion_nueva_en_una_seccion(self):
         self.client.post(reverse("section_create", args=[self.course.pk]), {"title": "Unidad 2"})
@@ -668,13 +687,13 @@ class SectionsAndTabsTests(LiveBase):
     def test_otro_docente_no_toca_secciones(self):
         section = Section.objects.create(course=self.course, title="U1")
         self.client.force_login(make_user("otra", User.Role.TEACHER))
-        for name in ("section_rename", "section_delete", "section_toggle"):
+        for name in ("section_rename", "section_delete"):
             self.assertEqual(self.client.post(reverse(name, args=[self.course.pk, section.pk]),
-                                              {"title": "x", "collapsed": "1"}).status_code, 404, name)
+                                              {"title": "x"}).status_code, 404, name)
         self.assertEqual(self.client.post(reverse("section_create", args=[self.course.pk]),
                                           {"title": "x"}).status_code, 404)
         section.refresh_from_db()
-        self.assertEqual((section.title, section.collapsed), ("U1", False))
+        self.assertEqual(section.title, "U1")
 
     def test_favicon(self):
         self.assertTrue(self.client.get("/favicon.ico")["Location"].endswith("img/favicon.ico"))
@@ -912,7 +931,7 @@ class PreviewSafetyTests(LiveBase):
 
     def test_el_editor_si_marca_la_correcta(self):
         self.client.force_login(self.teacher)
-        html = self.client.post(reverse("deck_preview", args=[self.course.pk]), {"source": DEMO}).json()["html"]
+        html = self.client.post(reverse("content_preview", args=[self.course.pk]), {"source": DEMO}).json()["html"]
         self.assertIn('class="mark"', html)
 
 
@@ -993,3 +1012,149 @@ class UnlimitedTimeTests(LiveBase):
         self.assertNotContains(page, "data-closes-at")
         self.client.force_login(self.ana)
         self.assertNotContains(self.client.get(reverse("student_fragment", args=[session.pk])), "data-closes-at")
+
+
+ACTIVITY_SOURCE = """schema: policlase.activity/v1
+title: 'Deber 1'
+items:
+  - id: D1-a
+    questions:
+      - { id: q1, type: numeric, prompt: 'Raíz de 2', solution: 1.4142, grading: { atol: 0.001 } }
+  - id: D1-b
+    questions:
+      - { id: q1, type: open, prompt: 'Explique', grading: { mode: manual } }
+"""
+
+
+class StudioTests(LiveBase):
+    """Un solo editor: el tipo lo dice el `schema` del texto."""
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.teacher)
+
+    def test_nuevo_con_tipo_actividad_trae_su_plantilla(self):
+        page = self.client.get(reverse("deck_new", args=[self.course.pk]) + "?tipo=actividad")
+        self.assertContains(page, 'data-kind="activity"')
+        self.assertContains(page, "policlase.activity/v1")
+        self.assertContains(page, 'id="studio-templates"')
+
+    def test_pegar_una_actividad_en_el_editor_nuevo_crea_una_actividad(self):
+        from apps.activities.models import Activity
+
+        section = Section.objects.create(course=self.course, title="U1")
+        response = self.client.post(reverse("deck_new", args=[self.course.pk]),
+                                    {"source": ACTIVITY_SOURCE, "section": section.pk})
+        activity = Activity.objects.get()
+        self.assertRedirects(response, reverse("activity_detail", args=[self.course.pk, activity.pk]))
+        self.assertEqual((activity.title, activity.section), ("Deber 1", section))
+        self.assertEqual(Deck.objects.count(), 1)                   # solo la de LiveBase
+
+    def test_un_documento_guardado_conserva_su_tipo(self):
+        response = self.client.post(reverse("deck_edit", args=[self.course.pk, self.deck.pk]),
+                                    {"source": ACTIVITY_SOURCE})
+        self.assertEqual(response.status_code, 200)
+        self.deck.refresh_from_db()
+        self.assertEqual(self.deck.source, DEMO)
+        self.assertContains(response, "no se guardó")
+
+    def test_vista_previa_y_panel_de_una_actividad(self):
+        data = self.client.post(reverse("content_preview", args=[self.course.pk]),
+                                {"source": ACTIVITY_SOURCE, "kind": "deck"}).json()
+        self.assertEqual((data["kind"], data["diagnostics"]), ("activity", []))
+        self.assertIn("item-card", data["html"])
+        self.assertIn('data-kind="item"', data["outline"])
+        self.assertEqual(len(data["lines"]), 2)
+        fixed = self.client.post(reverse("content_preview", args=[self.course.pk]),
+                                 {"source": ACTIVITY_SOURCE, "kind": "deck", "fixed": "1"}).json()
+        self.assertEqual(fixed["kind"], "deck")                       # guardado como presentación
+        self.assertTrue(fixed["diagnostics"])
+        moved = self.client.post(reverse("content_ops", args=[self.course.pk]),
+                                 {"source": ACTIVITY_SOURCE, "op": "move", "index": 0, "target": 1}).json()["source"]
+        self.assertLess(moved.index("D1-b"), moved.index("D1-a"))
+        hide = self.client.post(reverse("content_ops", args=[self.course.pk]),
+                                {"source": ACTIVITY_SOURCE, "op": "hide", "index": 0})
+        self.assertEqual(hide.status_code, 400)                       # los ítems no se ocultan
+
+
+class ManualSessionGradeTests(LiveBase):
+    """Nota manual de un estudiante en toda una clase, y asignar un invitado a su cuenta."""
+
+    def play(self, guests=False):
+        """Una clase de una pregunta: Ana acierta; con `guests`, entra «Bruno G» como invitado y acierta."""
+        session = self.start()
+        if guests:
+            engine.apply(session.pk, "guests_on")
+        session = self.goto_first_question(session)
+        engine.apply(session.pk, "open")
+        session.refresh_from_db()
+        engine.join(session, self.ana)
+        guest = None
+        if guests:                          # entra antes: si no, la pregunta se cierra cuando Ana responde
+            from .guests import create_guest
+            guest = create_guest("Bruno G")
+            engine.join(session, guest)
+            engine.submit(session.pk, guest, self.right_key(session))
+        engine.submit(session.pk, self.ana, self.right_key(session))
+        engine.apply(session.pk, "end")
+        session.refresh_from_db()
+        return session, guest
+
+    def participation(self, student):
+        from apps.grades.gradebook import course_grades
+        from apps.grades.models import Category
+
+        grades = course_grades(self.course, [student])[0]
+        return next(c for c in grades.periods[0].cells if c.category.source == Category.Source.LIVE).fraction
+
+    def test_nota_manual_de_la_clase_reemplaza_la_suma(self):
+        session, _guest = self.play()
+        self.assertEqual(self.participation(self.bruno), 0.0)              # faltó
+        self.client.force_login(self.teacher)
+        url = reverse("session_grade", args=[session.pk, self.bruno.pk])
+        self.assertEqual(self.client.post(url, {"points": "0,5"}).json(), {"ok": True})
+        self.assertAlmostEqual(self.participation(self.bruno), 0.5 / session.max_points)
+        page = self.client.get(reverse("session_results", args=[session.pk]))
+        self.assertContains(page, "Nota manual de la clase")
+        self.client.post(url, {"points": "99"})                            # se topa en lo preguntado
+        self.assertEqual(self.participation(self.bruno), 1.0)
+        self.client.post(url, {"restore": "1"})
+        self.assertEqual(self.participation(self.bruno), 0.0)
+        self.assertEqual(self.client.post(reverse("session_grade", args=[session.pk, self.outsider.pk]),
+                                          {"points": "1"}).status_code, 404)  # no aprobado
+        self.client.force_login(make_user("otra", User.Role.TEACHER))
+        self.assertEqual(self.client.post(url, {"points": "1"}).status_code, 404)
+
+    def test_asignar_un_invitado_a_su_cuenta(self):
+        session, guest = self.play(guests=True)
+        self.assertEqual(self.participation(self.bruno), 0.0)
+        self.client.force_login(self.teacher)
+        page = self.client.get(reverse("session_results", args=[session.pk]))
+        self.assertContains(page, "Bruno G")
+        self.assertContains(page, f'<option value="{self.bruno.pk}">')    # ausente: se puede elegir
+        self.assertNotContains(page, f'<option value="{self.ana.pk}">')   # participó con su cuenta
+
+        url = reverse("guest_link", args=[session.pk, guest.pk])
+        self.client.post(url, {"student": self.ana.pk})                    # ya participó: no
+        self.assertTrue(User.objects.filter(pk=guest.pk).exists())
+        self.client.post(url, {"student": self.bruno.pk})
+        self.assertFalse(User.objects.filter(pk=guest.pk).exists())
+        self.assertEqual(Response.objects.get(student=self.bruno).session, session)
+        self.assertTrue(Participant.objects.filter(session=session, student=self.bruno).exists())
+        self.assertEqual(self.participation(self.bruno), 1.0)
+
+    def test_asignar_invitados_solo_con_la_clase_terminada_y_en_cursos_propios(self):
+        from .guests import create_guest
+
+        session = self.start()
+        guest = create_guest("Temprano")
+        engine.join(session, guest)
+        with self.assertRaises(engine.LinkError):
+            engine.link_guest(session, guest, self.bruno)
+        session = engine.apply(session.pk, "end")
+        with self.assertRaises(engine.LinkError):
+            engine.link_guest(session, self.ana, self.bruno)                # no es invitado
+        self.client.force_login(make_user("otra", User.Role.TEACHER))
+        self.assertEqual(self.client.post(reverse("guest_link", args=[session.pk, guest.pk]),
+                                          {"student": self.bruno.pk}).status_code, 404)
+        self.assertTrue(User.objects.filter(pk=guest.pk).exists())

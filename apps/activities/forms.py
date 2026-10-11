@@ -81,9 +81,13 @@ class ActivitySettingsForm(forms.ModelForm):
         return data
 
     def save(self, commit=True):
+        from apps.grades.gradebook import rebind
+
         activity = super().save(commit=False)
         if activity.due_milestone_id:
             activity.compute_due()
+        # Vence en el otro parcial: cuenta en la fila del mismo nombre de ese parcial.
+        self.rebound = rebind(activity)
         if commit:
             activity.save()
         return activity

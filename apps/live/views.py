@@ -16,174 +16,23 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.utils.translation import ngettext
 from django.views.decorators.http import require_POST
-from policlase_gen import deck as deckfmt
-from policlase_gen import deck_text, loader
 
 from apps.courses.access import is_approved, owned_course, teacher_required
 from apps.courses.models import Enrollment
 
 from . import engine
 from .guests import qr_svg
-from .models import Deck, LiveSession, Response, Section
+from .models import Deck, LiveSession, Response, Section, SessionGrade
 
 Phase = LiveSession.Phase
 Status = LiveSession.Status
 
-DECK_TEMPLATE = r"""schema: policlase.deck/v1
-title: 'Nueva clase'
-defaults: { time_limit_s: 30 }
-
-slides:
-  - markdown: |
-      # Título de la clase
-      Contenido con matemáticas: $f(x) = x^2 - 4$.
-
-  # El LaTeX va entre comillas simples: en las dobles, \t, \f, \b… son escapes de YAML.
-  - item:
-      id: L01-ejemplo
-      questions:
-        - id: q1
-          type: choice
-          prompt: '¿Cuáles son las raíces de $x^2 - 4$?'
-          options:
-            - { text: '$x = \pm 2$', correct: true }
-            - { text: '$x = 4$' }
-            - { text: '$x = \pm 4$' }
-            - { text: 'No tiene raíces reales' }
-"""
-
-
 # -------------------------------------------------------------------- presentaciones
-
-
-def _diagnostics(report) -> list[dict]:
-    return [{"code": d.code, "severity": d.severity.value, "message": d.message,
-             "line": d.line, "where": ".".join(p for p in (d.item_id, d.question_id) if p)}
-            for d in report]
 
 
 def _course_link(course):
     from apps.github.models import CourseRepo
     return CourseRepo.objects.filter(course=course).select_related("course__owner").first()
-
-
-@teacher_required
-def deck_edit(request, course_pk, pk=None):
-    from apps.github import sync
-
-    course = owned_course(request, course_pk)
-    link = _course_link(course)
-    if link and request.method != "POST":
-        sync.maybe_pull(link)                    # abrir el editor sobre la última versión de GitHub
-    deck = get_object_or_404(Deck, pk=pk, course=course) if pk else None
-    source = deck.source if deck else DECK_TEMPLATE
-    diagnostics = []
-    sections = list(Section.objects.filter(course=course))
-    wanted = request.POST.get("section") if request.method == "POST" else request.GET.get("seccion")
-    if wanted is None:
-        section = deck.section if deck else None
-    else:
-        section = next((x for x in sections if str(x.pk) == wanted), None)
-
-    if request.method == "POST":
-        upload = request.FILES.get("file")
-        if upload:
-            if upload.size > 512 * 1024:
-                messages.error(request, _("El archivo supera 512 KB."))
-                return redirect(request.path)
-            source = upload.read().decode("utf-8", errors="replace")
-        else:
-            source = request.POST.get("source", "")
-
-        document, report = deckfmt.load_deck_text(source)
-        diagnostics = _diagnostics(report)
-        if document is not None and not report.errors:
-            compiled = deckfmt.compile_deck(document)
-            deck = deck or Deck(course=course)
-            deck.title = compiled["title"]
-            deck.section = section
-            saved = True
-            if link:
-                # GitHub primero: si allá cambió el archivo, no se pisa nada y el texto sigue aquí.
-                try:
-                    deck.github_path, deck.github_sha = sync.push_deck(link, deck, source)
-                except sync.Conflict:
-                    saved = False
-                    messages.error(request, _("La presentación cambió en GitHub después de que la abrió; "
-                                              "no se guardó para no perder esos cambios. Copie su texto, "
-                                              "recargue el editor y vuelva a aplicarlo."))
-                except sync.GitHubError as exc:
-                    saved = False
-                    messages.error(request, _("No se guardó: %(error)s") % {"error": exc})
-            if saved:
-                deck.source, deck.compiled = source, compiled
-                deck.save()
-                messages.success(request, _("Presentación «%(title)s» guardada: %(slides)d diapositivas, "
-                                            "%(questions)d preguntas.")
-                                 % {"title": deck.title, "slides": len(deck.slides),
-                                    "questions": deck.question_count})
-                if link:
-                    messages.info(request, _("Confirmada en GitHub: %(path)s") % {"path": deck.github_path})
-                return redirect("deck_view", course_pk=course.pk, pk=deck.pk)
-        else:
-            messages.error(request, _("La presentación tiene errores; no se guardó."))
-
-    return render(request, "live/deck_edit.html", {
-        "course": course, "deck": deck, "source": source, "diagnostics": diagnostics, "link": link,
-        "sections": sections, "section": section,
-    })
-
-
-@teacher_required
-@require_POST
-def deck_ops(request, course_pk):
-    """Panel lateral del editor: reordenar, ocultar/mostrar, activar la retroalimentación.
-
-    Edita el texto (policlase_gen.deck_text) y lo devuelve; el editor lo aplica como una edición
-    más, deshacible con Ctrl+Z. Nada se guarda hasta «Guardar».
-    """
-    owned_course(request, course_pk)
-    source, op = request.POST.get("source", ""), request.POST.get("op", "")
-    try:
-        index = int(request.POST.get("index", "-1"))
-        if op == "move":
-            source = deck_text.move_slide(source, index, int(request.POST.get("target", "-1")))
-        elif op in ("hide", "show"):
-            source = deck_text.set_hidden(source, index, op == "hide")
-        elif op in ("feedback_on", "feedback_off"):
-            source = deck_text.set_feedback(source, op == "feedback_on")
-        else:
-            return JsonResponse({"error": _("Operación desconocida.")}, status=400)
-    except (ValueError, deck_text.EditError) as exc:
-        return JsonResponse({"error": _("Corrija los errores antes de usar el panel: %(error)s") % {"error": exc}},
-                            status=400)
-    return JsonResponse({"source": source})
-
-
-@teacher_required
-@require_POST
-def deck_preview(request, course_pk):
-    """Vista previa en vivo del editor: valida, compila y devuelve las diapositivas renderizadas.
-
-    Las presentaciones no tienen generadores (policlase-gen las rechaza): compilarlas en el
-    servidor no ejecuta código del docente.
-    """
-    owned_course(request, course_pk)
-    source = request.POST.get("source", "")
-    if len(source) > 512 * 1024:
-        return JsonResponse({"diagnostics": [{"code": "", "severity": "error", "line": None, "where": "",
-                                              "message": _("El archivo supera 512 KB.")}]})
-    document, report = deckfmt.load_deck_text(source)
-    payload = {"diagnostics": _diagnostics(report), "html": None, "lines": []}
-    if document is not None and not report.errors:
-        compiled = deckfmt.compile_deck(document)
-        payload["html"] = render_to_string("live/_deck_slides.html", {"slides": compiled["slides"]}, request)
-        payload["outline"] = render_to_string("live/_deck_outline.html", {"slides": compiled["slides"]}, request)
-        payload["title"] = compiled["title"]
-    if document is not None and isinstance(document.get("slides"), list):
-        # Línea donde empieza cada diapositiva: el editor resalta la que tiene el cursor.
-        payload["lines"] = [loader.line_of(document["slides"], i) for i in range(len(document["slides"]))]
-    return JsonResponse(payload)
 
 
 @teacher_required
@@ -202,12 +51,16 @@ def deck_delete(request, course_pk, pk):
     if link and deck.github_path:
         from apps.github import sync
         try:
-            sync.delete_deck(link, deck)
+            sync.delete(link, deck)
         except sync.GitHubError as exc:
             messages.error(request, _("No se eliminó: %(error)s") % {"error": exc})
             return redirect("deck_view", course_pk=course.pk, pk=deck.pk)
     deck.delete()
-    messages.success(request, _("Presentación eliminada. Las clases ya dictadas conservan sus resultados."))
+    if link and deck.github_path:
+        messages.success(request, _("Presentación eliminada y su archivo borrado de GitHub. Las clases ya dictadas "
+                                    "conservan sus resultados."))
+    else:
+        messages.success(request, _("Presentación eliminada. Las clases ya dictadas conservan sus resultados."))
     return redirect("course_manage", pk=course.pk)
 
 
@@ -227,7 +80,7 @@ def deck_move(request, course_pk, pk):
     if link:
         from apps.github import sync
         try:
-            deck.github_path, deck.github_sha = sync.push_deck(link, deck, deck.source)
+            deck.github_path, deck.github_sha = sync.push(link, deck, deck.source)
         except sync.GitHubError as exc:
             return JsonResponse({"error": _("No se movió: %(error)s") % {"error": exc}}, status=409)
     deck.save(update_fields=["section", "github_path", "github_sha"])
@@ -365,22 +218,27 @@ def session_results(request, pk):
     by_student: dict[int, dict[int, Response]] = {}
     for r in Response.objects.filter(session=session):
         by_student.setdefault(r.student_id, {})[r.slide_index] = r
+    manual = {g.student_id: g for g in SessionGrade.objects.filter(session=session)}
+    joined = set(session.participants.values_list("student_id", flat=True))
 
     max_points = session.max_points
     rows = []
     for e in students:
         answers = by_student.get(e.student_id, {})
-        total = sum(r.points for r in answers.values())
+        computed = sum(r.points for r in answers.values())
+        grade = manual.get(e.student_id)
+        total = grade.points if grade else computed
         rows.append({
             "student": e.student,
             "cells": [(answers.get(i), q["points"]) for i, q in questions],
-            "total": total,
+            "total": total, "computed": computed, "manual": grade,
             "percent": round(100 * total / max_points) if max_points else 0,
-            "joined": session.participants.filter(student=e.student).exists(),
+            "joined": e.student_id in joined,
         })
     rows.sort(key=lambda r: (-r["total"], r["student"].last_name))
 
-    # Invitados: quienes entraron por el enlace sin estar inscritos en el curso.
+    # Invitados: quienes entraron por el enlace sin estar inscritos en el curso. No cuentan para
+    # ninguna nota; si alguno era un estudiante que se inscribió tarde, se le asigna su cuenta.
     enrolled = {e.student_id for e in students}
     guests = []
     for p in session.participants.exclude(student_id__in=enrolled).select_related("student"):
@@ -389,13 +247,57 @@ def session_results(request, pk):
         guests.append({"student": p.student, "cells": [(answers.get(i), q["points"]) for i, q in questions],
                        "total": total, "percent": round(100 * total / max_points) if max_points else 0})
     guests.sort(key=lambda r: -r["total"])
+    absent = [r["student"] for r in rows if not r["joined"]]
+    absent.sort(key=lambda s: (s.last_name, s.first_name))
     review = [{"index": i, "number": n, "slide": slide, "groups": engine.answer_groups(session, i)}
               for n, (i, slide) in enumerate(questions, start=1)]
     return render(request, "live/results.html", {
         "session": session, "course": session.course, "questions": questions, "review": review,
-        "rows": rows, "guests": guests, "max_points": max_points,
+        "rows": rows, "guests": guests, "max_points": max_points, "absent": absent,
         "feedback": engine.feedback_summary(session) if session.has_feedback else None,
     })
+
+
+@teacher_required
+@require_POST
+def session_grade(request, pk, student_pk):
+    """Nota manual de un estudiante inscrito en toda la clase, o volver a la suma de sus respuestas."""
+    session = _own_session(request, pk)
+    enrollment = get_object_or_404(Enrollment, course=session.course, student_id=student_pk,
+                                   status=Enrollment.Status.APPROVED)
+    if request.POST.get("restore"):
+        engine.set_session_grade(session, enrollment.student, None, request.user)
+    else:
+        try:
+            engine.set_session_grade(session, enrollment.student,
+                                     float(request.POST.get("points", "").replace(",", ".")), request.user)
+        except ValueError:
+            return JsonResponse({"error": _("Escriba un número.")}, status=400)
+    return JsonResponse({"ok": True})
+
+
+@teacher_required
+@require_POST
+def guest_link(request, pk, guest_pk):
+    """Asignar un invitado a un estudiante inscrito: sus respuestas pasan a la cuenta del estudiante."""
+    session = _own_session(request, pk)
+    guest = get_object_or_404(session.participants.select_related("student"), student_id=guest_pk).student
+    enrollment = Enrollment.objects.filter(course=session.course, status=Enrollment.Status.APPROVED,
+                                           student_id=request.POST.get("student") or 0).select_related("student").first()
+    if enrollment is None:
+        messages.error(request, _("Elija un estudiante inscrito."))
+        return redirect(f"{reverse('session_results', args=[session.pk])}#invitados")
+    name = guest.first_name
+    try:
+        moved = engine.link_guest(session, guest, enrollment.student)
+    except engine.LinkError as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, ngettext(
+            "«%(guest)s» quedó asignado a %(name)s: %(n)d respuesta pasó a su cuenta.",
+            "«%(guest)s» quedó asignado a %(name)s: %(n)d respuestas pasaron a su cuenta.", moved)
+            % {"guest": name, "name": enrollment.student.display_name, "n": moved})
+    return redirect(f"{reverse('session_results', args=[session.pk])}#notas")
 
 
 @teacher_required

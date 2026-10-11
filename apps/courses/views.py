@@ -174,47 +174,99 @@ def course_manage(request, pk, tab="clases"):
         "live": LiveSession.objects.active().filter(course=course).first(),
     }
     if tab == "clases":
+        from apps.activities.models import Activity
+
         decks = list(Deck.objects.filter(course=course))
+        activities = list(Activity.objects.filter(course=course).select_related("category__period"))
         key = (lambda d: sync.natural_key(d.github_path)) if link else (lambda d: d.pk)
         sections = list(Section.objects.filter(course=course))
         if link:
             sections.sort(key=lambda s: (not s.github_folder, sync.natural_key(s.github_folder), s.pk))
-        # Las secciones primero y las presentaciones sueltas al final: la unidad en curso no
-        # queda enterrada bajo una lista creciente de presentaciones sin sección.
-        groups = [{"section": s, "decks": sorted([d for d in decks if d.section_id == s.pk], key=key)}
+        # Las secciones primero y lo que no tiene sección al final: la unidad en curso no queda
+        # enterrada bajo una lista creciente de presentaciones sin sección.
+        groups = [{"section": s,
+                   "decks": sorted([d for d in decks if d.section_id == s.pk], key=key),
+                   "activities": sorted([a for a in activities if a.section_id == s.pk], key=key)}
                   for s in sections]
-        groups.append({"section": None, "decks": sorted([d for d in decks if d.section_id is None], key=key)})
+        groups.append({"section": None,
+                       "decks": sorted([d for d in decks if d.section_id is None], key=key),
+                       "activities": sorted([a for a in activities if a.section_id is None], key=key)})
+        for group in groups:
+            group["count"] = len(group["decks"]) + len(group["activities"])
         context.update({
-            "groups": groups, "has_decks": bool(decks),
+            "groups": groups, "has_content": bool(decks or activities),
+            "current_section": current_section(course, sections),
             "past_sessions": LiveSession.objects.filter(course=course, status=LiveSession.Status.ENDED)[:10],
         })
     elif tab == "actividades":
-        context.update(_activities_tab(course, context["approved_count"]))
+        context.update(_activities_tab(course, context["approved_count"], request.GET.get("fila", "")))
     return render(request, "courses/course_manage.html", context)
 
 
-def _activities_tab(course, enrolled: int) -> dict:
-    """Actividades agrupadas por parcial (según su ponderación), con entregas y lo pendiente de revisar."""
+def current_section(course, sections) -> int | None:
+    """La unidad en curso: la de la última clase dictada o, si ya se dictaron todas sus
+    presentaciones, la siguiente que tenga alguna. Sin clases todavía, la primera. Es la única que
+    la pestaña Clases muestra desplegada."""
+    from apps.live.models import Deck, LiveSession
+
+    if not sections:
+        return None
+    last = (LiveSession.objects.filter(course=course, deck__section__in=sections)
+            .order_by("-started_at", "-created_at").select_related("deck").first())
+    if last is None:
+        return sections[0].pk
+    taught = set(LiveSession.objects.filter(course=course, deck__isnull=False).values_list("deck_id", flat=True))
+    order = [s.pk for s in sections]
+    start = order.index(last.deck.section_id)
+    pending = set(Deck.objects.filter(course=course, section__in=sections).exclude(pk__in=taught)
+                  .values_list("section_id", flat=True))
+    if last.deck.section_id in pending:
+        return last.deck.section_id
+    return next((pk for pk in order[start + 1:] if pk in pending), last.deck.section_id)
+
+
+def _activities_tab(course, enrolled: int, wanted: str = "") -> dict:
+    """Todas las actividades del curso en una vista: por parcial (según su ponderación), con su
+    unidad, entregas y lo pendiente de revisar. Se filtra por fila de la ponderación (deberes,
+    extracurriculares…). Cada actividad vive en su unidad, en la pestaña Clases."""
     from django.db.models import Count, Q
 
     from apps.activities.models import Activity
-    from apps.grades.gradebook import ensure_defaults
-    from apps.grades.models import Period
+    from apps.grades.gradebook import ensure_defaults, mismatch
+    from apps.grades.models import ManualRecord, Period
 
     ensure_defaults(course)
+    periods = list(Period.objects.filter(course=course).prefetch_related("categories"))
     activities = list(
-        Activity.objects.filter(course=course).select_related("category__period", "due_milestone")
+        Activity.objects.filter(course=course).select_related("category__period", "due_milestone", "section",
+                                                               "course__owner")
         .annotate(submitted=Count("attempts__student", filter=Q(attempts__submitted_at__isnull=False),
                                   distinct=True),
                   to_review=Count("attempts__answer_rows", filter=Q(attempts__answer_rows__needs_review=True))))
+    names = []
+    for period in periods:
+        for category in period.categories.all():
+            if category.source == category.Source.WORK and category.name not in names:
+                names.append(category.name)
+    if wanted and wanted in names:
+        activities = [a for a in activities if a.category_id and a.category.name == wanted]
+    else:
+        wanted = ""
+    for a in activities:
+        a.mismatch = mismatch(a, periods)
+    records = list(ManualRecord.objects.filter(course=course).select_related("category__period"))
+    if wanted:
+        records = [r for r in records if r.category_id and r.category.name == wanted]
     groups = []
-    for period in Period.objects.filter(course=course):
-        rows = [a for a in activities if a.category_id and a.category.period_id == period.pk]
-        groups.append({"period": period, "activities": rows})
+    for period in periods:
+        groups.append({"period": period,
+                       "activities": [a for a in activities if a.category_id and a.category.period_id == period.pk],
+                       "records": [r for r in records if r.category_id and r.category.period_id == period.pk]})
     loose = [a for a in activities if not a.category_id]
     if loose:
-        groups.append({"period": None, "activities": loose})
-    return {"activity_groups": groups, "has_activities": bool(activities), "enrolled": enrolled}
+        groups.append({"period": None, "activities": loose, "records": []})
+    return {"activity_groups": groups, "has_activities": bool(activities), "enrolled": enrolled,
+            "filters": names, "wanted": wanted}
 
 
 @teacher_required
