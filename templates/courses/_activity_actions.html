@@ -1,0 +1,6 @@
+{% load i18n policlase %}
+<div class="unit-actions">
+  <a class="ghost" href="{% url 'activity_new' course.pk %}">{% icon "file_add" 16 %} {% translate "Nueva actividad" %}</a>
+  <a class="ghost" href="{% url 'activity_dates' course.pk %}">{% icon "calendar" 16 %} {% translate "Fechas" %}</a>
+  <a class="ghost" href="{% url 'course_gradebook' course.pk %}">{% icon "results" 16 %} {% translate "Calificaciones" %}</a>
+</div>

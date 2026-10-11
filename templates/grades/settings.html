@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Ponderaciones" %} · {{ course.name }}{% endblock %}
+{% block main %}
+<div class="muted small"><a href="{% url 'course_settings' course.pk %}">← {% translate "Configuración del curso" %}</a></div>
+<h1>{% translate "Ponderaciones y aprobación" %}</h1>
+<p class="muted">{% translate "Cada parcial tiene su tabla. Las filas obligatorias suman 100 %; las opcionales se suman encima y permiten compensar lo que falte, pero la nota del parcial no pasa del máximo. Los estudiantes ven esta tabla en «Calificaciones»." %}</p>
+
+<form method="post" class="stack">
+  {% csrf_token %}
+  {% for p in periods %}
+    <section class="card stack">
+      <div class="row">
+        <div>{{ p.form.name.label_tag }}{{ p.form.name }}{{ p.form.name.errors }}</div>
+        <div>{{ p.form.starts_on.label_tag }}{{ p.form.starts_on }}{{ p.form.starts_on.errors }}</div>
+        <div>{{ p.form.ends_on.label_tag }}{{ p.form.ends_on }}{{ p.form.ends_on.errors }}</div>
+      </div>
+      <span class="helptext">{% translate "El cierre decide qué clases en vivo cuentan para la participación de este parcial y es el último día para entregas atrasadas." %}</span>
+      {{ p.rows.management_form }}
+      {% if p.rows.non_form_errors %}<div class="notice">{{ p.rows.non_form_errors }}</div>{% endif %}
+      <div class="table-wrap">
+        <table class="weights">
+          <thead><tr>
+            <th>{% translate "Componente" %}</th><th class="num">{% translate "Peso (%)" %}</th>
+            <th class="center">{% translate "Opcional" %}</th><th>{% translate "Notas desde" %}</th><th class="center">{% translate "Quitar" %}</th>
+          </tr></thead>
+          <tbody>
+            {% for f in p.rows %}
+              <tr>
+                <td>{{ f.id }}{{ f.name }}{{ f.name.errors }}</td>
+                <td class="num">{{ f.weight }}{{ f.weight.errors }}</td>
+                <td class="center">{{ f.optional }}</td>
+                <td>{{ f.source }}</td>
+                <td class="center">{% if f.instance.pk %}{{ f.DELETE }}{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot><tr>
+            <td class="small muted">{% translate "Obligatorias · opcionales" %}</td>
+            <td class="num"><strong{% if p.required != 100 %} class="danger-text"{% endif %}>{{ p.required|floatformat:"-2" }} %</strong> · {{ p.extra|floatformat:"-2" }} %</td>
+            <td colspan="3"></td>
+          </tr></tfoot>
+        </table>
+      </div>
+      <span class="helptext">{% translate "La última fila vacía sirve para agregar un componente. «Clases en vivo» toma los resultados de las clases del parcial (faltar a una cuenta cero); «Actividades», las actividades que asigne a esa fila." %}</span>
+      {% if periods|length > 1 %}
+        <div><button type="submit" form="del-{{ p.period.pk }}" class="danger small">{% blocktranslate with n=p.period.name %}Eliminar «{{ n }}»{% endblocktranslate %}</button></div>
+      {% endif %}
+    </section>
+  {% endfor %}
+
+  <section class="card stack">
+    <h2>{% translate "Reglas de aprobación" %}</h2>
+    <div class="grid rules">
+      {% for f in rules_form %}<div>{{ f.label_tag }}{{ f }}{{ f.errors }}{% if f.help_text %}<span class="helptext">{{ f.help_text }}</span>{% endif %}</div>{% endfor %}
+    </div>
+    <p class="small muted" style="margin:0">{% blocktranslate with max=rules_form.instance.period_max|floatformat:"-2" fail=rules_form.instance.fail_below|floatformat:"-2" ok=rules_form.instance.pass_from|floatformat:"-2" total=rules_form.instance.makeup_total|floatformat:"-2" min=rules_form.instance.makeup_min|floatformat:"-2" %}Cada parcial se topa en {{ max }}. Con la suma de parciales por debajo de {{ fail }} se pierde; desde {{ ok }}, se aprueba; en medio, el supletorio se aprueba si parciales más supletorio llegan a {{ total }} y el supletorio no baja de {{ min }}.{% endblocktranslate %}</p>
+  </section>
+
+  <div class="row"><button type="submit">{% translate "Guardar" %}</button></div>
+</form>
+
+<form method="post" action="{% url 'period_add' course.pk %}" style="margin-top:12px">
+  {% csrf_token %}<button class="ghost">+ {% translate "Agregar parcial" %}</button>
+</form>
+{% for p in periods %}
+  <form method="post" action="{% url 'period_delete' course.pk p.period.pk %}" id="del-{{ p.period.pk }}"
+        onsubmit="return confirm('{% blocktranslate with n=p.period.name asvar msg %}¿Eliminar «{{ n }}» y su tabla? Sus actividades quedan sin ponderación (no se borran).{% endblocktranslate %}{{ msg|escapejs }}')">{% csrf_token %}</form>
+{% endfor %}
+{% endblock %}

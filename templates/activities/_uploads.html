@@ -1,0 +1,27 @@
+{% load i18n policlase %}
+{# Imágenes de una pregunta `image`. Con `editable`, se pueden quitar y agregar (intento en curso). #}
+<div class="upload-grid">
+  {% for u in uploads %}
+    <figure class="upload">
+      <a href="{% url 'upload_file' u.pk %}" target="_blank" rel="noopener"><img src="{% url 'upload_file' u.pk %}" alt="{% blocktranslate with n=forloop.counter %}Imagen {{ n }}{% endblocktranslate %}" loading="lazy"></a>
+      {% if editable %}
+        <button type="submit" class="icon-btn danger" formaction="{% url 'attempt_upload_remove' course.pk activity.pk u.pk %}"
+                formnovalidate data-remove-upload title="{% translate 'Quitar imagen' %}" aria-label="{% translate 'Quitar imagen' %}">{% icon "close" %}</button>
+      {% endif %}
+    </figure>
+  {% empty %}
+    {% if not editable %}<p class="small muted">{% translate "Sin imágenes." %}</p>{% endif %}
+  {% endfor %}
+</div>
+{% if editable %}
+  {% if uploads|length < question.max_files %}
+    <label class="upload-pick">
+      {% icon "image" 20 %} {% blocktranslate count n=question.max_files %}Elegir imagen (hasta {{ n }}){% plural %}Elegir imágenes (hasta {{ n }}){% endblocktranslate %}
+      <input type="file" name="f-{{ question.key }}" accept="image/jpeg,image/png,image/webp" {% if question.max_files > 1 %}multiple{% endif %} data-upload="{{ question.key }}">
+    </label>
+    <p class="small muted">{% translate "JPEG, PNG o WebP, hasta 15 MB. Se guarda sin los datos de ubicación de la foto." %}</p>
+  {% else %}
+    <p class="small muted">{% translate "Llegó al máximo de imágenes de esta pregunta; quite una para cambiarla." %}</p>
+  {% endif %}
+  <p class="field-error" data-upload-error hidden></p>
+{% endif %}

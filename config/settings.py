@@ -60,6 +60,8 @@ INSTALLED_APPS = [
     "apps.courses",
     "apps.live",
     "apps.github",
+    "apps.grades",
+    "apps.activities",
 ]
 
 MIDDLEWARE = [

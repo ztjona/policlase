@@ -78,7 +78,7 @@
   <a href="{% url 'course_assessments' course.pk %}" {% if tab == "evaluaciones" %}aria-current="page"{% endif %}>{% translate "Evaluaciones" %}</a>
   <a href="{% url 'course_activities' course.pk %}" {% if tab == "actividades" %}aria-current="page"{% endif %}>{% translate "Actividades" %}</a>
 </nav>
-{% if tab == "clases" %}{% include "courses/_unit_actions.html" %}{% endif %}
+{% if tab == "clases" %}{% include "courses/_unit_actions.html" %}{% elif tab == "actividades" %}{% include "courses/_activity_actions.html" %}{% endif %}
 </div>
 
 {% if tab == "clases" %}
@@ -86,6 +86,6 @@
 {% elif tab == "evaluaciones" %}
   <div class="card muted">{% translate "Próximamente: pruebas y exámenes con preguntas generadas por estudiante (policlase-gen)." %}</div>
 {% else %}
-  <div class="card muted">{% translate "Próximamente: deberes, talleres y otras actividades con entrega." %}</div>
+  {% include "courses/_tab_activities.html" %}
 {% endif %}
 {% endblock %}

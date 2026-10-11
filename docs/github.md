@@ -1,8 +1,8 @@
 # Sincronización con GitHub
 
-Referencia de cómo policlase lee y escribe las presentaciones de un curso en un repositorio de
-GitHub. El formato de cada archivo (`policlase.deck/v1`) está en
-[`policlase-gen/docs/schema.md`](../../policlase-gen/docs/schema.md) §9; aquí se documenta lo que
+Referencia de cómo policlase lee y escribe las presentaciones y actividades de un curso en un
+repositorio de GitHub. El formato de cada archivo (`policlase.deck/v1`, `policlase.activity/v1`)
+está en [`policlase-gen/docs/schema.md`](../../policlase-gen/docs/schema.md) §9 y §10; aquí se documenta lo que
 hace la plataforma con esos archivos. Implementación: `apps/github/` (`sync.py`, `client.py`,
 `views.py`), con pruebas en `apps/github/tests.py`.
 
@@ -33,9 +33,10 @@ Dentro de la carpeta vinculada:
 | En GitHub | En policlase |
 |---|---|
 | Un `.yaml`/`.yml` con `schema: policlase.deck/v1` y sin errores | Una presentación |
+| Un `.yaml` con `schema: policlase.activity/v1` y sin errores | Una actividad; la primera vez llega como **borrador** (falta decidir fechas y ponderación en policlase) |
 | Un `.yaml` con errores | Un aviso en el curso (archivo, línea, código); **se conserva la última versión válida** |
 | Otro YAML (ítems, configuración) | Se ignora |
-| Un archivo borrado | La presentación se elimina (las clases ya dictadas conservan su copia y sus resultados) |
+| Un archivo borrado | La presentación se elimina (las clases ya dictadas conservan su copia y sus resultados). Una actividad **sin entregas** se elimina; **con entregas** se conserva en policlase, ya sin vínculo, y el curso lo avisa |
 
 Para no descargar todo en cada sincronización, policlase compara el **sha de cada archivo** con el
 que conoce: solo lee lo que cambió. Los archivos ignorados o con errores tampoco se vuelven a leer
@@ -69,6 +70,7 @@ repositorio-de-cursos/                  ← privado: los ítems llevan las respu
     │   ├── unidad-02/
     │   │   └── 01-interpolacion.yaml
     │   └── repaso-general.yaml         ← «Sin sección»
+    │   └── actividades/                ← deberes y talleres (no es una sección: no tiene presentaciones)
     ├── items/                          ← evaluaciones (próximamente)
     └── generators/
 ```
@@ -81,7 +83,8 @@ semestre quedan separados en policlase.
 
 ## 4. Cuándo se sincroniza
 
-- **Al abrir** la pestaña Clases del curso o el editor, si pasó más de un minuto desde la última vez.
+- **Al abrir** la pestaña Clases o Actividades del curso, o un editor, si pasó más de un minuto desde
+  la última vez.
 - **«Sincronizar ahora»** en la configuración del curso.
 - **Al instante con el webhook** (opcional): en GitHub, *Settings → Webhooks → Add webhook*, con la
   URL y el secreto que muestra la configuración del curso, *Content type* `application/json` y solo
@@ -105,6 +108,9 @@ su nombre):
 | Crear una sección | crea `<carpeta>/.policlase-seccion` | Crea la sección «…» desde policlase |
 | Renombrar una sección (doble clic) | mueve **todos** los archivos de la carpeta | Renombra la sección «…» a «…» desde policlase |
 | Eliminar una sección vacía | borra el marcador | Elimina la sección «…» desde policlase |
+| «Guardar» una actividad nueva | crea `actividades/<título>.yaml` dentro de la carpeta del curso | Crea «…» desde policlase |
+| «Guardar» una actividad existente | actualiza su archivo, donde esté | Actualiza «…» desde policlase |
+| Eliminar una actividad | borra su archivo (y en policlase, sus entregas) | Elimina «…» desde policlase |
 
 - La carpeta de una sección creada en la web lleva el nombre tal como se escribió (git admite
   tildes y espacios; las `/` se reemplazan).
@@ -114,7 +120,8 @@ su nombre):
 - **No generan commits:** escribir en el editor, reordenar u ocultar diapositivas desde el panel
   (cambian el texto; se confirman al «Guardar»), ocultar diapositivas durante una clase (solo valen
   para esa clase), y todo lo que vive en la base de datos: clases dictadas, respuestas, notas,
-  retroalimentación, inscripciones.
+  retroalimentación, inscripciones, y de las actividades sus fechas, ponderación, intentos,
+  entregas e imágenes.
 
 ## 6. Conflictos
 

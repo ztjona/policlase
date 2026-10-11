@@ -1,0 +1,57 @@
+{% load i18n policlase %}
+{# Pestaña Actividades: agrupadas por parcial según su ponderación; las que no tienen ponderación, al final. #}
+{% include "courses/_sync_issues.html" %}
+
+{% for group in activity_groups %}
+  {% if group.activities or group.period %}
+    <section class="unit">
+      <div class="spread loose-head">
+        <h3 style="margin:0">{% if group.period %}{{ group.period.name }}{% else %}{% translate "Sin ponderación" %}{% endif %}</h3>
+        {% if not group.period %}<span class="small muted">{% translate "no cuentan para la nota hasta que elija su fila de la ponderación" %}</span>{% endif %}
+      </div>
+      {% if group.activities %}
+        <div class="card table-wrap">
+          <table>
+            <thead><tr>
+              <th>{% translate "Actividad" %}</th>
+              <th>{% translate "Ponderación" %}</th>
+              <th>{% translate "Vence" %}</th>
+              <th class="center">{% translate "Entregas" %}</th>
+              <th class="center">{% translate "Por revisar" %}</th>
+              <th class="actions-col"></th>
+            </tr></thead>
+            <tbody>
+              {% for a in group.activities %}
+                <tr>
+                  <td>
+                    <a href="{% url 'activity_detail' course.pk a.pk %}"><strong>{{ a.title }}</strong></a>
+                    {% if not a.published %}<span class="chip warn">{% translate "Borrador" %}</span>{% endif %}
+                    {% if a.uses_ai %}<span class="chip" title="{% translate 'Tiene preguntas marcadas para calificación con IA (aún no activa: las califica usted)' %}">IA</span>{% endif %}
+                  </td>
+                  <td class="small">{% if a.category %}{{ a.category.name }}{% else %}<span class="muted">—</span>{% endif %}</td>
+                  <td class="small">
+                    {% if a.due_at %}{{ a.due_at|date:"D d M, H:i" }}
+                      {% if a.due_milestone %}<div class="muted">{{ a.due_rule }}</div>{% endif %}
+                    {% else %}<span class="muted">{% translate "sin fecha" %}</span>{% endif %}
+                  </td>
+                  <td class="center">{{ a.submitted }} / {{ enrolled }}</td>
+                  <td class="center">{% if a.to_review %}<span class="chip warn">{{ a.to_review }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+                  <td class="actions-col"><div class="row-actions">
+                    <a class="icon-btn" href="{% url 'activity_edit' course.pk a.pk %}" title="{% translate 'Editar contenido' %}" aria-label="{% translate 'Editar contenido' %}">{% icon "edit" %}</a>
+                    <a class="icon-btn primary" href="{% url 'activity_detail' course.pk a.pk %}" title="{% translate 'Configuración y entregas' %}" aria-label="{% translate 'Configuración y entregas' %}">{% icon "results" %}</a>
+                  </div></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="small muted">{% translate "Ninguna actividad en este parcial todavía." %}</p>
+      {% endif %}
+    </section>
+  {% endif %}
+{% endfor %}
+
+{% if not has_activities %}
+  <p class="muted">{% translate "Todavía no hay actividades. Cree una con «Nueva actividad»: un formulario en línea, la entrega de imágenes (evidencia, certificados, el desarrollo a mano) o ambas cosas." %}</p>
+{% endif %}

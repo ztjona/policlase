@@ -19,6 +19,32 @@
   <div class="card muted">{% translate "No hay ninguna clase en vivo en este momento." %}</div>
 {% endif %}
 
+{% if activities %}
+  <div class="spread"><h2>{% translate "Actividades" %}</h2><a class="small" href="{% url 'my_grades' course.pk %}">{% translate "Calificaciones" %}</a></div>
+  <div class="card table-wrap">
+    <table>
+      <tbody>
+        {% for r in activities %}{% with a=r.activity st=r.state %}
+          <tr>
+            <td><a href="{% url 'activity_student' course.pk a.pk %}"><strong>{{ a.title }}</strong></a>
+              {% if a.category %}<div class="small muted">{{ a.category.name }}{% if a.category.optional %} · {% translate "opcional" %}{% endif %}</div>{% endif %}</td>
+            <td class="small">{% if a.due_at %}{{ a.due_at|date:"D d M, H:i" }}{% else %}<span class="muted">{% translate "sin fecha" %}</span>{% endif %}</td>
+            <td class="small">
+              {% if st.draft %}<span class="chip warn">{% translate "en curso" %}</span>
+              {% elif st.counted %}<span class="chip ok">{% translate "entregada" %}</span>{% if st.counted.points is not None %} {{ st.counted.points|floatformat:"-2" }}/{{ st.counted.max_points|floatformat:"-2" }}{% endif %}
+              {% elif r.todo and st.late %}<span class="chip danger">{% translate "atrasada" %}</span>
+              {% elif r.todo %}<span class="chip">{% translate "pendiente" %}</span>
+              {% else %}<span class="muted">{% translate "cerrada" %}</span>{% endif %}
+            </td>
+          </tr>
+        {% endwith %}{% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p class="small"><a href="{% url 'my_grades' course.pk %}">{% translate "Calificaciones" %}</a></p>
+{% endif %}
+
 {% if course.description %}
   <h2>{% translate "Acerca del curso" %}</h2>
   <div class="card">{{ course.description|linebreaks }}</div>

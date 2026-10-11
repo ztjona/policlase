@@ -1,0 +1,5 @@
+{% load i18n %}
+<table class="rubric small">
+  <caption class="sr-only">{% translate "Rúbrica" %}</caption>
+  <tbody>{% for r in rubric %}<tr><td>{{ r.criterion }}</td><td class="num">{{ r.points|floatformat:"-2" }}</td></tr>{% endfor %}</tbody>
+</table>

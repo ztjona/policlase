@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% load static i18n policlase %}
+{% block title %}{% translate "Fechas" %} · {{ course.name }}{% endblock %}
+{% block main %}
+<div class="muted small"><a href="{% url 'course_activities' course.pk %}">← {{ course.name }}</a></div>
+<h1>{% translate "Fechas" %}</h1>
+<p class="muted">{% translate "Las fechas clave son las pruebas y exámenes del curso. Un deber puede vencer en relación con una de ellas (p. ej. el día anterior): si la prueba se reprograma, cambie aquí su fecha y todos esos deberes se mueven solos." %}</p>
+
+<h2>{% translate "Fechas clave" %}</h2>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th colspan="2">{% translate "Fecha clave" %}</th><th class="center">{% translate "Actividades atadas" %}</th><th class="actions-col"></th></tr></thead>
+    <tbody>
+      {% for m in milestones %}
+        <tr>
+          <td colspan="2">
+            <form method="post" class="row inline-form" id="m-form-{{ m.milestone.pk }}">
+              {% csrf_token %}
+              <input type="hidden" name="milestone" value="{{ m.milestone.pk }}">
+              {{ m.form.name }} {{ m.form.on }}
+              <button name="action" value="milestone_save" class="secondary small"
+                      {% if m.count %}data-confirm="{% blocktranslate count n=m.count %}Si cambia la fecha, se mueve {{ n }} actividad. ¿Guardar?{% plural %}Si cambia la fecha, se mueven {{ n }} actividades. ¿Guardar?{% endblocktranslate %}"{% endif %}>{% translate "Guardar" %}</button>
+            </form>
+          </td>
+          <td class="center">{{ m.count }}</td>
+          <td class="actions-col">
+            <form method="post" onsubmit="return confirm('{% blocktranslate with name=m.milestone.name asvar msg %}¿Eliminar la fecha clave «{{ name }}»? Sus actividades conservan su fecha de entrega actual, ahora fija.{% endblocktranslate %}{{ msg|escapejs }}')">
+              {% csrf_token %}<input type="hidden" name="milestone" value="{{ m.milestone.pk }}">
+              <button name="action" value="milestone_delete" class="icon-btn danger" title="{% translate 'Eliminar' %}" aria-label="{% translate 'Eliminar' %}">{% icon "trash" %}</button>
+            </form>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4" class="muted small">{% translate "Sin fechas clave todavía. Agregue la primera prueba abajo." %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <form method="post" class="row inline-form" style="margin-top:12px">
+    {% csrf_token %}
+    {{ milestone_form.name }} {{ milestone_form.on }}
+    <button name="action" value="milestone_add">{% translate "Agregar fecha clave" %}</button>
+    {% for e in milestone_form.errors.values %}<span class="field-error">{{ e|join:" " }}</span>{% endfor %}
+  </form>
+</div>
+
+<h2>{% translate "Vencimiento de las actividades" %}</h2>
+{% if activities %}
+  <form method="post" class="card stack" id="bulk-form">
+    {% csrf_token %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th><input type="checkbox" aria-label="{% translate 'seleccionar todas' %}" data-check-all="activity"></th>
+          <th>{% translate "Actividad" %}</th><th>{% translate "Regla" %}</th><th>{% translate "Vence" %}</th><th>{% translate "Abre" %}</th>
+        </tr></thead>
+        <tbody>
+          {% for a in activities %}
+            <tr>
+              <td><input type="checkbox" name="activity" value="{{ a.pk }}" aria-label="{% blocktranslate with t=a.title %}seleccionar {{ t }}{% endblocktranslate %}"></td>
+              <td><a href="{% url 'activity_detail' course.pk a.pk %}">{{ a.title }}</a>{% if not a.published %} <span class="chip warn">{% translate "Borrador" %}</span>{% endif %}
+                {% if a.category %}<div class="small muted">{{ a.category }}</div>{% endif %}</td>
+              <td class="small">{% if a.due_milestone %}{{ a.due_rule }}, {{ a.due_time|time:"H:i" }}{% elif a.due_at %}{% translate "fecha fija" %}{% else %}<span class="muted">{% translate "sin fecha" %}</span>{% endif %}</td>
+              <td class="small">{% if a.due_at %}{{ a.due_at|date:"D d M Y, H:i" }}{% else %}—{% endif %}</td>
+              <td class="small">{% if a.opens_at %}{{ a.opens_at|date:"d M, H:i" }}{% else %}<span class="muted">{% translate "al publicar" %}</span>{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="row">
+      <label class="small" style="margin:0">{% translate "Mover las seleccionadas" %}
+        <input type="number" name="days" value="7" min="-365" max="365" class="narrow"> {% translate "días" %}</label>
+      <button name="action" value="shift" class="secondary">{% translate "Mover" %}</button>
+    </div>
+    {% if milestone_choices %}
+      <div class="row">
+        <label class="small" style="margin:0">{% translate "Atar las seleccionadas a" %}
+          <select name="milestone" class="compact">{% for m in milestone_choices %}<option value="{{ m.pk }}">{{ m.name }} ({{ m.on|date:"d M" }})</option>{% endfor %}</select></label>
+        <label class="small" style="margin:0"><input type="number" name="offset" value="-1" min="-60" max="60" class="narrow"> {% translate "días (−1 = el día anterior)" %}</label>
+        <button name="action" value="link" class="secondary">{% translate "Atar" %}</button>
+      </div>
+    {% endif %}
+    <p class="small muted" style="margin:0">{% translate "Mover cambia la fecha de entrega (y la apertura, si aún no llegó). En las atadas a una fecha clave cambia cuántos días antes o después vencen, y siguen atadas." %}</p>
+  </form>
+{% else %}
+  <p class="muted">{% translate "Todavía no hay actividades." %}</p>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script defer src="{% static 'js/activity-teacher.js' %}"></script>
+{% endblock %}

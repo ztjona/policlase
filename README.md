@@ -26,6 +26,15 @@ Aula virtual autoalojada para cursos universitarios con carga matemática.
   **retroalimentación anónima** (sin vínculo con el estudiante; el docente ve el resumen desde 3 respuestas).
 - **Curso en pestañas** Clases | Evaluaciones | Actividades; en Clases, **secciones** (unidades) que
   se minimizan. Con GitHub, cada carpeta con presentaciones es una sección.
+- **Actividades** (`policlase.activity/v1`): deberes que cada estudiante llena en línea a su paso,
+  entregas de **imágenes** (evidencia, certificados, el desarrollo a mano; JPEG, PNG o WebP
+  re-codificados sin metadatos) o ambas cosas. Fechas fijas o **relativas a una fecha clave** (mover
+  la prueba mueve sus deberes), intentos (cuenta el último), atrasos bloqueados o con penalización,
+  rúbrica visible, revisión **por pregunta**, preguntas marcadas para IA (aún sin activar), marca de
+  agua con el nombre y señales para el docente (pegar texto, salir de la página).
+- **Ponderaciones por parcial** con componentes obligatorios (100 %) y opcionales que suman encima,
+  nota del parcial topada en su máximo, reglas de aprobación y supletorio configurables, libro de
+  calificaciones del docente y vista de calificaciones del estudiante.
 - **Sincronización con GitHub** por curso: cada docente conecta un token *fine-grained* (Contents:
   lectura y escritura) y vincula una carpeta de su repositorio. Lo que se empuja a GitHub aparece en
   la plataforma (al abrir el curso, o al instante con el webhook opcional); lo que se guarda en el

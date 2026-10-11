@@ -65,7 +65,7 @@ oscuro: los proyectores lavan los fondos oscuros.
 
 - Íconos tradicionales en SVG con `{% icon "nombre" tamaño %}` (`apps/core/templatetags/policlase.py`):
   `gear`, `edit`, `trash`, `play`, `close`, `check`, `grip`, `folder_add`, `file_add`, `results`,
-  `fullscreen`, `github`. Para uno nuevo, agregar su trazo a `ICONS`.
+  `fullscreen`, `github`, `calendar`, `image`. Para uno nuevo, agregar su trazo a `ICONS`.
 - **Nada de emojis ni de caracteres poco comunes como ícono** (⛶, 🔒, 🙂…): no todos los sistemas los
   tienen y aparecen como cajas vacías. Si hace falta un dibujo, SVG (`_face.html`, `_lock.html`).
 - Todo botón de solo ícono lleva `title` (tooltip) y `aria-label`.
@@ -117,6 +117,8 @@ Reglas de interacción:
 | `courses` | cursos, inscripción con código y aprobación, **reglas de acceso** (`access.py`) |
 | `live` | presentaciones, secciones, clases en vivo (`engine.py`), resultados, retroalimentación |
 | `github` | cuentas (token cifrado), vínculo curso-carpeta, sincronización |
+| `grades` | parciales, tabla de ponderaciones, reglas de aprobación, fechas clave, cálculo de notas (`gradebook.py`) |
+| `activities` | actividades, intentos (`engine.py`), respuestas calificadas, imágenes entregadas (`images.py`) |
 | `core` | markdown y matemáticas, íconos, «Acerca de» |
 
 - Las vistas son funciones; las parciales de plantilla empiezan con `_` (`_slide_card.html`).
@@ -131,6 +133,22 @@ Reglas de interacción:
   interesa al proyector.
 - El flujo SSE envía solo versiones; cada página pide su fragmento HTML. Todos los flujos de una clase
   comparten un sondeo por proceso y devuelven la conexión al pool tras cada consulta.
+
+### Actividades y notas
+
+- `activities/engine.py` es la única puerta para responder: cuándo se puede empezar o enviar, la
+  calificación y la nota del docente. Cuenta el **último intento enviado**; la corrección detallada
+  se muestra al vencer la fecha (antes, solo el puntaje); lo atrasado se acepta, si se acepta, hasta
+  el cierre del parcial y solo de quien no entregó a tiempo.
+- Cada intento copia la actividad compilada (`Attempt.content`): editarla después no cambia lo que
+  ya se respondió. La nota del docente no borra la automática (`auto_points`).
+- Las fechas y la ponderación viven en la plataforma, nunca en el YAML. Un vencimiento relativo a
+  una fecha clave se recalcula al moverla (`gradebook.recompute_due_dates`).
+- **Imágenes:** solo JPEG, PNG y WebP, verificadas por contenido y **re-codificadas** a JPEG (sin
+  EXIF ni GPS); se sirven solo por `upload_file`, con permisos y `nosniff`, nunca desde `/media/`.
+- **Señales, no sanciones:** pegar texto y salir de la página se registran y se muestran al
+  docente, y el estudiante lo sabe. No se bloquean capturas (en la web no se puede) ni se castiga
+  automáticamente. La marca de agua (nombre y cédula) va encima del intento, tenue.
 
 ### Datos
 

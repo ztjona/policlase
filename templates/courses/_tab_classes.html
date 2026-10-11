@@ -1,11 +1,6 @@
 {% load i18n policlase %}
 {# Pestaña Clases: secciones (unidades) minimizables; las presentaciones se arrastran entre ellas. #}
-{% if link %}
-  {% for issue in link.issues %}
-    <div class="notice"><span><strong class="mono">{{ issue.path }}</strong> {% translate "tiene errores y no se actualizó:" %}
-      {% for d in issue.diagnostics|slice:":3" %}<code>{{ d.code }}</code> {{ d.message }}{% if d.line %} ({% blocktranslate with line=d.line %}línea {{ line }}{% endblocktranslate %}){% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}</span></div>
-  {% endfor %}
-{% endif %}
+{% include "courses/_sync_issues.html" %}
 
 <div id="units" data-csrf="{{ csrf_token }}">
   {% for group in groups %}

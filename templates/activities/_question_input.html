@@ -1,0 +1,67 @@
+{% load i18n policlase %}
+{# Una pregunta del intento en curso, con lo guardado en el borrador. `row` viene de engine.answer_rows. #}
+{% with q=row.question value=row.draft key=row.key %}
+<fieldset class="q-block{% if q.follow_up %} follow-up{% endif %}{% if error %} has-error{% endif %}" id="q-{{ key }}">
+  <legend class="q-head">
+    <span class="chip">{{ q.points|floatformat:"-2" }} {% translate "pts" %}</span>
+    <span class="small muted">{% include "activities/_type_label.html" %}</span>
+  </legend>
+  {% if q.prompt %}<div class="prompt">{{ q.prompt|md }}</div>{% endif %}
+
+  {% if q.type == "choice" or q.type == "multi_choice" %}
+    <div class="choice-list" role="{% if q.type == 'choice' %}radiogroup{% else %}group{% endif %}">
+      {% for o in q.options %}
+        <label class="choice-row">
+          <input type="{% if q.type == 'choice' %}radio{% else %}checkbox{% endif %}" name="a-{{ key }}" value="{{ o.key }}"
+                 {% if q.type == 'choice' and value == o.key %}checked{% elif q.type == 'multi_choice' and o.key in value %}checked{% endif %}>
+          <span class="tag">{{ forloop.counter0|letter }}</span><span>{{ o.text|md_inline }}</span>
+        </label>
+      {% endfor %}
+    </div>
+    {% if q.type == "multi_choice" %}<p class="small muted">{% translate "Marque todas las correctas. Cada marca incorrecta resta." %}</p>{% endif %}
+
+  {% elif q.type == "true_false" %}
+    <div class="tf">
+      {% for s in q.statements %}
+        {% with mark=value|get_item:s.key %}
+        <fieldset class="tf-row">
+          <legend class="sr-only">{% blocktranslate with n=forloop.counter %}Afirmación {{ n }}{% endblocktranslate %}</legend>
+          <div>{{ s.text|md_inline }}</div>
+          <div class="choices">
+            <label><input type="radio" name="a-{{ key }}-{{ s.key }}" value="1" {% if mark is True %}checked{% endif %}>{% translate "Verdadero" %}</label>
+            <label><input type="radio" name="a-{{ key }}-{{ s.key }}" value="0" {% if mark is False %}checked{% endif %}>{% translate "Falso" %}</label>
+          </div>
+        </fieldset>
+        {% endwith %}
+      {% endfor %}
+    </div>
+
+  {% elif q.type == "numeric_list" %}
+    <div class="cells" style="--cols: {{ q.shape|last|default:1 }}">
+      {% for cell in row.cells %}
+        <input type="text" name="a-{{ key }}-{{ forloop.counter0 }}" value="{{ cell }}" inputmode="decimal" autocomplete="off"
+               aria-label="{% blocktranslate with n=forloop.counter %}Casilla {{ n }}{% endblocktranslate %}">
+      {% endfor %}
+    </div>
+
+  {% elif q.type == "open" %}
+    <label for="a-{{ key }}" class="sr-only">{% translate "Respuesta" %}</label>
+    <textarea id="a-{{ key }}" name="a-{{ key }}" rows="6" maxlength="10000" data-open {% if activity.block_paste %}data-no-paste{% endif %}>{{ value|default:"" }}</textarea>
+    {% if activity.block_paste %}<p class="small muted">{% translate "En esta respuesta no se puede pegar texto: escríbala usted." %}</p>{% endif %}
+    {% if q.rubric %}{% include "activities/_rubric.html" with rubric=q.rubric %}{% endif %}
+
+  {% elif q.type == "image" %}
+    <div data-uploads="{{ key }}">{% include "activities/_uploads.html" with question=q uploads=row.uploads editable=True %}</div>
+    {% if q.rubric %}{% include "activities/_rubric.html" with rubric=q.rubric %}{% endif %}
+
+  {% else %}
+    <label for="a-{{ key }}" class="sr-only">{% translate "Respuesta" %}</label>
+    <input type="text" id="a-{{ key }}" name="a-{{ key }}" value="{{ value|default:'' }}" autocomplete="off"
+           {% if q.type == "numeric" %}inputmode="decimal" placeholder="{% translate 'Número' %}"{% elif q.type == "expression" %}placeholder="{% translate 'p. ej. 3*x**2 + sin(x)' %}" spellcheck="false" autocapitalize="off"{% else %}placeholder="{% translate 'Respuesta' %}" spellcheck="false" autocapitalize="off"{% endif %}>
+    {% if q.type == "expression" %}<p class="small muted">{% translate "Multiplicación explícita (2*x, no 2x); potencias con ** o ^." %}</p>{% endif %}
+    {% if q.grading.units %}<p class="small muted">{% blocktranslate with u=q.grading.units %}Incluya la unidad: {{ u }}{% endblocktranslate %}</p>{% endif %}
+  {% endif %}
+
+  {% if error %}<p class="field-error" role="alert">{{ error }}</p>{% endif %}
+</fieldset>
+{% endwith %}

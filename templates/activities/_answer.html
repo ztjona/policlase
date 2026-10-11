@@ -1,0 +1,40 @@
+{% load i18n l10n policlase %}
+{# Lo que respondió un estudiante en una pregunta enviada, con su nota; con `reveal`, la solución. #}
+{% with q=row.question a=row.answer record=row.record %}
+<div class="q-block{% if q.follow_up %} follow-up{% endif %}">
+  <div class="q-head">
+    {% if a.needs_review %}<span class="chip warn">{% translate "por revisar" %}</span>
+    {% elif a.correct %}<span class="chip ok">{{ a.points|floatformat:"-2" }} / {{ q.points|floatformat:"-2" }}</span>
+    {% elif a.points %}<span class="chip warn">{{ a.points|floatformat:"-2" }} / {{ q.points|floatformat:"-2" }}</span>
+    {% else %}<span class="chip danger">0 / {{ q.points|floatformat:"-2" }}</span>{% endif %}
+    <span class="small muted">{% include "activities/_type_label.html" %}</span>
+    {% if a.graded_at %}<span class="small muted">· {% translate "calificada por el docente" %}</span>{% endif %}
+  </div>
+  {% if q.prompt %}<div class="prompt">{{ q.prompt|md }}</div>{% endif %}
+
+  {% if q.type == "choice" or q.type == "multi_choice" %}
+    <ul class="opt-list">{% for o in q.options %}
+      {% if q.type == "choice" %}{% if a.value == o.key %}<li class="picked{% if reveal and o.key in record.correct %} right{% elif reveal %} wrong{% endif %}">{% else %}<li{% if reveal and o.key in record.correct %} class="right"{% endif %}>{% endif %}
+      {% else %}{% if o.key in a.value %}<li class="picked{% if reveal and o.key in record.correct %} right{% elif reveal %} wrong{% endif %}">{% else %}<li{% if reveal and o.key in record.correct %} class="right"{% endif %}>{% endif %}{% endif %}
+      <span class="tag">{{ forloop.counter0|letter }}</span> {{ o.text|md_inline }}</li>
+    {% endfor %}</ul>
+  {% elif q.type == "true_false" %}
+    <ul class="opt-list">{% for s in q.statements %}{% with mark=a.value|get_item:s.key %}
+      <li>{% if mark is True %}<strong>{% translate "V" context "inicial de verdadero" %}</strong>{% elif mark is False %}<strong>{% translate "F" context "inicial de falso" %}</strong>{% else %}<strong>—</strong>{% endif %}
+        {% if reveal %}<span class="muted">({% if record.answers|get_item:s.key %}{% translate "V" context "inicial de verdadero" %}{% else %}{% translate "F" context "inicial de falso" %}{% endif %})</span>{% endif %} {{ s.text|md_inline }}</li>
+    {% endwith %}{% endfor %}</ul>
+  {% elif q.type == "image" %}
+    {% include "activities/_uploads.html" with question=q uploads=row.uploads editable=False %}
+  {% elif q.type == "open" %}
+    <div class="answer-text">{% if a.value %}{{ a.value|linebreaksbr }}{% else %}<span class="muted">{% translate "Sin respuesta." %}</span>{% endif %}</div>
+  {% else %}
+    <p><strong>{% translate "Respondió:" %}</strong> {% if a.value %}<span class="mono">{% if q.type == "numeric_list" %}{{ a.value|join:" · " }}{% else %}{{ a.value }}{% endif %}</span>{% else %}<span class="muted">{% translate "sin respuesta" %}</span>{% endif %}</p>
+    {% if reveal %}
+      {% if q.type == "text" %}<p class="small"><strong>{% translate "Se acepta:" %}</strong> {{ record.grading.accept|first }}</p>
+      {% else %}<p class="small"><strong>{% translate "Solución:" %}</strong> <span class="mono">{% if q.type == "numeric_list" %}{{ record.solution|join:" · " }}{% else %}{{ record.solution|unlocalize }}{% endif %}</span></p>{% endif %}
+    {% endif %}
+  {% endif %}
+  {% if q.rubric %}{% include "activities/_rubric.html" with rubric=q.rubric %}{% endif %}
+  {% if a.comment %}<p class="small comment"><strong>{% translate "Comentario del docente:" %}</strong> {{ a.comment|linebreaksbr }}</p>{% endif %}
+</div>
+{% endwith %}

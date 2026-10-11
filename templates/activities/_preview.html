@@ -1,0 +1,18 @@
+{% load i18n policlase %}
+{# Vista del docente: el contenido tal como lo verá el estudiante, más soluciones, referencia y rúbrica. #}
+<div class="card">
+  <h2 style="margin-top:0">{{ content.title }}</h2>
+  {% if content.instructions %}{{ content.instructions|md }}{% endif %}
+  <p class="small muted">{% blocktranslate with n=content.points|floatformat:"-2" %}{{ n }} puntos{% endblocktranslate %}{% if content.review %} · {% translate "con preguntas que califica usted" %}{% endif %}{% if content.ai %} · <span class="chip">IA</span>{% endif %}</p>
+</div>
+{% for item in content.items %}
+  <div class="card item-card" data-index="{{ forloop.counter0 }}">
+    <div class="spread small muted"><span class="mono">{{ item.item_id }}</span><span>{% blocktranslate with n=item.points|floatformat:"-2" %}{{ n }} pts{% endblocktranslate %}</span></div>
+    {% if item.stem %}{{ item.stem|md }}{% endif %}
+    {% for q in item.questions %}
+      {% with record=item.solutions|get_item:q.id %}
+        {% include "activities/_question_static.html" with q=q record=record reveal=True show_reference=True %}
+      {% endwith %}
+    {% endfor %}
+  </div>
+{% endfor %}

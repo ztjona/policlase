@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load static i18n policlase %}
+{% block title %}{{ attempt.student.display_name }} · {{ activity.title }}{% endblock %}
+{% block main %}
+<div class="muted small"><a href="{% url 'activity_detail' course.pk activity.pk %}">← {{ activity.title }}</a></div>
+<div class="spread">
+  <h1>{{ attempt.student.display_name }}</h1>
+  <strong class="score">{{ attempt.points|floatformat:"-2" }} / {{ attempt.max_points|floatformat:"-2" }}</strong>
+</div>
+<p class="small muted">
+  {% blocktranslate with n=attempt.number when=attempt.submitted_at|date:"D d M Y, H:i" %}Intento {{ n }}, enviado el {{ when }}{% endblocktranslate %}
+  {% if attempt.late %}<span class="chip warn">{% blocktranslate with p=attempt.penalty %}atrasado (−{{ p }} %){% endblocktranslate %}</span>{% endif %}
+  {% for f in flags %}<span class="chip">{{ f }}</span> {% endfor %}
+</p>
+{% if others|length > 1 %}
+  <p class="small">{% translate "Intentos:" %} {% for o in others %}{% if o.pk == attempt.pk %}<strong>{{ o.number }}</strong>{% else %}<a href="{% url 'attempt_review' course.pk activity.pk o.pk %}">{{ o.number }}</a>{% endif %} ({{ o.points|floatformat:"-2" }}){% if not forloop.last %} · {% endif %}{% endfor %}
+    <span class="muted">— {% translate "cuenta el último" %}</span></p>
+{% endif %}
+
+{% for item in attempt.content.items %}
+  <section class="card stack">
+    {% if item.stem %}<div>{{ item.stem|md }}</div>{% endif %}
+    {% for row in rows %}{% if row.item.item_id == item.item_id %}
+      {% include "activities/_answer.html" with row=row reveal=True %}
+      {% if row.answer %}{% include "activities/_grade_form.html" with a=row.answer q=row.question %}{% endif %}
+    {% endif %}{% endfor %}
+  </section>
+{% endfor %}
+{% endblock %}
+{% block scripts %}
+<script defer src="{% static 'js/activity-teacher.js' %}"></script>
+{% endblock %}

@@ -1,0 +1,13 @@
+{% load i18n %}
+{# Nota del docente en una pregunta. Funciona sin JavaScript (vuelve a `next`); con él, guarda en el sitio. #}
+<form method="post" action="{% url 'activity_answer_grade' course.pk activity.pk a.pk %}" class="grade-form row" data-grade-form>
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+  <label class="small" style="margin:0">{% translate "Nota" %}
+    <input type="number" name="points" step="0.01" min="0" max="{{ q.points }}" value="{% if not a.needs_review %}{{ a.points|stringformat:'g' }}{% endif %}"
+           class="points-input" required> / {{ q.points|floatformat:"-2" }}</label>
+  <input type="text" name="comment" value="{{ a.comment }}" placeholder="{% translate 'Comentario para el estudiante (opcional)' %}" class="comment-input" maxlength="2000">
+  <button type="submit" class="small">{% translate "Guardar" %}</button>
+  {% if a.auto_points is not None and a.graded_at %}<button type="submit" name="restore" value="1" class="secondary small" formnovalidate>{% translate "Volver a la automática" %}</button>{% endif %}
+  <span class="small muted" data-grade-status role="status">{% if a.needs_review %}{% translate "por revisar" %}{% elif a.graded_at %}{% translate "calificada" %}{% endif %}</span>
+</form>

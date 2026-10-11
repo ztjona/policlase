@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Calificaciones" %} · {{ course.name }}{% endblock %}
+{% block main %}
+<div class="muted small"><a href="{% url 'course_detail' course.pk %}">← {{ course.name }}</a></div>
+<h1>{% translate "Calificaciones" %}</h1>
+<p class="muted">{% blocktranslate with max=rules.period_max|floatformat:"-2" %}Cada parcial vale {{ max }}. Los componentes opcionales suman encima de los obligatorios: sirven para compensar lo que le falte, pero el parcial no pasa de {{ max }}.{% endblocktranslate %}</p>
+
+{% for pg in grades.periods %}
+  <section class="card">
+    <div class="spread">
+      <h2 style="margin-top:0">{{ pg.period.name }}</h2>
+      <span class="small muted">{% if pg.period.starts_on %}{{ pg.period.starts_on|date:"d M" }}{% endif %}{% if pg.period.ends_on %} – {{ pg.period.ends_on|date:"d M Y" }}{% endif %}</span>
+    </div>
+    <div class="table-wrap">
+      <table class="mine">
+        <thead><tr><th>{% translate "Componente" %}</th><th class="num">{% translate "Peso" %}</th><th class="num">{% translate "Puntos" %}</th></tr></thead>
+        <tbody>
+          {% for c in pg.cells %}
+            <tr>
+              <td>{{ c.category.name }}{% if c.category.optional %} <span class="chip ok">{% translate "opcional, extra" %}</span>{% endif %}</td>
+              <td class="num">{{ c.category.weight|floatformat:"-2" }} %</td>
+              <td class="num">{% if c.fraction is None %}<span class="muted">{% translate "aún nada" %}</span>{% else %}{{ c.points|floatformat:2 }} <span class="muted">/ {{ c.max_points|floatformat:"-2" }}</span>{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot><tr><td colspan="2"><strong>{% translate "Acumulado" %}</strong>{% if pg.at_stake %} <span class="small muted">{% blocktranslate with s=pg.at_stake|floatformat:2 %}(de {{ s }} en juego hasta hoy en lo obligatorio){% endblocktranslate %}</span>{% endif %}</td>
+          <td class="num"><strong>{{ pg.total|floatformat:2 }} / {{ pg.scale|floatformat:"-2" }}</strong></td></tr></tfoot>
+      </table>
+    </div>
+  </section>
+{% endfor %}
+
+<section class="card">
+  <h2 style="margin-top:0">{% translate "Aprobación" %}</h2>
+  <p>{% blocktranslate with fail=rules.fail_below|floatformat:"-2" ok=rules.pass_from|floatformat:"-2" mx=rules.makeup_max|floatformat:"-2" total=rules.makeup_total|floatformat:"-2" min=rules.makeup_min|floatformat:"-2" %}Con la suma de los parciales por debajo de {{ fail }} se pierde la materia; con {{ ok }} o más, se aprueba. En medio hay un examen supletorio sobre {{ mx }}: se aprueba si parciales más supletorio llegan a {{ total }} y el supletorio no baja de {{ min }}.{% endblocktranslate %}</p>
+  <p><strong>{% translate "Suma hasta hoy:" %}</strong> {{ grades.total|floatformat:2 }} {% if grades.status %}· {% include "grades/_status.html" with g=grades %}{% endif %}</p>
+</section>
+{% endblock %}

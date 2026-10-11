@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% load static i18n policlase %}
+{% block title %}{% translate "Revisar" %} · {{ activity.title }}{% endblock %}
+{% block main %}
+<div class="muted small"><a href="{% url 'activity_detail' course.pk activity.pk %}">← {{ activity.title }}</a></div>
+<h1>{% translate "Revisar por pregunta" %}</h1>
+<p class="small muted">{% blocktranslate count n=pending %}{{ n }} respuesta por revisar{% plural %}{{ n }} respuestas por revisar{% endblocktranslate %} · {% blocktranslate count n=rows|length %}{{ n }} entrega{% plural %}{{ n }} entregas{% endblocktranslate %}</p>
+
+<div class="review-layout">
+  <aside class="card review-aside stack">
+    {% include "activities/_question_static.html" with q=question record=record reveal=True show_reference=True %}
+    {% if question.grading.mode == "ai" %}<p class="small muted">{% translate "Marcada para calificación con IA. La propuesta automática aún no está activa: califique usted." %}</p>{% endif %}
+  </aside>
+  <div class="stack">
+    {% for r in rows %}{% with a=r.answer q=question %}
+      <section class="card stack{% if a.needs_review %} pending{% endif %}" id="r{{ a.pk }}">
+        <div class="spread"><strong>{% include "activities/_name.html" with s=r.student %}</strong>
+          <a class="small" href="{% url 'attempt_review' course.pk activity.pk r.attempt.pk %}">{% translate "ver entrega completa" %}</a></div>
+        {% if q.type == "image" %}
+          {% include "activities/_uploads.html" with question=q uploads=r.uploads editable=False %}
+        {% elif q.type == "open" %}
+          <div class="answer-text">{% if a.value %}{{ a.value|linebreaksbr }}{% else %}<span class="muted">{% translate "Sin respuesta." %}</span>{% endif %}</div>
+        {% else %}
+          <p class="mono">{{ a.value|default:"—" }}</p>
+        {% endif %}
+        {% include "activities/_grade_form.html" %}
+      </section>
+    {% endwith %}{% empty %}
+      <p class="muted">{% translate "Nadie ha respondido esta pregunta todavía." %}</p>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script defer src="{% static 'js/activity-teacher.js' %}"></script>
+{% endblock %}

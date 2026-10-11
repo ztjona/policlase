@@ -12,5 +12,6 @@ mdit-py-plugins>=0.4             # $…$ y $$…$$ sin que markdown destroce el 
 nh3>=0.2.17                      # saneado de HTML
 cryptography>=43                 # cifrado de los tokens de GitHub en la base
 segno>=1.6                       # QR del enlace de clase abierta (SVG, sin dependencias)
+Pillow>=11.0                     # entregas: se re-codifica cada imagen (sin EXIF ni GPS)
 
 # policlase-gen se instala desde el contexto de construcción `gen` (ver Dockerfile).

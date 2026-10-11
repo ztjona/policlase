@@ -1,4 +1,6 @@
 // Editor de presentaciones: panel de diapositivas | YAML en Monaco (el editor de VS Code) | vista previa.
+// También edita actividades (data-kind="activity"): sin panel de diapositivas, con ítems en vez de
+// diapositivas y con los tipos de pregunta que solo existen fuera de clase (abierta, imagen).
 //
 // El servidor valida y renderiza (deck_preview) mientras se escribe; los errores aparecen
 // subrayados en su línea. El panel lateral reordena y oculta diapositivas editando el texto
@@ -16,6 +18,7 @@
   var diag = document.getElementById("diagnostics");
   var titleEl = document.getElementById("deck-title");
   var body = document.getElementById("studio-body");
+  var isActivity = form.dataset.kind === "activity";
 
   var lines = [];            // línea (1-based) donde empieza cada diapositiva
   var timer = null, seq = 0, monaco = null, editor = null;
@@ -140,6 +143,7 @@
   function highlight(scroll) {
     var index = currentSlide();
     [preview, outline].forEach(function (root) {
+      if (!root) return;
       root.querySelectorAll("[data-index]").forEach(function (el) {
         var on = Number(el.dataset.index) === index;
         el.classList.toggle("current", on);
@@ -177,17 +181,17 @@
       var errors = (data.diagnostics || []).filter(function (d) { return d.severity === "error"; }).length;
       if (data.html !== null && data.html !== undefined) {
         preview.innerHTML = data.html;
-        outline.innerHTML = data.outline;
-        if (window.policlaseMath) { window.policlaseMath(preview); window.policlaseMath(outline); }
+        if (outline) outline.innerHTML = data.outline;
+        if (window.policlaseMath) { window.policlaseMath(preview); if (outline) window.policlaseMath(outline); }
         if (data.title) titleEl.textContent = data.title;
         setStatus(gettext("al día"), "ok");
         preview.classList.remove("stale");
-        outline.classList.remove("stale");
+        if (outline) outline.classList.remove("stale");
       } else {
         // Con errores se conserva la última vista válida, atenuada.
         setStatus(interpolate(ngettext("%s error", "%s errores", errors), [errors]), "bad");
         preview.classList.add("stale");
-        outline.classList.add("stale");
+        if (outline) outline.classList.add("stale");
       }
       highlight(false);
     }).catch(function () { setStatus(gettext("sin conexión"), "bad"); });
@@ -214,7 +218,7 @@
     });
   }
 
-  outline.addEventListener("click", function (e) {
+  if (outline) outline.addEventListener("click", function (e) {
     var thumb = e.target.closest(".thumb");
     if (!thumb) return;
     var index = Number(thumb.dataset.index), button = e.target.closest("[data-op]");
@@ -231,7 +235,7 @@
   });
 
   // Posar el mouse sobre una miniatura: la diapositiva tal como se verá.
-  if (window.policlaseHoverPreview) {
+  if (outline && window.policlaseHoverPreview) {
     window.policlaseHoverPreview(outline, ".thumb", function (thumb) {
       var card = preview.querySelector('.slide-card[data-index="' + thumb.dataset.index + '"]');
       return card ? card.outerHTML : "";
@@ -240,7 +244,7 @@
 
   // Arrastrar y soltar para reordenar.
   var dragged = null;
-  outline.addEventListener("dragstart", function (e) {
+  if (outline) outline.addEventListener("dragstart", function (e) {
     var thumb = e.target.closest(".thumb[draggable=true]");
     if (!thumb) return;
     dragged = Number(thumb.dataset.index);
@@ -248,12 +252,12 @@
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", String(dragged));
   });
-  outline.addEventListener("dragend", function () {
+  if (outline) outline.addEventListener("dragend", function () {
     outline.querySelectorAll(".dragging, .drop-before, .drop-after").forEach(function (el) {
       el.classList.remove("dragging", "drop-before", "drop-after");
     });
   });
-  outline.addEventListener("dragover", function (e) {
+  if (outline) outline.addEventListener("dragover", function (e) {
     var thumb = e.target.closest(".thumb:not(.is-fixed)");
     if (dragged === null || !thumb) return;
     e.preventDefault();
@@ -261,7 +265,7 @@
     var after = e.offsetY > thumb.offsetHeight / 2;
     thumb.classList.add(after ? "drop-after" : "drop-before");
   });
-  outline.addEventListener("drop", function (e) {
+  if (outline) outline.addEventListener("drop", function (e) {
     var thumb = e.target.closest(".thumb:not(.is-fixed)");
     if (dragged === null || !thumb) return;
     e.preventDefault();
@@ -309,13 +313,29 @@
     },
   };
 
+  // En una actividad cada elemento de `items` es el ítem mismo, dos espacios menos anidado.
+  function asItem(snippet) {
+    var out = snippet.replace("  - item:\n      id: ", "  - id: ").split("\n");
+    return out.map(function (line, i) { return i === 0 ? line : line.replace(/^ {2}/, ""); }).join("\n");
+  }
+
+  SNIPPETS.open = function () {
+    return head("open") + "          points: 2\n          prompt: " + q(gettext("Explique con sus palabras…")) + "\n" +
+      "          grading:\n            mode: manual\n            rubric:\n" +
+      "              - { criterion: " + q(gettext("Criterio") + " 1") + ", points: 1 }\n" +
+      "              - { criterion: " + q(gettext("Criterio") + " 2") + ", points: 1 }\n";
+  };
+  SNIPPETS.image = function () {
+    return head("image") + "          prompt: " + q(gettext("Suba la foto de su desarrollo a mano.")) + "\n          max_files: 3\n";
+  };
+
   function insert(kind) {
-    // Después de la diapositiva del cursor (antes de la siguiente) o al final de las diapositivas.
+    // Después de la diapositiva (o el ítem) del cursor, antes del siguiente, o al final.
     var index = currentSlide(), parts = ed.get().split("\n");
     var next = index >= 0 && lines[index + 1] ? lines[index + 1] - 1 : parts.length;
     var before = parts.slice(0, next).join("\n").replace(/\n*$/, "\n");
     var after = parts.slice(next).join("\n");
-    var snippet = SNIPPETS[kind]();
+    var snippet = isActivity ? asItem(SNIPPETS[kind]()) : SNIPPETS[kind]();
     ed.set(before + snippet + after);
     var first = before.split("\n").length;
     ed.select(first, first + snippet.split("\n").length - 1);
@@ -362,6 +382,20 @@
     partial: ["per_option", "per_statement", "all_or_nothing"],
     normalize: ["[lowercase, strip_accents, collapse_spaces]"],
   };
+  if (isActivity) {
+    KEYS.root = { schema: "Versión del formato: policlase.activity/v1", title: "Título de la actividad",
+                  instructions: "Indicaciones (markdown)", items: "Lista de ítems", meta: "Datos libres" };
+    KEYS.items = KEYS.item;
+    delete KEYS.items.lecture;
+    KEYS.questions.type = "choice · multi_choice · true_false · numeric · numeric_list · expression · text · open · image";
+    KEYS.questions.max_files = "image: cuántas imágenes (1–10)";
+    KEYS.grading.mode = "open/image: manual o ai (marcada para IA)";
+    KEYS.grading.rubric = "open/image: criterios con sus puntos";
+    KEYS.grading.reference = "open: respuesta esperada (no la ve el estudiante)";
+    VALUES.schema = ["policlase.activity/v1"];
+    VALUES.type = ["choice", "multi_choice", "true_false", "numeric", "numeric_list", "expression", "text", "open", "image"];
+    VALUES.mode = ["manual", "ai"];
+  }
   var KEY_LINE = /^(\s*)(-\s+)?([A-Za-z_][\w]*)\s*:/;
 
   function parents(model, lineNumber, keyIndent) {
@@ -478,7 +512,7 @@
     if (li && li.dataset.line) ed.goTo(Number(li.dataset.line));
   });
   preview.addEventListener("click", function (e) {
-    var card = e.target.closest(".slide-card");
+    var card = e.target.closest(".slide-card, .item-card");
     if (card && lines[Number(card.dataset.index)]) ed.goTo(lines[Number(card.dataset.index)]);
   });
 

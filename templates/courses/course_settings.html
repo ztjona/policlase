@@ -34,6 +34,12 @@
   </section>
 </div>
 
+<h2 id="ponderaciones">{% translate "Calificación" %}</h2>
+<section class="card spread">
+  <span>{% translate "Parciales, ponderación de cada componente (obligatorios y opcionales) y reglas de aprobación." %}</span>
+  <a class="btn secondary" href="{% url 'grading_settings' course.pk %}">{% translate "Ponderaciones y aprobación" %}</a>
+</section>
+
 <h2 id="github">{% translate "Sincronización con GitHub" %}</h2>
 <section class="card stack">
   {% if not github_account %}

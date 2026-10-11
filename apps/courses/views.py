@@ -105,7 +105,26 @@ def course_detail(request, pk):
     return render(request, "courses/course_detail.html", {
         "course": course,
         "live": LiveSession.objects.active().filter(course=course).first(),
+        "activities": _student_activities(course, request.user),
     })
+
+
+def _student_activities(course, user) -> list[dict]:
+    """Actividades visibles, con lo que le toca al estudiante: lo pendiente primero."""
+    from apps.activities import engine
+    from apps.activities.models import Activity
+
+    now = timezone.now()
+    rows = []
+    for activity in Activity.objects.filter(course=course, published=True).select_related("category__period"):
+        if not activity.is_visible(now):
+            continue
+        state = engine.state(activity, user, now)
+        todo = state.draft is not None or (state.can_start and state.counted is None)
+        rows.append({"activity": activity, "state": state, "todo": todo})
+    # Lo que falta entregar arriba, por fecha; lo entregado o cerrado después.
+    rows.sort(key=lambda r: (not r["todo"], r["activity"].due_at is None, r["activity"].due_at or now))
+    return rows
 
 
 # ---------------------------------------------------------------------------- docente
@@ -143,10 +162,10 @@ def course_manage(request, pk, tab="clases"):
 
     course = owned_course(request, pk)
     link = CourseRepo.objects.filter(course=course).first()
-    if link and tab == "clases":
+    if link and tab in ("clases", "actividades"):
         result = sync.maybe_pull(link)          # GitHub es la fuente: al abrir el curso, al día
         if result and result.changed:
-            messages.info(request, _("Presentaciones actualizadas desde GitHub."))
+            messages.info(request, _("Presentaciones y actividades actualizadas desde GitHub."))
     pending = (course.enrollments.filter(status=Status.PENDING)
                .select_related("student").order_by("requested_at"))
     context = {
@@ -169,7 +188,33 @@ def course_manage(request, pk, tab="clases"):
             "groups": groups, "has_decks": bool(decks),
             "past_sessions": LiveSession.objects.filter(course=course, status=LiveSession.Status.ENDED)[:10],
         })
+    elif tab == "actividades":
+        context.update(_activities_tab(course, context["approved_count"]))
     return render(request, "courses/course_manage.html", context)
+
+
+def _activities_tab(course, enrolled: int) -> dict:
+    """Actividades agrupadas por parcial (según su ponderación), con entregas y lo pendiente de revisar."""
+    from django.db.models import Count, Q
+
+    from apps.activities.models import Activity
+    from apps.grades.gradebook import ensure_defaults
+    from apps.grades.models import Period
+
+    ensure_defaults(course)
+    activities = list(
+        Activity.objects.filter(course=course).select_related("category__period", "due_milestone")
+        .annotate(submitted=Count("attempts__student", filter=Q(attempts__submitted_at__isnull=False),
+                                  distinct=True),
+                  to_review=Count("attempts__answer_rows", filter=Q(attempts__answer_rows__needs_review=True))))
+    groups = []
+    for period in Period.objects.filter(course=course):
+        rows = [a for a in activities if a.category_id and a.category.period_id == period.pk]
+        groups.append({"period": period, "activities": rows})
+    loose = [a for a in activities if not a.category_id]
+    if loose:
+        groups.append({"period": None, "activities": loose})
+    return {"activity_groups": groups, "has_activities": bool(activities), "enrolled": enrolled}
 
 
 @teacher_required

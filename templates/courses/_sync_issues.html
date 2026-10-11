@@ -1,0 +1,9 @@
+{% load i18n %}
+{# Archivos de GitHub que no se pudieron traer (errores) o que requieren atención. #}
+{% if link %}
+  {% for issue in link.issues %}
+    <div class="notice"><span><strong class="mono">{{ issue.path }}</strong>
+      {% if issue.note %}{{ issue.note }}{% else %}{% translate "tiene errores y no se actualizó:" %}
+      {% for d in issue.diagnostics|slice:":3" %}<code>{{ d.code }}</code> {{ d.message }}{% if d.line %} ({% blocktranslate with line=d.line %}línea {{ line }}{% endblocktranslate %}){% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}{% endif %}</span></div>
+  {% endfor %}
+{% endif %}

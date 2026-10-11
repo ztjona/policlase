@@ -1,0 +1,28 @@
+{% load i18n l10n policlase %}
+{# Una pregunta sin campos para responder. Con `reveal`, también la solución (y la referencia, para el docente). #}
+<div class="q-block{% if q.follow_up %} follow-up{% endif %}">
+  <div class="q-head">
+    <span class="chip">{{ q.points|floatformat:"-2" }} {% translate "pts" %}</span>
+    <span class="small muted">{% include "activities/_type_label.html" %}</span>
+    {% if q.grading.mode == "ai" %}<span class="chip" title="{% translate 'Marcada para calificación con IA (aún no activa: la califica el docente)' %}">IA</span>{% endif %}
+  </div>
+  {% if q.prompt %}<div class="prompt">{{ q.prompt|md }}</div>{% endif %}
+  {% if q.options %}
+    <ul class="opt-list">{% for o in q.options %}<li{% if reveal and o.key in record.correct %} class="right"{% endif %}><span class="tag">{{ forloop.counter0|letter }}</span> {{ o.text|md_inline }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if q.statements %}
+    <ul class="opt-list">{% for s in q.statements %}<li>{% if reveal %}<strong>{% if record.answers|get_item:s.key %}{% translate "V" context "inicial de verdadero" %}{% else %}{% translate "F" context "inicial de falso" %}{% endif %}</strong> — {% endif %}{{ s.text|md_inline }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if reveal %}
+    {% if q.type == "numeric" or q.type == "numeric_list" or q.type == "expression" %}
+      <p class="small"><strong>{% translate "Solución:" %}</strong> <span class="mono">{{ record.solution|unlocalize }}</span></p>
+    {% elif q.type == "text" %}
+      <p class="small"><strong>{% translate "Se acepta:" %}</strong> {% for a in record.grading.accept %}<span class="mono">{{ a }}</span>{% if not forloop.last %} · {% endif %}{% endfor %}</p>
+    {% endif %}
+    {% if record.grading.reference and show_reference %}
+      <details class="small"><summary>{% translate "Respuesta de referencia (solo la ve usted)" %}</summary>{{ record.grading.reference|md }}</details>
+    {% endif %}
+  {% endif %}
+  {% if q.rubric %}{% include "activities/_rubric.html" with rubric=q.rubric %}{% endif %}
+  {% if q.type == "image" %}<p class="small muted">{% blocktranslate count n=q.max_files %}Hasta {{ n }} imagen (JPEG, PNG o WebP).{% plural %}Hasta {{ n }} imágenes (JPEG, PNG o WebP).{% endblocktranslate %}</p>{% endif %}
+</div>

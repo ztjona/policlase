@@ -1,10 +1,16 @@
-"""Sincronización de presentaciones entre un curso y una carpeta de GitHub.
+"""Sincronización de presentaciones y actividades entre un curso y una carpeta de GitHub.
 
 - `pull`: GitHub → policlase. Compara los blob sha del árbol con los guardados y solo descarga
   lo que cambió. Un archivo con errores no reemplaza la versión válida anterior: queda anotado en
   `CourseRepo.issues` para mostrarlo en el curso.
 - `push_deck` / `delete_deck`: policlase → GitHub, con el sha conocido. Si alguien cambió el
   archivo en GitHub entretanto, GitHub responde conflicto y no se pisa nada.
+
+Cada YAML se reconoce por su `schema`: `policlase.deck/v1` es una presentación y
+`policlase.activity/v1` una actividad; los demás (ítems, configuración) se ignoran. Las
+actividades nuevas creadas en la web van a la subcarpeta `ACTIVITIES_FOLDER`. De GitHub llega solo
+su contenido: fechas, ponderación y publicación se deciden en policlase, y una actividad que llega
+por primera vez nace como borrador.
 
 Secciones: cada subcarpeta (primer nivel bajo la carpeta del curso) que contenga al menos una
 presentación —o el marcador `SECTION_MARKER`, para unidades aún vacías— es una sección. Así una
@@ -22,8 +28,10 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.translation import gettext as _
+from policlase_gen import activity as activityfmt
 from policlase_gen import deck as deckfmt
 
+from apps.activities.models import Activity
 from apps.live.models import Deck, Section
 
 from .client import Blob, Conflict, GitHubClient, GitHubError  # noqa: F401  (reexportados)
@@ -32,6 +40,8 @@ from .models import CourseRepo
 YAML_SUFFIXES = (".yaml", ".yml")
 #: Archivo vacío que mantiene en git una sección sin presentaciones todavía.
 SECTION_MARKER = ".policlase-seccion"
+#: Donde se guardan las actividades creadas en la web (las que llegan de GitHub quedan donde estén).
+ACTIVITIES_FOLDER = "actividades"
 #: Al abrir el curso se sincroniza si pasó al menos esto desde la última vez.
 AUTO_PULL_AFTER = timedelta(seconds=60)
 
@@ -100,12 +110,13 @@ def pull(link: CourseRepo) -> PullResult:
     markers = {_folder_of(link, path) for path in tree
                if path.startswith(link.prefix) and path.endswith("/" + SECTION_MARKER)}
     decks = {d.github_path: d for d in Deck.objects.filter(course=link.course).exclude(github_path="")}
+    activities = {a.github_path: a for a in Activity.objects.filter(course=link.course).exclude(github_path="")}
 
     previous_issues = {i["path"]: i for i in link.issues}
     skipped: dict[str, str] = {}
     for path, sha in sorted(files.items()):
-        deck = decks.get(path)
-        if deck and deck.github_sha == sha:
+        deck, activity = decks.get(path), activities.get(path)
+        if (deck and deck.github_sha == sha) or (activity and activity.github_sha == sha):
             continue
         if link.skipped.get(path) == sha:              # ya visto y descartado: sin cambios
             skipped[path] = sha
@@ -114,12 +125,28 @@ def pull(link: CourseRepo) -> PullResult:
             continue
         source = client.read(link.repo, sha)
         document, report = deckfmt.load_deck_text(source)
-        if document is not None and not deckfmt.is_deck(document):
+        is_activity = document is not None and activityfmt.is_activity(document)
+        if is_activity:
+            document, report = activityfmt.load_activity_text(source)
+        elif document is not None and not deckfmt.is_deck(document):
             skipped[path] = sha                        # otro YAML (ítems, configuración): no es nuestro
             continue
         if document is None or report.errors:
             skipped[path] = sha
             result.issues.append({"path": path, "diagnostics": _diagnostics(report)})
+            continue
+        if is_activity:
+            compiled = activityfmt.compile_activity(document)
+            if activity is None:
+                activities[path] = Activity.objects.create(
+                    course=link.course, title=compiled["title"], source=source, compiled=compiled,
+                    github_path=path, github_sha=sha)
+                result.created.append(path)
+            else:
+                activity.title, activity.source, activity.compiled, activity.github_sha = \
+                    compiled["title"], source, compiled, sha
+                activity.save(update_fields=["title", "source", "compiled", "github_sha", "updated_at"])
+                result.updated.append(path)
             continue
         compiled = deckfmt.compile_deck(document)
         if deck is None:
@@ -136,6 +163,18 @@ def pull(link: CourseRepo) -> PullResult:
             # Las clases ya dictadas guardan su copia de las diapositivas: borrar no pierde resultados.
             deck.delete()
             del decks[path]
+            result.deleted.append(path)
+    for path, activity in list(activities.items()):
+        if path not in files:
+            if activity.attempts.exists():
+                # Con entregas no se borra: se pierde el trabajo de los estudiantes. Queda en
+                # policlase, ya sin vínculo con GitHub.
+                Activity.objects.filter(pk=activity.pk).update(github_path="", github_sha="")
+                result.issues.append({"path": path, "diagnostics": [], "note": _(
+                    "se eliminó en GitHub, pero tiene entregas: se conservó en policlase sin sincronizar. "
+                    "Elimínela desde la actividad si ya no la necesita.")})
+            else:
+                activity.delete()
             result.deleted.append(path)
 
     _sync_sections(link, decks, markers)
@@ -223,6 +262,26 @@ def push_deck(link: CourseRepo, deck: Deck, source: str) -> tuple[str, str]:
     return new_path, shas[new_path]
 
 
+def push_activity(link: CourseRepo, activity: Activity, source: str) -> tuple[str, str]:
+    """Confirma la fuente de una actividad en GitHub; devuelve (ruta, sha nuevo). No la guarda."""
+    client = client_for(link.course.owner)
+    if activity.github_path:
+        sha = client.write(link.repo, link.branch, activity.github_path, source,
+                           f"Actualiza «{activity.title}» desde policlase", sha=activity.github_sha)
+        return activity.github_path, sha
+    taken = set(Activity.objects.filter(course=link.course).values_list("github_path", flat=True))
+    taken |= set(client.tree(link.repo, link.branch))
+    path = _path_for(f"{link.prefix}{ACTIVITIES_FOLDER}/", activity.title, taken)
+    sha = client.write(link.repo, link.branch, path, source, f"Crea «{activity.title}» desde policlase")
+    return path, sha
+
+
+def delete_activity(link: CourseRepo, activity: Activity) -> None:
+    if activity.github_path and activity.github_sha:
+        client_for(link.course.owner).delete(link.repo, link.branch, activity.github_path,
+                                             f"Elimina «{activity.title}» desde policlase", activity.github_sha)
+
+
 def delete_deck(link: CourseRepo, deck: Deck) -> None:
     if deck.github_path and deck.github_sha:
         client_for(link.course.owner).delete(link.repo, link.branch, deck.github_path,
@@ -287,4 +346,8 @@ def export_local_decks(link: CourseRepo) -> list[str]:
         exported.append(path)
     for section in Section.objects.filter(course=link.course, decks__isnull=True):
         create_section(link, section)
+    for activity in Activity.objects.filter(course=link.course, github_path=""):
+        path, sha = push_activity(link, activity, activity.source)
+        Activity.objects.filter(pk=activity.pk).update(github_path=path, github_sha=sha)
+        exported.append(path)
     return exported
