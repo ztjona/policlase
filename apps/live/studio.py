@@ -1,9 +1,10 @@
-"""El editor de contenido: presentaciones y actividades en un mismo estudio.
+"""El editor de contenido: clases, actividades (y luego evaluaciones) en un mismo estudio y un
+mismo formato (`policlase/v1`, con segmentos; los formatos anteriores siguen valiendo).
 
-Panel lateral (tipo, sección e índice de diapositivas o ítems) | YAML en Monaco | vista previa.
-El tipo lo dice el `schema` del texto: en un documento nuevo, elegir «Actividad» en el panel pone
-su plantilla, y pegar una actividad convierte el editor en uno de actividad. Un documento ya
-guardado conserva su tipo.
+Panel lateral (tipo, sección e índice) | YAML en Monaco | vista previa. El tipo lo dice el texto
+(`use:`, o el `schema` de los formatos anteriores): en un documento nuevo, elegir «Actividad» en
+el panel cambia `use:` (o pone la plantilla si aún no escribió nada), y pegar una actividad
+convierte el editor en uno de actividad. Un documento ya guardado conserva su tipo.
 
 La vista previa y el panel trabajan sobre el texto y no guardan nada: solo «Guardar» (o Ctrl+S)
 guarda, y en un curso vinculado eso es un commit en GitHub. Ni las presentaciones ni las
@@ -18,9 +19,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
-from policlase_gen import activity as activityfmt
-from policlase_gen import deck as deckfmt
 from policlase_gen import deck_text, loader
+from policlase_gen import document as content_format
 
 from apps.courses.access import owned_course, teacher_required
 
@@ -29,16 +29,17 @@ from .models import Deck, Section
 DECK, ACTIVITY = "deck", "activity"
 MAX_SOURCE = 512 * 1024
 
-DECK_TEMPLATE = r"""schema: policlase.deck/v1
+DECK_TEMPLATE = r"""schema: policlase/v1
 title: 'Nueva clase'
-defaults: { time_limit_s: 30 }
+use: class                  # class: clase en vivo · activity: actividad
+time_limit_s: 30            # segundos por pregunta (null: sin límite)
 
+# El LaTeX va entre comillas simples: en las dobles, \t, \f, \b… son escapes de YAML.
 slides:
   - markdown: |
       # Título de la clase
       Contenido con matemáticas: $f(x) = x^2 - 4$.
 
-  # El LaTeX va entre comillas simples: en las dobles, \t, \f, \b… son escapes de YAML.
   - item:
       id: L01-ejemplo
       questions:
@@ -52,44 +53,52 @@ slides:
             - { text: 'No tiene raíces reales' }
 """
 
-ACTIVITY_TEMPLATE = r"""schema: policlase.activity/v1
+ACTIVITY_TEMPLATE = r"""schema: policlase/v1
 title: 'Deber 1'
+use: activity               # class: clase en vivo · activity: actividad
 instructions: |
   Resuelva cada ejercicio. Las fechas, el peso y los intentos se configuran en policlase,
   no en este archivo.
 
 # El LaTeX va entre comillas simples: en las dobles, \t, \f, \b… son escapes de YAML.
-items:
-  - id: D01-ejemplo
-    questions:
-      - id: q1
-        type: numeric
-        prompt: '¿Cuánto vale $\sqrt{2}$ con cuatro decimales?'
-        solution: 1.4142
-        grading: { atol: 0.0001 }
-      - id: q2
-        type: open
-        points: 2
-        prompt: 'Explique con sus palabras qué es el error de truncamiento.'
-        grading:
-          mode: manual            # ai: marcada para calificación con IA (aún no activa)
-          rubric:
-            - { criterion: 'Define el error de truncamiento', points: 1 }
-            - { criterion: 'Da un ejemplo', points: 1 }
-      - id: q3
-        type: image
-        prompt: 'Suba la foto de su desarrollo a mano.'
-        max_files: 3
+slides:
+  - item:
+      id: D01-ejemplo
+      questions:
+        - id: q1
+          type: numeric
+          prompt: '¿Cuánto vale $\sqrt{2}$ con cuatro decimales?'
+          solution: 1.4142
+          grading: { atol: 0.0001 }
+        - id: q2
+          type: open
+          points: 2
+          prompt: 'Explique con sus palabras qué es el error de truncamiento.'
+          grading:
+            mode: manual          # ai: marcada para calificación con IA (aún no activa)
+            rubric:
+              - { criterion: 'Define el error de truncamiento', points: 1 }
+              - { criterion: 'Da un ejemplo', points: 1 }
+
+  # Un segmento cambia el comportamiento de lo que sigue: aquí, 60 s por pregunta y sin pegar.
+  - segment: { title: 'Con tiempo', time_limit_s: 60, block_paste: true }
+
+  - item:
+      id: D01-rapida
+      questions:
+        - { id: q1, type: numeric, prompt: '¿Cuánto es $2^{10}$?', solution: 1024, grading: { atol: 0 } }
+
+  - segment: {}             # vuelve a lo de todo el documento
+
+  - item:
+      id: D01-foto
+      questions:
+        - { id: q1, type: image, prompt: 'Suba la foto de su desarrollo a mano.', max_files: 3 }
 """
 
 TEMPLATES = {DECK: DECK_TEMPLATE, ACTIVITY: ACTIVITY_TEMPLATE}
-SCHEMA_LINE = re.compile(r"^schema\s*:\s*['\"]?policlase\.(deck|activity)/", re.MULTILINE)
-
-
-def kind_of(source: str, default: str) -> str:
-    """El tipo que declara el texto en su línea `schema`; sin ella, `default`."""
-    match = SCHEMA_LINE.search(source or "")
-    return match.group(1) if match else default
+#: `use` del formato → tipo de la plataforma. Las evaluaciones llegan con su pestaña.
+KINDS = {"class": DECK, "activity": ACTIVITY}
 
 
 def _diagnostics(report) -> list[dict]:
@@ -103,12 +112,19 @@ def _course_link(course):
     return CourseRepo.objects.filter(course=course).select_related("course__owner").first()
 
 
-def _load(kind: str, source: str):
-    return (activityfmt.load_activity_text if kind == ACTIVITY else deckfmt.load_deck_text)(source)
+def _load(source: str):
+    """(documento, reporte, tipo): el tipo según el texto, o None si no lo dice."""
+    document, report, use = content_format.load_text(source)
+    return document, report, (KINDS.get(use, use) if use else None)
 
 
-def _compile(kind: str, document) -> dict:
-    return (activityfmt.compile_activity if kind == ACTIVITY else deckfmt.compile_deck)(document)
+def _lines(document, compiled_list) -> list:
+    """Línea de cada diapositiva o bloque compilado (por su `at`): el editor resalta la del cursor."""
+    found = content_format.entries(document)
+    if found is None:
+        return []
+    return [loader.line_of(found, entry["at"]) if isinstance(entry.get("at"), int) and entry["at"] < len(found)
+            else None for entry in compiled_list]
 
 
 @teacher_required
@@ -142,18 +158,20 @@ def editor(request, course_pk, kind=DECK, pk=None):
             source = upload.read().decode("utf-8", errors="replace")
         else:
             source = request.POST.get("source", "")
-        found = kind_of(source, kind)
-        if content is None:
+        document, report, found = _load(source)
+        found = found or kind
+        if found == "evaluation":
+            messages.error(request, _("Las evaluaciones estarán disponibles con la pestaña Evaluaciones; por ahora, "
+                                      "guarde el documento como actividad (use: activity)."))
+        elif content is not None and found != kind:
+            messages.error(request, _("No se guardó: el documento es una presentación y el texto corresponde a una "
+                                      "actividad, o viceversa. Para crear un documento del otro tipo, use los botones "
+                                      "de creación de la sección."))
+        else:
             kind = found
-        elif found != kind:
-            messages.error(request, _("Este documento es una presentación y el texto es de una actividad (o al "
-                                      "revés); no se guardó. Para crear el otro tipo, use «Nuevo» en la sección."))
-            found = None
-        if found:
-            response = _save(request, course, link, kind, content, source, section)
+            response = _save(request, course, link, kind, content, source, section, document, report)
             if response:
                 return response
-        document, report = _load(kind, source)
         diagnostics = _diagnostics(report)
 
     return render(request, "live/studio.html", {
@@ -172,18 +190,17 @@ def _back_url(course, kind, content) -> str:
     return reverse("deck_view", args=[course.pk, content.pk])
 
 
-def _save(request, course, link, kind, content, source, section):
-    """Valida, confirma en GitHub (si hay vínculo) y guarda. Devuelve la redirección, o None si no
-    se guardó (los mensajes ya dicen por qué y el texto sigue en el editor)."""
+def _save(request, course, link, kind, content, source, section, document, report):
+    """Confirma en GitHub (si hay vínculo) y guarda un documento ya validado. Devuelve la
+    redirección, o None si no se guardó (los mensajes dicen por qué y el texto sigue en el editor)."""
     from apps.activities.models import Activity
     from apps.github import sync
 
-    document, report = _load(kind, source)
     if document is None or report.errors:
         messages.error(request, _("La actividad tiene errores; no se guardó.") if kind == ACTIVITY
                        else _("La presentación tiene errores; no se guardó."))
         return None
-    compiled = _compile(kind, document)
+    compiled = content_format.compile_content(document)
     new = content is None
     content = content or (Activity if kind == ACTIVITY else Deck)(course=course)
     content.title = compiled["title"]
@@ -215,7 +232,7 @@ def _save(request, course, link, kind, content, source, section):
         messages.info(request, _("Confirmado en GitHub: %(path)s") % {"path": content.github_path})
     if kind == ACTIVITY:
         if new:
-            messages.info(request, _("Elija su ponderación y su fecha de entrega, y publíquela."))
+            messages.info(request, _("Asigne la ponderación y la fecha de entrega, y publique la actividad."))
         return redirect("activity_detail", course_pk=course.pk, pk=content.pk)
     return redirect("deck_view", course_pk=course.pk, pk=content.pk)
 
@@ -227,29 +244,47 @@ def preview(request, course_pk):
     owned_course(request, course_pk)
     source = request.POST.get("source", "")
     posted = request.POST.get("kind") if request.POST.get("kind") in TEMPLATES else DECK
-    # Un documento guardado conserva su tipo: se valida como tal aunque el texto diga otra cosa.
-    kind = posted if request.POST.get("fixed") else kind_of(source, posted)
     if len(source) > MAX_SOURCE:
-        return JsonResponse({"kind": kind, "html": None, "lines": [], "diagnostics": [{
+        return JsonResponse({"kind": posted, "html": None, "lines": [], "diagnostics": [{
             "code": "", "severity": "error", "line": None, "where": "", "message": _("El archivo supera 512 KB.")}]})
-    document, report = _load(kind, source)
+    document, report, found = _load(source)
+    # Un documento guardado conserva su tipo: si el texto dice otro, se avisa en vez de cambiar.
+    kind = found or posted
     payload = {"kind": kind, "diagnostics": _diagnostics(report), "html": None, "lines": []}
-    key = "items" if kind == ACTIVITY else "slides"
-    if document is not None and not report.errors:
-        compiled = _compile(kind, document)
-        if kind == ACTIVITY:
-            payload["html"] = render_to_string("activities/_preview.html", {"content": compiled}, request)
-            payload["outline"] = render_to_string("activities/_item_outline.html", {"items": compiled["items"]},
-                                                  request)
-        else:
+    if request.POST.get("fixed") and found and found != posted:
+        payload["kind"] = posted
+        payload["diagnostics"].insert(0, {"code": "", "severity": "error", "line": None, "where": "",
+                                          "message": _("Este documento se guardó con otro tipo, que no puede "
+                                                       "cambiarse desde el texto.")})
+        return JsonResponse(payload)
+    if document is not None and not report.errors and found in (DECK, ACTIVITY, "evaluation"):
+        compiled = content_format.compile_content(document)
+        if found == DECK:
             payload["html"] = render_to_string("live/_deck_slides.html", {"slides": compiled["slides"]}, request)
-            payload["outline"] = render_to_string("live/_deck_outline.html", {"slides": compiled["slides"]},
-                                                  request)
+            outline = _class_outline(compiled)
+            payload["lines"] = _lines(document, compiled["slides"])
+        else:
+            payload["html"] = render_to_string("activities/_preview.html", {"content": compiled}, request)
+            outline = [{**block, "index": index} for index, block in enumerate(compiled["items"])]
+            payload["lines"] = _lines(document, compiled["items"])
+        found_list = content_format.entries(document) or []
+        for entry in outline:
+            at = entry.get("at")
+            entry["line"] = loader.line_of(found_list, at) if isinstance(at, int) and at < len(found_list) else None
+        payload["outline"] = render_to_string("live/_outline.html", {"entries": outline, "kind": found}, request)
         payload["title"] = compiled["title"]
-    if document is not None and isinstance(document.get(key), list):
-        # Línea donde empieza cada diapositiva o ítem: el editor resalta la que tiene el cursor.
-        payload["lines"] = [loader.line_of(document[key], i) for i in range(len(document[key]))]
     return JsonResponse(payload)
+
+
+def _class_outline(compiled: dict) -> list[dict]:
+    """Las diapositivas de una clase con los segmentos intercalados donde empiezan."""
+    out, segments = [], list(compiled.get("segments") or [])
+    for index, slide in enumerate(compiled["slides"]):
+        while segments and isinstance(slide.get("at"), int) and segments[0]["at"] < slide["at"]:
+            out.append({"kind": "segment", "index": None, **segments.pop(0)})
+        out.append({**slide, "index": index})
+    out[-1:-1] = [{"kind": "segment", "index": None, **s} for s in segments]     # segmentos al final, antes de la retroalimentación
+    return out
 
 
 @teacher_required
@@ -263,15 +298,17 @@ def ops(request, course_pk):
     """
     owned_course(request, course_pk)
     source, op = request.POST.get("source", ""), request.POST.get("op", "")
-    activity = kind_of(source, DECK) == ACTIVITY
+    # Las posiciones son las de la lista del archivo: `items` en el formato anterior de actividad,
+    # `slides` en los demás (con los segmentos contados como una entrada más).
+    legacy_activity = bool(re.search(r"^schema\s*:\s*['\"]?policlase\.activity/", source, re.MULTILINE))
     try:
         index = int(request.POST.get("index", "-1"))
         if op == "move":
             target = int(request.POST.get("target", "-1"))
-            source = (deck_text.move_item if activity else deck_text.move_slide)(source, index, target)
-        elif op in ("hide", "show") and not activity:
+            source = (deck_text.move_item if legacy_activity else deck_text.move_slide)(source, index, target)
+        elif op in ("hide", "show") and not legacy_activity:
             source = deck_text.set_hidden(source, index, op == "hide")
-        elif op in ("feedback_on", "feedback_off") and not activity:
+        elif op in ("feedback_on", "feedback_off"):
             source = deck_text.set_feedback(source, op == "feedback_on")
         else:
             return JsonResponse({"error": _("Operación desconocida.")}, status=400)

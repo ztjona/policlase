@@ -2,8 +2,8 @@
 
 Referencia de cómo policlase lee y escribe las presentaciones y actividades de un curso en un
 repositorio de GitHub. El formato de cada archivo (`policlase.deck/v1`, `policlase.activity/v1`)
-está en [`policlase-gen/docs/schema.md`](../../policlase-gen/docs/schema.md) §9 y §10; aquí se documenta lo que
-hace la plataforma con esos archivos. Implementación: `apps/github/` (`sync.py`, `client.py`,
+está en [`policlase-gen/docs/schema.md`](../../policlase-gen/docs/schema.md) §9 (formato único `policlase/v1`,
+con segmentos) y §10; aquí se documenta lo que hace la plataforma con esos archivos. Implementación: `apps/github/` (`sync.py`, `client.py`,
 `views.py`), con pruebas en `apps/github/tests.py`.
 
 **Principio: GitHub es la fuente de verdad.** Lo que se empuja a GitHub aparece en policlase; lo
@@ -32,8 +32,10 @@ Dentro de la carpeta vinculada:
 
 | En GitHub | En policlase |
 |---|---|
-| Un `.yaml`/`.yml` con `schema: policlase.deck/v1` y sin errores | Una presentación |
-| Un `.yaml` con `schema: policlase.activity/v1` y sin errores | Una actividad; la primera vez llega como **borrador** (falta decidir fechas y ponderación en policlase) |
+| Un `.yaml`/`.yml` con `schema: policlase/v1` y `use: class` (o `schema: policlase.deck/v1`), sin errores | Una presentación (clase en vivo) |
+| Un `.yaml` con `schema: policlase/v1` y `use: activity` (o `schema: policlase.activity/v1`), sin errores | Una actividad; la primera vez llega como **borrador** (falta decidir fechas y ponderación en policlase) |
+| Un `.yaml` con `use: evaluation` | Un aviso: las evaluaciones llegan con su pestaña |
+| Un archivo que cambió de `use` (de clase a actividad o al revés) | Un aviso; lo que ya existe no se convierte (tiene clases o entregas): cree un archivo nuevo |
 | Un `.yaml` con errores | Un aviso en el curso (archivo, línea, código); **se conserva la última versión válida** |
 | Otro YAML (ítems, configuración) | Se ignora |
 | Un archivo borrado | La presentación se elimina (las clases ya dictadas conservan su copia y sus resultados). Una actividad **sin entregas** se elimina; **con entregas** se conserva en policlase, ya sin vínculo, y el curso lo avisa |
@@ -60,6 +62,9 @@ hasta que cambien.
   presentaciones dentro de una sección: use prefijos numéricos (`01-biseccion.yaml`) para fijarlo.
 - La sección y el parcial son cosas distintas: una unidad puede repartirse entre dos parciales. El
   parcial de una actividad lo decide su fecha de entrega, que vive en policlase, no en GitHub.
+- Los **registros manuales** (notas de algo hecho fuera de policlase) viven solo en policlase. Si la
+  carpeta de una sección desaparece de GitHub y la sección tiene registros, la sección se conserva
+  para que no queden sin unidad; arrástrelos a otra y elimínela.
 
 Estructura recomendada (vincule el curso a `metodos-numericos/clases`):
 

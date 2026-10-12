@@ -11,7 +11,7 @@
        href="https://github.com/{{ link.repo }}/tree/{{ link.branch }}/{{ link.folder }}"
        aria-label="{% translate 'Sincronizado con GitHub' %}"
        data-tip="{% blocktranslate with repo=link.repo folder=link.folder branch=link.branch %}Sincronizado con GitHub: {{ repo }}/{{ folder }} (rama {{ branch }}).{% endblocktranslate %}
-{% translate 'Cada carpeta con presentaciones es una sección.' %}{% if link.last_synced_at %}
+{% translate 'Cada carpeta con presentaciones o actividades corresponde a una sección.' %}{% if link.last_synced_at %}
 {% blocktranslate with when=link.last_synced_at|timesince %}Última sincronización hace {{ when }}.{% endblocktranslate %}{% endif %}{% if link.last_error %}
 ⚠ {{ link.last_error }}{% endif %}">{% icon "github" 20 %}</a>
   {% endif %}
@@ -84,7 +84,7 @@
 {% if tab == "clases" %}
   {% include "courses/_tab_classes.html" %}
 {% elif tab == "evaluaciones" %}
-  <div class="card muted">{% translate "Próximamente: pruebas y exámenes con preguntas generadas por estudiante (policlase-gen)." %}</div>
+  <div class="card muted">{% translate "Próximamente: pruebas y exámenes con preguntas generadas para cada estudiante (policlase-gen)." %}</div>
 {% else %}
   {% include "courses/_tab_activities.html" %}
 {% endif %}

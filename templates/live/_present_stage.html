@@ -24,7 +24,7 @@
       <h1>{% translate "Clase en pausa" %}</h1>
       <p class="url">{% blocktranslate with n=position total=visible_total %}Se retoma en la diapositiva {{ n }} de {{ total }}.{% endblocktranslate %}
         {% if paused_left_s is not None %}{% blocktranslate with s=paused_left_s %}La pregunta abierta conserva {{ s }} s.{% endblocktranslate %}{% endif %}</p>
-      <p class="meter">{% translate "Reanude cuando vuelva a tener a la clase, aunque sea otro día. O termínela aquí: los resultados cuentan solo las preguntas que se hicieron." %}</p>
+      <p class="meter">{% translate "Puede reanudarla en otro momento, incluso otro día, o terminarla ahora; en ese caso, los resultados consideran solo las preguntas realizadas." %}</p>
     </div>
   {% elif session.status == "ended" %}
     <div class="slide">
@@ -59,7 +59,7 @@
         {% if session.phase == "closed" or session.phase == "results" %}
           <div class="bars">
             {% for b in stats.bars %}
-              <div class="bar{% if session.phase == 'results' %}{% if b.correct %} right{% else %} wrong{% endif %}{% endif %}">
+              <div class="bar{% if session.phase == 'results' and not slide.question.survey %}{% if b.correct %} right{% else %} wrong{% endif %}{% endif %}">
                 <div class="bar-label"><span class="tag o{{ forloop.counter0 }}">{{ forloop.counter0|letter }}</span><span>{{ b.text|md_inline }}</span>{% if session.phase == 'results' and b.correct %}<span class="mark" aria-label="{% translate 'correcta' %}">✓</span>{% endif %}</div>
                 <div class="count">{{ b.count }}</div>
                 <div class="fill-track"><div class="fill o{{ forloop.counter0 }}" style="width:{% widthratio b.count stats.total|default:1 100 %}%"></div></div>
@@ -112,7 +112,9 @@
       <p class="meter">
         {% if session.phase == "ready" %}{% translate "Pregunta lista — ábrala cuando todos la hayan leído." %}
         {% elif session.phase == "open" %}{% blocktranslate %}{{ answered }} de {{ connected }} conectados respondieron.{% endblocktranslate %}
+        {% elif session.phase == "closed" and slide.question.survey %}{% if answered and answered >= connected %}{% translate "Respondieron todos." %} {% endif %}{% blocktranslate %}Encuesta cerrada: {{ answered }} respuestas.{% endblocktranslate %}
         {% elif session.phase == "closed" %}{% if answered and answered >= connected %}{% translate "Respondieron todos." %} {% endif %}{% blocktranslate with correct=stats.correct %}Cerrada: {{ answered }} respuestas, {{ correct }} correctas.{% endblocktranslate %}
+        {% elif session.phase == "results" and slide.question.survey %}{% blocktranslate %}Encuesta: {{ answered }} respuestas.{% endblocktranslate %}
         {% elif session.phase == "results" %}{% blocktranslate with correct=stats.correct %}{{ correct }} de {{ answered }} acertaron.{% endblocktranslate %}{% endif %}
       </p>
 
@@ -127,7 +129,7 @@
   <div class="controls">
     {% if session.status == "lobby" %}
       <button data-action="start" class="big">{% translate "Iniciar clase" %}</button>
-      <label class="check-toggle" title="{% translate 'En el marcador, responder rápido vale más (hasta el doble que al final del tiempo). La nota no cambia.' %}">
+      <label class="check-toggle" title="{% translate 'En el marcador, las respuestas rápidas valen más (hasta el doble que al final del tiempo). La nota no se ve afectada.' %}">
         <input type="checkbox" data-toggle-action="speed" {% if session.speed_bonus %}checked{% endif %}>
         {% translate "Bono por rapidez" %}
       </label>
@@ -138,18 +140,18 @@
       {% if session.phase == "ready" %}<button data-action="open" title="{% translate 'Espacio' %}">{% translate "Abrir pregunta" %}</button>{% endif %}
       {% if session.phase == "open" %}<button data-action="close" title="{% translate 'Espacio' %}">{% translate "Cerrar ya" %}</button>{% endif %}
       {% if session.phase == "open" and session.closes_at %}<button data-action="extend" class="secondary" title="{% translate 'Da más tiempo a todos' %}">+15 s</button>
-        <button data-action="unlimit" class="secondary" title="{% translate 'Quitar el límite: se cierra a mano o cuando respondan todos' %}">∞</button>{% endif %}
-      {% if session.phase == "closed" %}<button data-action="extend" class="secondary" title="{% translate 'Quienes no alcanzaron pueden responder; las respuestas dadas se mantienen' %}">{% translate "Reabrir +15 s" %}</button>{% endif %}
+        <button data-action="unlimit" class="secondary" title="{% translate 'Quitar el límite: se cierra manualmente o cuando respondan todos' %}">∞</button>{% endif %}
+      {% if session.phase == "closed" %}<button data-action="extend" class="secondary" title="{% translate 'Quienes no alcanzaron a responder pueden hacerlo; las respuestas ya enviadas se mantienen' %}">{% translate "Reabrir +15 s" %}</button>{% endif %}
       {% if session.phase == "closed" %}<button data-action="reveal" title="{% translate 'Espacio' %}">{% translate "Mostrar respuesta" %}</button>{% endif %}
       <button data-action="next" class="secondary" {% if not has_next or session.phase == "open" %}disabled{% endif %} title="{% translate 'Flecha derecha' %}">{% translate "Siguiente" %} ▶</button>
       {% include "live/_guest_toggle.html" %}
-      <button data-action="pause" class="secondary" title="{% translate 'Para retomarla otro día donde quedó' %}">❚❚ {% translate "Pausar" %}</button>
+      <button data-action="pause" class="secondary" title="{% translate 'Permite retomarla otro día desde donde quedó' %}">❚❚ {% translate "Pausar" %}</button>
       <button data-action="end" class="danger" data-confirm="{% translate '¿Terminar la clase? Los estudiantes ya no podrán responder.' %}">{% translate "Terminar" %}</button>
     {% elif session.status == "paused" %}
       <button data-action="resume" class="big" title="{% translate 'Espacio' %}">▶ {% translate "Reanudar" %}</button>
       {% include "live/_guest_toggle.html" %}
       <a class="btn secondary" href="{% url 'session_results' session.pk %}">{% translate "Resultados hasta ahora" %}</a>
-      <button data-action="end" class="danger" data-confirm="{% translate '¿Terminar la clase en este punto? Los resultados cuentan solo las preguntas que se hicieron.' %}">{% translate "Terminar aquí" %}</button>
+      <button data-action="end" class="danger" data-confirm="{% translate '¿Terminar la clase en este punto? Los resultados consideran solo las preguntas realizadas.' %}">{% translate "Terminar aquí" %}</button>
     {% endif %}
   </div>
 </div>

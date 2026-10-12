@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.db import IntegrityError, transaction
+from django.db.models import Count, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -175,9 +176,20 @@ def course_manage(request, pk, tab="clases"):
     }
     if tab == "clases":
         from apps.activities.models import Activity
+        from apps.grades.models import ManualRecord
 
         decks = list(Deck.objects.filter(course=course))
         activities = list(Activity.objects.filter(course=course).select_related("category__period"))
+        records = list(ManualRecord.objects.filter(course=course).select_related("category__period")
+                       .annotate(scored=Count("scores")))
+        # Cada presentación muestra cuándo se dictó, con sus resultados: junto a ella quedan las
+        # actividades y los registros manuales de la misma unidad (un cuestionario hecho en esa clase).
+        taught: dict[int, list] = {}
+        for session in (LiveSession.objects.filter(course=course, status=LiveSession.Status.ENDED, deck__isnull=False)
+                        .order_by("started_at", "created_at")):
+            taught.setdefault(session.deck_id, []).append(session)
+        for d in decks:
+            d.taught = taught.get(d.pk, [])
         key = (lambda d: sync.natural_key(d.github_path)) if link else (lambda d: d.pk)
         sections = list(Section.objects.filter(course=course))
         if link:
@@ -186,15 +198,17 @@ def course_manage(request, pk, tab="clases"):
         # enterrada bajo una lista creciente de presentaciones sin sección.
         groups = [{"section": s,
                    "decks": sorted([d for d in decks if d.section_id == s.pk], key=key),
-                   "activities": sorted([a for a in activities if a.section_id == s.pk], key=key)}
+                   "activities": sorted([a for a in activities if a.section_id == s.pk], key=key),
+                   "records": [r for r in records if r.section_id == s.pk]}
                   for s in sections]
         groups.append({"section": None,
                        "decks": sorted([d for d in decks if d.section_id is None], key=key),
-                       "activities": sorted([a for a in activities if a.section_id is None], key=key)})
+                       "activities": sorted([a for a in activities if a.section_id is None], key=key),
+                       "records": [r for r in records if r.section_id is None]})
         for group in groups:
-            group["count"] = len(group["decks"]) + len(group["activities"])
+            group["count"] = len(group["decks"]) + len(group["activities"]) + len(group["records"])
         context.update({
-            "groups": groups, "has_content": bool(decks or activities),
+            "groups": groups, "has_content": bool(decks or activities or records),
             "current_section": current_section(course, sections),
             "past_sessions": LiveSession.objects.filter(course=course, status=LiveSession.Status.ENDED)[:10],
         })
@@ -229,10 +243,8 @@ def _activities_tab(course, enrolled: int, wanted: str = "") -> dict:
     """Todas las actividades del curso en una vista: por parcial (según su ponderación), con su
     unidad, entregas y lo pendiente de revisar. Se filtra por fila de la ponderación (deberes,
     extracurriculares…). Cada actividad vive en su unidad, en la pestaña Clases."""
-    from django.db.models import Count, Q
-
     from apps.activities.models import Activity
-    from apps.grades.gradebook import ensure_defaults, mismatch
+    from apps.grades.gradebook import ensure_defaults, mismatch, period_for
     from apps.grades.models import ManualRecord, Period
 
     ensure_defaults(course)
@@ -254,7 +266,7 @@ def _activities_tab(course, enrolled: int, wanted: str = "") -> dict:
         wanted = ""
     for a in activities:
         a.mismatch = mismatch(a, periods)
-    records = list(ManualRecord.objects.filter(course=course).select_related("category__period"))
+    records = list(ManualRecord.objects.filter(course=course).select_related("category__period", "section"))
     if wanted:
         records = [r for r in records if r.category_id and r.category.name == wanted]
     groups = []
@@ -263,9 +275,16 @@ def _activities_tab(course, enrolled: int, wanted: str = "") -> dict:
                        "activities": [a for a in activities if a.category_id and a.category.period_id == period.pk],
                        "records": [r for r in records if r.category_id and r.category.period_id == period.pk]})
     loose = [a for a in activities if not a.category_id]
-    if loose:
-        groups.append({"period": None, "activities": loose, "records": []})
-    return {"activity_groups": groups, "has_activities": bool(activities), "enrolled": enrolled,
+    loose_records = [r for r in records if not r.category_id]
+    if loose or loose_records:
+        groups.append({"period": None, "activities": loose, "records": loose_records})
+    # Como las unidades: solo el parcial en curso viene desplegado. «Sin ponderación» también, porque
+    # pide atención; con un filtro, todo parcial que tenga algo.
+    current = period_for(periods, timezone.localdate())
+    for group in groups:
+        group["count"] = len(group["activities"]) + len(group["records"])
+        group["open"] = group["period"] is None or group["period"] == current or bool(wanted and group["count"])
+    return {"activity_groups": groups, "has_activities": bool(activities or records), "enrolled": enrolled,
             "filters": names, "wanted": wanted}
 
 
@@ -344,7 +363,7 @@ def enrollment_remove(request, pk, enrollment_pk):
     enrollment = get_object_or_404(Enrollment, pk=enrollment_pk, course=course)
     name = enrollment.student.display_name
     enrollment.delete()
-    messages.success(request, _("%(name)s fue retirado del curso. Puede volver a solicitar con el código.")
+    messages.success(request, _("%(name)s fue retirado del curso. Puede volver a solicitar la inscripción con el código del curso.")
                      % {"name": name})
     return redirect("course_settings", pk=pk)
 

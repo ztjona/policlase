@@ -1,6 +1,7 @@
 {% load i18n policlase %}
-{% comment %} Pestaña Actividades: todas las actividades del curso, por parcial, con su unidad; se filtran por fila de la
-   ponderación. Cada una vive en su unidad (pestaña Clases); los registros manuales, solo aquí. {% endcomment %}
+{% comment %} Pestaña Actividades: todas las actividades y los registros manuales del curso, por parcial, con su
+   unidad; se filtran por fila de la ponderación. Cada parcial se minimiza como una unidad y solo el
+   parcial en curso viene desplegado. Cada actividad vive en su unidad (pestaña Clases). {% endcomment %}
 {% include "courses/_sync_issues.html" %}
 
 {% if filters|length > 1 %}
@@ -11,14 +12,17 @@
 {% endif %}
 
 {% for group in activity_groups %}
-  {% if group.activities or group.records or group.period and not wanted %}
-    <section class="unit">
-      <div class="spread loose-head">
-        <h3 style="margin:0">{% if group.period %}{{ group.period.name }}{% else %}{% translate "Sin ponderación" %}{% endif %}</h3>
-        {% if not group.period %}<span class="small muted">{% translate "No cuentan para la nota hasta que se les asigne una fila de la ponderación." %}</span>{% endif %}
-      </div>
-      {% if group.activities or group.records %}
-        <div class="card table-wrap">
+  {% if group.count or group.period and not wanted %}
+    <details class="unit" id="parcial-{{ group.period.pk|default:'sin' }}"{% if group.open %} open{% endif %}>
+      <summary>
+        <span class="unit-title">{% if group.period %}{{ group.period.name }}{% else %}{% translate "Sin ponderación" %}{% endif %}</span>
+        <span class="chip" title="{% translate 'Actividades y registros manuales' %}">{{ group.count }}</span>
+        {% if group.period.starts_on and group.period.ends_on %}<span class="small muted">{{ group.period.starts_on|date:"d M" }} – {{ group.period.ends_on|date:"d M Y" }}</span>{% endif %}
+      </summary>
+      <div class="unit-body">
+      {% if not group.period %}<p class="small muted" style="margin:0 0 8px">{% translate "No cuentan para la nota hasta que se les asigne una fila de la ponderación." %}</p>{% endif %}
+      {% if group.count %}
+        <div class="table-wrap">
           <table>
             <thead><tr>
               <th>{% translate "Actividad" %}</th>
@@ -35,7 +39,7 @@
                   <td>
                     <a href="{% url 'activity_detail' course.pk a.pk %}"><strong>{{ a.title }}</strong></a>
                     {% if not a.published %}<span class="chip warn">{% translate "Borrador" %}</span>{% endif %}
-                    {% if a.uses_ai %}<span class="chip" title="{% translate 'Tiene preguntas marcadas para calificación con IA (aún no activa: las califica usted)' %}">IA</span>{% endif %}
+                    {% if a.uses_ai %}<span class="chip" title="{% translate 'Tiene preguntas marcadas para calificación con IA (función aún no disponible; las califica usted)' %}">IA</span>{% endif %}
                     {% if a.mismatch %}<span class="chip danger" title="{% blocktranslate with p=a.mismatch.name %}Vence en «{{ p }}», pero cuenta en otro parcial.{% endblocktranslate %}">{% translate "otro parcial" %}</span>{% endif %}
                   </td>
                   <td class="small">{% if a.section %}{{ a.section.title }}{% else %}<span class="muted">—</span>{% endif %}</td>
@@ -56,10 +60,10 @@
               {% for r in group.records %}
                 <tr>
                   <td><a href="{% url 'manual_record' course.pk r.pk %}"><strong>{{ r.title }}</strong></a>
-                    <span class="chip" title="{% translate 'Notas registradas a mano: algo que se hizo fuera de policlase' %}">{% translate "registro manual" %}</span>
-                    {% if r.unmatched %}<span class="chip warn" title="{% translate 'Nombres pegados que todavía no se asignaron a un estudiante' %}">{% blocktranslate count n=r.unmatched|length %}{{ n }} sin asignar{% plural %}{{ n }} sin asignar{% endblocktranslate %}</span>{% endif %}</td>
-                  <td class="small"><span class="muted">—</span></td>
-                  <td class="small">{{ r.category.name }}</td>
+                    <span class="chip" title="{% translate 'Calificaciones registradas manualmente de una actividad realizada fuera de policlase' %}">{% translate "registro manual" %}</span>
+                    {% if r.unmatched %}<span class="chip warn" title="{% translate 'Nombres de la lista que aún no se han asignado a un estudiante' %}">{% blocktranslate count n=r.unmatched|length %}{{ n }} sin asignar{% plural %}{{ n }} sin asignar{% endblocktranslate %}</span>{% endif %}</td>
+                  <td class="small">{% if r.section %}{{ r.section.title }}{% else %}<span class="muted">—</span>{% endif %}</td>
+                  <td class="small">{% if r.category %}{{ r.category.name }}{% else %}<span class="muted">—</span>{% endif %}</td>
                   <td class="small">{{ r.on|date:"D d M" }}</td>
                   <td class="center"><span class="muted">—</span></td>
                   <td class="center"><span class="muted">—</span></td>
@@ -72,12 +76,13 @@
           </table>
         </div>
       {% else %}
-        <p class="small muted">{% translate "Ninguna actividad en este parcial todavía." %}</p>
+        <p class="small muted" style="margin:0">{% translate "Aún no hay actividades en este parcial." %}</p>
       {% endif %}
-    </section>
+      </div>
+    </details>
   {% endif %}
 {% endfor %}
 
 {% if not has_activities %}
-  <p class="muted">{% if wanted %}{% blocktranslate with row=wanted %}Ninguna actividad cuenta como «{{ row }}» todavía.{% endblocktranslate %}{% else %}{% translate "Todavía no hay actividades. Cree una en su unidad (pestaña Clases) o con «Nueva actividad»: un formulario en línea, la entrega de imágenes (evidencia, certificados, el desarrollo a mano) o ambas cosas." %}{% endif %}</p>
+  <p class="muted">{% if wanted %}{% blocktranslate with row=wanted %}Aún no hay actividades que cuenten como «{{ row }}».{% endblocktranslate %}{% else %}{% translate "Aún no hay actividades. Puede crearlas desde su unidad (pestaña Clases) o con «Nueva actividad». Una actividad puede ser un formulario en línea, una entrega de imágenes (evidencias, certificados, desarrollos a mano) o ambas cosas." %}{% endif %}</p>
 {% endif %}

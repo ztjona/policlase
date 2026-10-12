@@ -10,11 +10,15 @@ futura API digan lo mismo:
 - Cuenta el último intento enviado.
 - La corrección detallada se muestra cuando vence la fecha (o se acabaron los intentos); antes,
   solo el puntaje, para que no se acierte por descarte.
+- Una pregunta con tiempo (`time_limit_s`, de un segmento) no se ve hasta que el estudiante la
+  abre; desde ahí corre el reloj del servidor y solo se guarda lo que llega antes de que se acabe
+  (más `TIMER_GRACE_S` por la conexión). No se reinicia: cerrar la página no da más tiempo.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 
 from django.db import IntegrityError, transaction
 from django.utils import timezone
@@ -27,6 +31,8 @@ from .models import Activity, Answer, Attempt, Upload
 REVIEW_TYPES = {"open", "image"}
 #: Tope de texto de una respuesta abierta: un párrafo largo, no un documento.
 MAX_TEXT = 10_000
+#: Gracia de una pregunta con tiempo: lo que tarda en llegar la respuesta enviada al terminar.
+TIMER_GRACE_S = 3
 
 
 class ActionError(Exception):
@@ -140,13 +146,90 @@ def blank(value) -> bool:
     return False
 
 
-def save_draft(attempt: Attempt, answers: dict, telemetry: dict | None = None) -> Attempt:
+# ------------------------------------------------------------------------ preguntas con tiempo
+
+
+@dataclass
+class Timer:
+    state: str                 # "locked" (sin abrir) · "open" · "closed"
+    remaining_ms: int = 0
+
+    @property
+    def remaining_s(self) -> int:
+        return max(0, -(-self.remaining_ms // 1000))
+
+
+def timer(attempt: Attempt, question: dict, now=None) -> Timer | None:
+    """Dónde está el reloj de una pregunta con tiempo; None si la pregunta no tiene tiempo."""
+    limit = question.get("time_limit_s")
+    if not limit:
+        return None
+    entry = (attempt.timers or {}).get(question["key"])
+    if not entry:
+        return Timer("locked")
+    if entry.get("closed") or attempt.submitted_at:
+        return Timer("closed")
+    left = datetime.fromisoformat(entry["opened"]) + timedelta(seconds=limit) - (now or timezone.now())
+    ms = int(left.total_seconds() * 1000)
+    return Timer("open", ms) if ms > -TIMER_GRACE_S * 1000 else Timer("closed")
+
+
+def _accepts(attempt: Attempt, question: dict, now) -> bool:
+    """¿Se guarda ahora lo que llegue para esta pregunta? Sin tiempo, siempre; con tiempo, solo
+    mientras su reloj corre (con la gracia)."""
+    current = timer(attempt, question, now)
+    return current is None or current.state == "open"
+
+
+@transaction.atomic
+def open_timer(attempt: Attempt, key: str, now=None) -> Attempt:
+    """El estudiante abre una pregunta con tiempo: desde ahora corre su reloj. Abrirla de nuevo no
+    lo reinicia."""
+    attempt = Attempt.objects.select_for_update().get(pk=attempt.pk)
     if attempt.submitted_at:
         raise ActionError(_("Este intento ya se envió."))
+    question = _question(attempt, key)
+    if not question.get("time_limit_s"):
+        raise ActionError(_("Esa pregunta no tiene límite de tiempo."))
+    if key not in (attempt.timers or {}):
+        attempt.timers = {**(attempt.timers or {}), key: {"opened": (now or timezone.now()).isoformat()}}
+        attempt.save(update_fields=["timers"])
+    return attempt
+
+
+@transaction.atomic
+def close_timer(attempt: Attempt, key: str, answers: dict | None = None, now=None) -> Attempt:
+    """«Responder» o se acabó el tiempo: se guarda lo que llegó (si llegó a tiempo) y la pregunta
+    queda cerrada para el resto del intento."""
+    now = now or timezone.now()
+    attempt = Attempt.objects.select_for_update().get(pk=attempt.pk)
+    if attempt.submitted_at:
+        raise ActionError(_("Este intento ya se envió."))
+    question = _question(attempt, key)
+    if not question.get("time_limit_s") or key not in (attempt.timers or {}):
+        raise ActionError(_("Esa pregunta no está abierta."))
+    if answers and key in answers and _accepts(attempt, question, now):
+        attempt.answers = {**attempt.answers, key: answers[key]}
+    entry = dict(attempt.timers[key])
+    entry.setdefault("closed", now.isoformat())
+    attempt.timers = {**attempt.timers, key: entry}
+    attempt.saved_at = now
+    attempt.save(update_fields=["answers", "timers", "saved_at"])
+    return attempt
+
+
+def save_draft(attempt: Attempt, answers: dict, telemetry: dict | None = None, now=None) -> Attempt:
+    if attempt.submitted_at:
+        raise ActionError(_("Este intento ya se envió."))
+    now = now or timezone.now()
+    # Las preguntas con tiempo solo se guardan mientras corre su reloj: el autoguardado de la página
+    # entera no las abre ni les da más tiempo.
+    timed = {q["key"]: q for q in attempt.questions if q.get("time_limit_s")}
+    answers = {k: v for k, v in answers.items() if k not in timed or _accepts(attempt, timed[k], now)}
     attempt.answers = {**attempt.answers, **answers}
-    attempt.saved_at = timezone.now()
     if telemetry:
         attempt.telemetry = merge_telemetry(attempt.telemetry, telemetry)
+    attempt.saved_at = now
     attempt.save(update_fields=["answers", "saved_at", "telemetry"])
     return attempt
 
@@ -179,7 +262,9 @@ def add_upload(attempt: Attempt, key: str, upload) -> Upload:
         raise ActionError(_("Este intento ya se envió."))
     question = _question(attempt, key)
     if question["type"] != "image":
-        raise ActionError(_("Esa pregunta no recibe imágenes."))
+        raise ActionError(_("Esa pregunta no admite imágenes."))
+    if not _accepts(attempt, question, timezone.now()):
+        raise ActionError(_("Esa pregunta tiene límite de tiempo y no está abierta."))
     limit = int(question.get("max_files") or 1)
     if attempt.uploads.filter(key=key).count() >= limit:
         raise ActionError(_("Esta pregunta admite hasta %(n)d imágenes; quite una antes de subir otra.")
@@ -278,7 +363,7 @@ def set_grade(answer: Answer, points: float | None, by, comment: str | None = No
     full = float(question.get("points") or 0)
     if points is None:
         if answer.auto_points is None:
-            raise ActionError(_("Esta pregunta no tiene nota automática: escriba una."))
+            raise ActionError(_("Esta pregunta no tiene calificación automática; ingrese una nota."))
         answer.points, answer.correct = answer.auto_points, bool(answer.auto_correct)
         answer.graded_by, answer.graded_at = None, None
     else:
@@ -315,7 +400,8 @@ def answer_rows(attempt: Attempt) -> list[dict]:
     out = []
     for key, (item, q, record) in _records(attempt.content).items():
         row = {"key": key, "item": item, "question": q, "record": record,
-               "answer": rows.get(key), "draft": attempt.answers.get(key), "uploads": uploads.get(key, [])}
+               "answer": rows.get(key), "draft": attempt.answers.get(key), "uploads": uploads.get(key, []),
+               "timer": timer(attempt, q), "blank": blank(attempt.answers.get(key))}
         if q["type"] == "numeric_list":
             given = row["draft"] if isinstance(row["draft"], list) else []
             row["cells"] = [given[i] if i < len(given) else "" for i in range(_cell_count(q))]

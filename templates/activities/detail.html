@@ -7,7 +7,7 @@
   <h1>{{ activity.title }}</h1>
   <a class="icon-btn" href="{% url 'activity_edit' course.pk activity.pk %}" title="{% translate 'Editar contenido' %}" aria-label="{% translate 'Editar contenido' %}">{% icon "edit" 20 %}</a>
   {% if not activity.published %}<span class="chip warn">{% translate "Borrador" %}</span>{% endif %}
-  {% if activity.uses_ai %}<span class="chip" title="{% translate 'Tiene preguntas marcadas para calificación con IA (aún no activa: las califica usted)' %}">IA</span>{% endif %}
+  {% if activity.uses_ai %}<span class="chip" title="{% translate 'Tiene preguntas marcadas para calificación con IA (función aún no disponible; las califica usted)' %}">IA</span>{% endif %}
 </div>
 <p class="muted small">{% blocktranslate with n=activity.questions|length p=activity.points|floatformat:"-2" %}{{ n }} preguntas · {{ p }} puntos{% endblocktranslate %}{% if activity.github_path %} · <span class="mono">{{ activity.github_path }}</span>{% endif %}</p>
 
@@ -16,9 +16,9 @@
     {% csrf_token %}
     <h2>{% translate "Configuración" %}</h2>
     {% if form.non_field_errors %}<div class="notice">{{ form.non_field_errors }}</div>{% endif %}
-    <label class="check-toggle">{{ form.published }} {% translate "Publicada: la ven los estudiantes" %}</label>
+    <label class="check-toggle">{{ form.published }} {% translate "Publicada (visible para los estudiantes)" %}</label>
     <div>{{ form.category.label_tag }}{{ form.category }}{{ form.category.errors }}
-      <span class="helptext">{% translate "Las filas salen de las ponderaciones del curso. Si el vencimiento cae en otro parcial, la actividad pasa a la fila del mismo nombre en ese parcial." %} <a href="{% url 'grading_settings' course.pk %}">{% translate "Editar ponderaciones" %}</a></span>
+      <span class="helptext">{% translate "Las filas provienen de las ponderaciones del curso. Si la fecha de entrega corresponde a otro parcial, la actividad pasa a la fila del mismo nombre en ese parcial." %} <a href="{% url 'grading_settings' course.pk %}">{% translate "Editar ponderaciones" %}</a></span>
       {% if mismatch %}<div class="notice small">{% blocktranslate with p=mismatch.name row=activity.category %}Vence en «{{ p }}», pero cuenta en «{{ row }}»: ese parcial no tiene una fila con el mismo nombre. Elija la fila que corresponde.{% endblocktranslate %}</div>{% endif %}</div>
     <div>{{ form.opens_at.label_tag }}{{ form.opens_at }}{{ form.opens_at.errors }}<span class="helptext">{{ form.opens_at.help_text }}</span></div>
 
@@ -30,7 +30,7 @@
         <span class="small">{% translate "a las" %}</span> {{ form.due_time }}
         {% if not milestones %}<span class="helptext">{% translate "Todavía no hay fechas clave:" %} <a href="{% url 'activity_dates' course.pk %}">{% translate "créelas en Fechas" %}</a>.</span>{% endif %}
         {{ form.due_milestone.errors }}{{ form.due_offset_days.errors }}{{ form.due_time.errors }}
-        <span class="helptext">{% translate "−1 = el día anterior. Si la fecha clave se mueve, el vencimiento la sigue." %}</span>
+        <span class="helptext">{% translate "−1 corresponde al día anterior. Si la fecha clave cambia, la fecha de entrega se ajusta con ella." %}</span>
       </div>
       <div class="due-fixed">{{ form.due_at.label_tag }}{{ form.due_at }}{{ form.due_at.errors }}</div>
     </fieldset>
@@ -39,9 +39,9 @@
       <div>{{ form.late_policy.label_tag }}{{ form.late_policy }}</div>
       <div>{{ form.late_penalty.label_tag }}{{ form.late_penalty }}{{ form.late_penalty.errors }}</div>
     </div>
-    <span class="helptext">{% translate "Lo atrasado se acepta hasta el cierre del parcial, solo de quien no entregó a tiempo." %}</span>
+    <span class="helptext">{% translate "Las entregas atrasadas se aceptan hasta el cierre del parcial y solo de quienes no entregaron a tiempo." %}</span>
     <div>{{ form.max_attempts.label_tag }}{{ form.max_attempts }}{{ form.max_attempts.errors }}
-      <span class="helptext">{% translate "Cuenta el último intento enviado. Entre intentos el estudiante ve su puntaje; las soluciones, al vencer la fecha." %}</span></div>
+      <span class="helptext">{% translate "Se califica el último intento enviado. Entre intentos, el estudiante ve su puntaje; las soluciones se muestran al vencer la fecha de entrega." %}</span></div>
     <label class="check-toggle">{{ form.block_paste }} {{ form.block_paste.label|capfirst }}</label>
     <div class="row"><button type="submit">{% translate "Guardar" %}</button>
       {% if activity.due_at %}<span class="small muted">{% blocktranslate with when=activity.due_at|date:"D d M Y, H:i" %}Vence: {{ when }}{% endblocktranslate %}</span>{% endif %}</div>
@@ -50,7 +50,7 @@
   <section class="card stack">
     <h2>{% translate "Contenido" %}</h2>
     {% if review %}
-      <p class="small" style="margin:0">{% translate "Preguntas que califica usted:" %}</p>
+      <p class="small" style="margin:0">{% translate "Preguntas de calificación manual:" %}</p>
       <ul class="plain">
         {% for r in review %}
           <li><a href="{% url 'question_review' course.pk activity.pk r.question.key %}">{% include "activities/_type_label.html" with q=r.question %} · {{ r.question.key }}</a>
@@ -60,8 +60,20 @@
         {% endfor %}
       </ul>
     {% else %}
-      <p class="small muted" style="margin:0">{% translate "Todas las preguntas se califican solas." %}</p>
+      <p class="small muted" style="margin:0">{% translate "Todas las preguntas se califican automáticamente." %}</p>
     {% endif %}
+    {% for sv in surveys %}
+      <div class="stack survey-summary">
+        <p class="small" style="margin:0"><span class="chip">{% translate "Encuesta" %}</span> {{ sv.question.prompt|md_inline }}
+          <span class="muted">· {% blocktranslate count n=sv.answered %}{{ n }} respuesta{% plural %}{{ n }} respuestas{% endblocktranslate %}</span></p>
+        <div class="bars">
+          {% for b in sv.bars %}
+            <div class="bar"><div class="bar-label"><span>{{ b.text|md_inline }}</span></div><div class="count">{{ b.count }}</div>
+              <div class="fill-track"><div class="fill o{{ forloop.counter0 }}" style="width:{% widthratio b.count sv.answered|default:1 100 %}%"></div></div></div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endfor %}
     <details>
       <summary>{% translate "Ver la actividad con sus soluciones" %}</summary>
       <div class="stack" style="margin-top:10px">{% include "activities/_preview.html" with content=activity.compiled %}</div>
@@ -96,7 +108,7 @@
       </tbody>
     </table>
   </div>
-  <p class="small muted">{% translate "Las señales (pegar texto, salir de la página) no prueban nada por sí solas: sirven para conversar con el estudiante, no para sancionar." %}</p>
+  <p class="small muted">{% translate "Las señales (pegar texto, salir de la página) no constituyen prueba por sí solas; sirven como base para conversar con el estudiante, no para sancionar." %}</p>
 {% else %}
   <p class="muted">{% translate "Aún no hay estudiantes aprobados en el curso." %}</p>
 {% endif %}

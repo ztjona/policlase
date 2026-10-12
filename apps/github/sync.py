@@ -6,8 +6,9 @@
 - `push` / `delete`: policlase → GitHub, con el sha conocido. Si alguien cambió el archivo en
   GitHub entretanto, GitHub responde conflicto y no se pisa nada.
 
-Cada YAML se reconoce por su `schema`: `policlase.deck/v1` es una presentación y
-`policlase.activity/v1` una actividad; los demás (ítems, configuración) se ignoran. De una
+Cada YAML se reconoce por su contenido (`policlase_gen.document`): `policlase/v1` según su `use`
+(clase o actividad; una evaluación espera a su pestaña), y los formatos anteriores por su `schema`
+(`policlase.deck/v1`, `policlase.activity/v1`). Los demás (ítems, configuración) se ignoran. De una
 actividad llega solo su contenido: fechas, ponderación y publicación se deciden en policlase, y
 una actividad que llega por primera vez nace como borrador.
 
@@ -27,8 +28,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.translation import gettext as _
-from policlase_gen import activity as activityfmt
-from policlase_gen import deck as deckfmt
+from policlase_gen import document as content_format
 
 from apps.activities.models import Activity
 from apps.live.models import Deck, Section
@@ -121,19 +121,27 @@ def pull(link: CourseRepo) -> PullResult:
                 result.issues.append(previous_issues[path])
             continue
         source = client.read(link.repo, sha)
-        document, report = deckfmt.load_deck_text(source)
-        is_activity = document is not None and activityfmt.is_activity(document)
-        if is_activity:
-            document, report = activityfmt.load_activity_text(source)
-        elif document is not None and not deckfmt.is_deck(document):
+        document, report, use = content_format.load_text(source)
+        if document is not None and use is None and not content_format.is_document(document):
             skipped[path] = sha                        # otro YAML (ítems, configuración): no es nuestro
             continue
         if document is None or report.errors:
             skipped[path] = sha
             result.issues.append({"path": path, "diagnostics": _diagnostics(report)})
             continue
-        if is_activity:
-            compiled = activityfmt.compile_activity(document)
+        if use == "evaluation":
+            skipped[path] = sha
+            result.issues.append({"path": path, "diagnostics": [], "note": _(
+                "es una evaluación (use: evaluation); las evaluaciones estarán disponibles con la pestaña Evaluaciones.")})
+            continue
+        if (use == "activity" and deck) or (use == "class" and activity):
+            # Cambió de tipo en GitHub: lo que ya existe (con sus clases o entregas) no se convierte.
+            skipped[path] = sha
+            result.issues.append({"path": path, "diagnostics": [], "note": _(
+                "cambió de tipo (use) en GitHub y no se actualizó. Para usar el otro tipo, cree un archivo nuevo.")})
+            continue
+        compiled = content_format.compile_content(document)
+        if use == "activity":
             if activity is None:
                 activities[path] = Activity.objects.create(
                     course=link.course, title=compiled["title"], source=source, compiled=compiled,
@@ -145,7 +153,6 @@ def pull(link: CourseRepo) -> PullResult:
                 activity.save(update_fields=["title", "source", "compiled", "github_sha", "updated_at"])
                 result.updated.append(path)
             continue
-        compiled = deckfmt.compile_deck(document)
         if deck is None:
             decks[path] = Deck.objects.create(course=link.course, title=compiled["title"], source=source,
                                               compiled=compiled, github_path=path, github_sha=sha)
@@ -168,8 +175,8 @@ def pull(link: CourseRepo) -> PullResult:
                 # policlase, ya sin vínculo con GitHub.
                 Activity.objects.filter(pk=activity.pk).update(github_path="", github_sha="")
                 result.issues.append({"path": path, "diagnostics": [], "note": _(
-                    "se eliminó en GitHub, pero tiene entregas: se conservó en policlase sin sincronizar. "
-                    "Elimínela desde la actividad si ya no la necesita.")})
+                    "se eliminó en GitHub, pero tiene entregas; se conserva en policlase, sin sincronización. "
+                    "Si ya no la necesita, elimínela desde la página de la actividad.")})
             else:
                 activity.delete()
             result.deleted.append(path)
@@ -192,7 +199,10 @@ def _sync_sections(link: CourseRepo, decks: dict[str, Deck], activities: dict[st
         sections[folder] = Section.objects.create(course=link.course, title=folder_title(folder),
                                                   github_folder=folder)
     for folder in set(sections) - folders:
-        sections.pop(folder).delete()                  # la carpeta ya no existe en GitHub
+        # La carpeta ya no existe en GitHub. Si la unidad tiene registros manuales (que no viven en
+        # GitHub), se conserva para no dejarlos sin unidad.
+        if not sections[folder].manual_records.exists():
+            sections.pop(folder).delete()
     for position, folder in enumerate(sorted(sections, key=natural_key)):
         section = sections[folder]
         if section.position != position or section.title != folder_title(folder):

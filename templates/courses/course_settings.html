@@ -20,7 +20,7 @@
       {% csrf_token %}
       <button name="action" value="toggle" class="secondary">{% if course.accepting %}{% translate "Cerrar inscripción" %}{% else %}{% translate "Abrir inscripción" %}{% endif %}</button>
       <button name="action" value="regenerate" class="secondary"
-              onclick="return confirm('{% translate "El código actual dejará de funcionar. ¿Continuar?" as msg %}{{ msg|escapejs }}')">{% translate "Generar otro código" %}</button>
+              onclick="return confirm('{% translate "El código actual dejará de funcionar. ¿Desea continuar?" as msg %}{{ msg|escapejs }}')">{% translate "Generar otro código" %}</button>
     </form>
   </section>
 
@@ -56,11 +56,11 @@
         {% csrf_token %}
         <button name="action" value="sync">{% translate "Sincronizar ahora" %}</button>
         <button name="action" value="unlink" class="danger"
-                onclick="return confirm('{% translate "Las presentaciones quedan en policlase, pero dejan de sincronizarse. ¿Continuar?" as msg %}{{ msg|escapejs }}')">{% translate "Desvincular" %}</button>
+                onclick="return confirm('{% translate "Las presentaciones y actividades se conservan en policlase, pero dejan de sincronizarse. ¿Desea continuar?" as msg %}{{ msg|escapejs }}')">{% translate "Desvincular" %}</button>
       </form>
       <details class="small">
         <summary>{% translate "Sincronización instantánea (webhook, opcional)" %}</summary>
-        <p>{% translate "Sin webhook, policlase trae los cambios al abrir el curso o el editor. Con webhook, al instante de cada push. En GitHub: Settings → Webhooks → Add webhook:" %}</p>
+        <p>{% translate "Sin webhook, policlase obtiene los cambios al abrir el curso o el editor; con webhook, inmediatamente después de cada push. Para configurarlo en GitHub: Settings → Webhooks → Add webhook:" %}</p>
         <ul>
           <li>Payload URL: <span class="mono">{{ webhook_url }}</span></li>
           <li>Content type: <span class="mono">application/json</span></li>
@@ -69,7 +69,7 @@
         </ul>
       </details>
     {% else %}
-      <p class="small muted" style="margin:0">{% translate "Las presentaciones del curso vivirán en una carpeta de su repositorio: lo que suba a GitHub aparece aquí, y lo que guarde en el editor se confirma allá. Las presentaciones que ya tiene aquí se suben al vincular." %}</p>
+      <p class="small muted" style="margin:0">{% translate "Las presentaciones y actividades del curso se almacenarán en una carpeta de su repositorio: lo que suba a GitHub aparecerá aquí, y lo que guarde en el editor se confirmará en GitHub. El contenido que ya existe en policlase se sube al vincular el curso." %}</p>
     {% endif %}
     <form method="post" action="{% url 'github_course_link' course.pk %}" class="stack">
       {% csrf_token %}

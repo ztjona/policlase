@@ -9,19 +9,19 @@
   <table>
     <thead><tr>
       <th>{% translate "Estudiante" %}</th>
-      {% for i, s in questions %}<th class="num" title="{{ s.item_id }}">{% translate "P" context "abreviatura de pregunta" %}{{ forloop.counter }}</th>{% endfor %}
+      {% for i, s in questions %}<th class="num" title="{{ s.item_id }}{% if s.question.survey %} · {% translate 'encuesta' %}{% endif %}">{% translate "P" context "abreviatura de pregunta" %}{{ forloop.counter }}{% if s.question.survey %}*{% endif %}</th>{% endfor %}
       <th class="num">{% translate "Total" %}</th><th class="num">%</th>
     </tr></thead>
     <tbody>
       {% for r in rows %}
         <tr>
           <td>{{ r.student.last_name }}, {{ r.student.first_name }}{% if not r.joined %} <span class="chip">{% translate "ausente" %}</span>{% endif %}</td>
-          {% for c, full in r.cells %}<td class="num">{% include "live/_grade_cell.html" %}</td>{% endfor %}
+          {% for c, full, survey in r.cells %}<td class="num">{% if survey %}{% if c %}<span class="muted" title="{% translate 'Encuesta: respondió' %}">✓</span>{% else %}<span class="muted">—</span>{% endif %}{% else %}{% include "live/_grade_cell.html" %}{% endif %}</td>{% endfor %}
           <td class="num"><button type="button" class="grade total{% if r.manual %} edited{% endif %}"
               data-url="{% url 'session_grade' session.pk r.student.pk %}" data-points="{{ r.total|stringformat:'g' }}"
               data-max="{{ max_points|stringformat:'g' }}" data-edited="{{ r.manual|yesno:'1,' }}"
               data-restore-label="{% translate 'Volver a la suma de sus respuestas' %}"
-              title="{% if r.manual %}{% blocktranslate with sum=r.computed|floatformat:'-1' %}Nota manual de la clase (suma de sus respuestas: {{ sum }}). Clic para cambiarla.{% endblocktranslate %}{% else %}{% translate 'Clic para poner una nota manual en esta clase' %}{% endif %}"><strong>{{ r.total|floatformat:"-1" }}</strong>{% if r.manual %}<span class="edit-mark" aria-label="{% translate 'corregida a mano' %}">✎</span>{% endif %}</button></td>
+              title="{% if r.manual %}{% blocktranslate with sum=r.computed|floatformat:'-1' %}Nota manual de la clase (suma de sus respuestas: {{ sum }}). Haga clic para cambiarla.{% endblocktranslate %}{% else %}{% translate 'Haga clic para asignar una nota manual en esta clase' %}{% endif %}"><strong>{{ r.total|floatformat:"-1" }}</strong>{% if r.manual %}<span class="edit-mark" aria-label="{% translate 'corregida manualmente' %}">✎</span>{% endif %}</button></td>
           <td class="num">{{ r.percent }}</td>
         </tr>
       {% empty %}
@@ -32,7 +32,7 @@
         {% for r in guests %}
           <tr>
             <td>{{ r.student.display_name }} <span class="chip">{% translate "invitado" %}</span></td>
-            {% for c, full in r.cells %}<td class="num">{% include "live/_grade_cell.html" %}</td>{% endfor %}
+            {% for c, full, survey in r.cells %}<td class="num">{% if survey %}{% if c %}<span class="muted" title="{% translate 'Encuesta: respondió' %}">✓</span>{% else %}<span class="muted">—</span>{% endif %}{% else %}{% include "live/_grade_cell.html" %}{% endif %}</td>{% endfor %}
             <td class="num"><strong>{{ r.total|floatformat:"-1" }}</strong></td>
             <td class="num">{{ r.percent }}</td>
           </tr>
@@ -42,7 +42,7 @@
   </table>
 </div>
 
-<p class="small muted">{% translate "Clic en una nota para corregirla a mano; ✎ marca las corregidas. El total también se puede corregir: reemplaza la suma de toda la clase (por ejemplo, una inasistencia justificada). El marcador de la clase no cambia." %}</p>
+<p class="small muted">{% if has_survey %}{% translate "* Encuesta: se registra lo elegido y no cuenta para la nota." %} {% endif %}{% translate "Haga clic en una nota para corregirla manualmente; ✎ identifica las notas corregidas. También puede corregirse el total, que reemplaza la suma de toda la clase (por ejemplo, ante una inasistencia justificada). El marcador de la clase no cambia." %}</p>
 
 {% if guests %}
   <h2 id="invitados">{% translate "Invitados" %}</h2>
@@ -71,7 +71,7 @@
 
 {% if review %}
   <h2>{% translate "Revisar respuestas" %}</h2>
-  <p class="small muted">{% translate "Si una respuesta era correcta y el ítem no la previó, désela por buena a todos los que la dieron." %}</p>
+  <p class="small muted">{% translate "Si una respuesta correcta no estaba prevista en el ítem, puede aceptarse para todos los estudiantes que la dieron." %}</p>
   {% for q in review %}
     <details class="card review" id="p{{ q.index }}">
       <summary><strong>{% translate "P" context "abreviatura de pregunta" %}{{ q.number }}</strong> · {{ q.slide.question.prompt|md_inline }}
@@ -84,13 +84,15 @@
             <tr>
               <td>{% for part in g.display %}{{ part|md_inline }}{% if not forloop.last %} · {% endif %}{% empty %}<span class="muted">—</span>{% endfor %}</td>
               <td class="num">{{ g.count }}</td>
-              <td class="num">{% for p in g.points %}{{ p|floatformat:"-1" }}{% if not forloop.last %} / {% endif %}{% endfor %} <span class="muted small">{% translate "de" %} {{ q.slide.points|floatformat:"-1" }}</span>{% if g.edited %} <span title="{% blocktranslate with auto=g.auto_points|floatformat:'-1' %}Corregida a mano; automática: {{ auto }}{% endblocktranslate %}">✎</span>{% endif %}</td>
+              <td class="num">{% for p in g.points %}{{ p|floatformat:"-1" }}{% if not forloop.last %} / {% endif %}{% endfor %} <span class="muted small">{% translate "de" %} {{ q.slide.points|floatformat:"-1" }}</span>{% if g.edited %} <span title="{% blocktranslate with auto=g.auto_points|floatformat:'-1' %}Corregida manualmente; automática: {{ auto }}{% endblocktranslate %}">✎</span>{% endif %}</td>
               <td class="actions-col">
+                {% if not q.slide.question.survey %}
                 <form method="post" action="{% url 'answer_grade' session.pk q.index %}" class="row-actions">{% csrf_token %}<input type="hidden" name="key" value="{{ g.key }}">
                   <button name="action" value="correct" class="icon-btn" title="{% translate 'Dar por correcta a todos los que la dieron' %}" aria-label="{% translate 'Dar por correcta' %}">{% icon "check" %}</button>
                   <button name="action" value="wrong" class="icon-btn danger" title="{% translate 'Dar por incorrecta a todos los que la dieron' %}" aria-label="{% translate 'Dar por incorrecta' %}">{% icon "close" %}</button>
                   {% if g.edited %}<button name="action" value="auto" class="icon-btn" title="{% translate 'Volver a la nota automática' %}" aria-label="{% translate 'Volver a la nota automática' %}">↺</button>{% endif %}
                 </form>
+                {% endif %}
               </td>
             </tr>
           {% endfor %}

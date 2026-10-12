@@ -22,12 +22,12 @@
   <button type="submit">{% translate "Conectar" %}</button>
 </form>
 <div class="card small">
-  <p style="margin-top:0"><strong>{% translate "Cómo crear el token (2 minutos)" %}</strong></p>
+  <p style="margin-top:0"><strong>{% translate "Cómo crear el token" %}</strong></p>
   <ol>
     <li>{% blocktranslate %}En GitHub: <em>Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token</em>.{% endblocktranslate %}</li>
     <li>{% blocktranslate %}<em>Repository access</em>: <strong>Only select repositories</strong> y elija el repositorio de sus cursos.{% endblocktranslate %}</li>
-    <li>{% blocktranslate %}<em>Permissions → Repository permissions → Contents</em>: <strong>Read and write</strong>. Nada más.{% endblocktranslate %}</li>
-    <li>{% translate "Copie el token y péguelo aquí. Se guarda cifrado y solo se usa para sus cursos." %}</li>
+    <li>{% blocktranslate %}<em>Permissions → Repository permissions → Contents</em>: <strong>Read and write</strong>. No se requieren otros permisos.{% endblocktranslate %}</li>
+    <li>{% translate "Copie el token y péguelo aquí. Se almacena cifrado y se utiliza únicamente para sus cursos." %}</li>
   </ol>
 </div>
 {% endblock %}

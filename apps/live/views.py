@@ -115,7 +115,7 @@ def session_start(request, course_pk, deck_pk):
         if active.status == Status.PAUSED:
             messages.info(request, _("Hay una clase en pausa en este curso: reanúdela o termínela antes de iniciar otra."))
         else:
-            messages.info(request, _("Ya hay una clase en vivo en este curso; se abrió esa."))
+            messages.info(request, _("Ya hay una clase en vivo en este curso; se abrió esa clase."))
         return redirect("present", pk=active.pk)
 
     for _attempt in range(10):  # el PIN es aleatorio; en el raro caso de choque se reintenta
@@ -131,7 +131,7 @@ def session_start(request, course_pk, deck_pk):
         except IntegrityError:
             continue
     else:
-        messages.error(request, _("No se pudo generar un PIN libre. Intente de nuevo."))
+        messages.error(request, _("No se pudo generar un PIN disponible. Intente de nuevo."))
         return redirect("course_manage", pk=course.pk)
     return redirect("present", pk=session.pk)
 
@@ -230,7 +230,7 @@ def session_results(request, pk):
         total = grade.points if grade else computed
         rows.append({
             "student": e.student,
-            "cells": [(answers.get(i), q["points"]) for i, q in questions],
+            "cells": [(answers.get(i), q["points"], q["question"].get("survey")) for i, q in questions],
             "total": total, "computed": computed, "manual": grade,
             "percent": round(100 * total / max_points) if max_points else 0,
             "joined": e.student_id in joined,
@@ -244,7 +244,7 @@ def session_results(request, pk):
     for p in session.participants.exclude(student_id__in=enrolled).select_related("student"):
         answers = by_student.get(p.student_id, {})
         total = sum(r.points for r in answers.values())
-        guests.append({"student": p.student, "cells": [(answers.get(i), q["points"]) for i, q in questions],
+        guests.append({"student": p.student, "cells": [(answers.get(i), q["points"], q["question"].get("survey")) for i, q in questions],
                        "total": total, "percent": round(100 * total / max_points) if max_points else 0})
     guests.sort(key=lambda r: -r["total"])
     absent = [r["student"] for r in rows if not r["joined"]]
@@ -254,6 +254,7 @@ def session_results(request, pk):
     return render(request, "live/results.html", {
         "session": session, "course": session.course, "questions": questions, "review": review,
         "rows": rows, "guests": guests, "max_points": max_points, "absent": absent,
+        "has_survey": any(q["question"].get("survey") for _, q in questions),
         "feedback": engine.feedback_summary(session) if session.has_feedback else None,
     })
 

@@ -21,7 +21,7 @@
 {% elif state.can_start %}
   <form method="post" action="{% url 'attempt_start' course.pk activity.pk %}" class="card spread">
     {% csrf_token %}
-    <span>{% if state.late %}{% blocktranslate with p=activity.late_penalty %}La fecha de entrega pasó: lo que envíe tendrá un {{ p }} % de penalización.{% endblocktranslate %}{% elif state.counted %}{% translate "Puede intentarlo de nuevo; contará este nuevo envío." %}{% else %}{% translate "Cuando empiece, sus respuestas se guardan solas hasta que las envíe." %}{% endif %}</span>
+    <span>{% if state.late %}{% blocktranslate with p=activity.late_penalty %}La fecha de entrega pasó: lo que envíe tendrá un {{ p }} % de penalización.{% endblocktranslate %}{% elif state.counted %}{% translate "Puede realizar un nuevo intento; se calificará el último envío." %}{% else %}{% translate "Una vez iniciado el intento, sus respuestas se guardan automáticamente hasta que las envíe." %}{% endif %}</span>
     <button>{% if state.counted %}{% blocktranslate with n=state.used|add:1 %}Comenzar el intento {{ n }}{% endblocktranslate %}{% else %}{% translate "Comenzar" %}{% endif %}</button>
   </form>
 {% elif not state.counted %}
@@ -38,14 +38,17 @@
       <strong class="score">{{ a.points|floatformat:"-2" }} / {{ a.max_points|floatformat:"-2" }}</strong>
     </div>
     {% if a.pending %}<p class="small muted" style="margin:0">{% blocktranslate count n=a.pending %}{{ n }} pregunta espera la nota de su docente.{% plural %}{{ n }} preguntas esperan la nota de su docente.{% endblocktranslate %}</p>{% endif %}
-    {% if not state.reveal %}<p class="small muted" style="margin:0">{% translate "Verá qué respondió bien y las soluciones cuando venza la fecha de entrega." %}</p>{% endif %}
+    {% if not state.reveal %}<p class="small muted" style="margin:0">{% translate "Las respuestas correctas y las soluciones se mostrarán cuando venza la fecha de entrega." %}</p>{% endif %}
   </div>
   {% if state.reveal %}
     {% for item in a.content.items %}
-      <section class="card stack">
-        {% if item.stem %}<div>{{ item.stem|md }}</div>{% endif %}
-        {% for row in rows %}{% if row.item.item_id == item.item_id %}{% include "activities/_answer.html" with row=row reveal=True %}{% endif %}{% endfor %}
-      </section>
+      {% if item.kind == "content" or item.kind == "segment" %}{% include "activities/_block_head.html" with index=None %}
+      {% else %}
+        <section class="card stack">
+          {% if item.stem %}<div>{{ item.stem|md }}</div>{% endif %}
+          {% for row in rows %}{% if row.item.item_id == item.item_id %}{% include "activities/_answer.html" with row=row reveal=True %}{% endif %}{% endfor %}
+        </section>
+      {% endif %}
     {% endfor %}
   {% endif %}
   {% if not state.can_start and not state.draft and state.reason %}<p class="small muted">{{ state.reason }}</p>{% endif %}

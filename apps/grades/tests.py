@@ -300,6 +300,59 @@ class ManualRecordTests(GradesBase):
         self.assertAlmostEqual(live(self.grades_of(self.bruno)).fraction, 0.45)
         self.assertContains(self.client.get(reverse("course_activities", args=[self.course.pk])), "Quiz 1 (Fuiz)")
 
+    def test_quitar_una_asignacion_y_confirmar_la_dudosa(self):
+        # «Bravo Z» coincide con Bravo, Bruno solo por el apellido: queda por confirmar.
+        page = self.client.post(self.url, self.data(action="paste", pasted="Andrade A 15000\nBravo Z 9000\n"))
+        self.assertContains(page, f'name="p-{self.bruno.pk}-weak"')
+        self.assertContains(page, f'name="c-{self.bruno.pk}"')
+        self.assertContains(page, f'value="quitar-{self.ana.pk}"')
+        pasted = {"action": "save", f"s-{self.ana.pk}": "15000", f"p-{self.ana.pk}": "Andrade A",
+                  f"s-{self.bruno.pk}": "9000", f"p-{self.bruno.pk}": "Bravo Z", f"p-{self.bruno.pk}-weak": "1"}
+
+        # «Quitar» devuelve la línea a «Sin asignar» y vacía la casilla; nada se guarda todavía.
+        page = self.client.post(self.url, self.data(**{**pasted, "action": f"quitar-{self.ana.pk}"}))
+        self.assertContains(page, 'name="u-0-name" value="Andrade A"')
+        self.assertContains(page, f'name="s-{self.ana.pk}" value=""')
+        self.assertFalse(ManualRecord.objects.exists())
+
+        # Sin confirmar, la dudosa no se guarda: pasa a «Sin asignar».
+        self.client.post(self.url, self.data(**pasted))
+        record = ManualRecord.objects.get()
+        self.assertEqual({m.student_id: m.pasted_name for m in record.scores.all()}, {self.ana.pk: "Andrade A"})
+        self.assertEqual(record.unmatched, [{"name": "Bravo Z", "points": "9000", "also": ""}])
+
+        # Confirmada, sí; y el nombre de la lista queda junto a la nota para poder quitarla después.
+        url = reverse("manual_record", args=[self.course.pk, record.pk])
+        self.client.post(url, self.data(**{**pasted, f"c-{self.bruno.pk}": "on"}))
+        self.assertEqual({m.student_id: m.pasted_name for m in record.scores.all()},
+                         {self.ana.pk: "Andrade A", self.bruno.pk: "Bravo Z"})
+        self.assertContains(self.client.get(url), f'value="quitar-{self.bruno.pk}"')
+
+    def test_el_registro_va_en_su_unidad(self):
+        from apps.live.models import Section
+
+        unit = Section.objects.create(course=self.course, title="Unidad 01")
+        other = Section.objects.create(course=self.course, title="Unidad 02")
+        self.assertContains(self.client.get(self.url + f"?seccion={unit.pk}"), f'<option value="{unit.pk}" selected>')
+        self.client.post(self.url, self.data(action="save", section=unit.pk, category=""))
+        record = ManualRecord.objects.get()
+        self.assertEqual(record.section, unit)
+        classes = self.client.get(reverse("course_manage", args=[self.course.pk]))
+        self.assertContains(classes, reverse("manual_record_move", args=[self.course.pk, record.pk]))
+        # Sin ponderación también se ve en Actividades, en su grupo.
+        self.assertContains(self.client.get(reverse("course_activities", args=[self.course.pk])), "Quiz 1 (Fuiz)")
+        # Una unidad con registros no se elimina; se arrastra a otra.
+        self.client.post(reverse("section_delete", args=[self.course.pk, unit.pk]))
+        self.assertTrue(Section.objects.filter(pk=unit.pk).exists())
+        self.client.post(reverse("manual_record_move", args=[self.course.pk, record.pk]), {"section": other.pk})
+        record.refresh_from_db()
+        self.assertEqual(record.section, other)
+
+    def test_solo_el_parcial_en_curso_viene_desplegado(self):
+        page = self.client.get(reverse("course_activities", args=[self.course.pk])).content.decode()
+        self.assertIn(f'id="parcial-{self.p1.pk}" open', page)        # sin fechas: el primero
+        self.assertIn(f'id="parcial-{self.p2.pk}">', page)
+
     def test_notas_fuera_de_rango_no_se_guardan(self):
         page = self.client.post(self.url, self.data(**{"action": "save", f"s-{self.ana.pk}": "25000"}))
         self.assertContains(page, "fuera de rango")

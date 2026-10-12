@@ -23,7 +23,7 @@ class ProfileSignupForm(forms.Form):
     last_name = forms.CharField(label=_("Apellidos"), max_length=150)
     student_id = forms.CharField(
         label=_("Cédula o pasaporte"), max_length=20,
-        help_text=_("La usamos para identificarle ante sus docentes y en las actas de notas."),
+        help_text=_("Se utiliza para identificarle ante sus docentes y en las actas de calificaciones."),
     )
 
     field_order = ["first_name", "last_name", "student_id", "email", "username",
@@ -53,7 +53,7 @@ class PreferencesForm(forms.Form):
     language = forms.ChoiceField(label=_("Idioma"), choices=settings.LANGUAGES)
     timezone = forms.ChoiceField(label=_("Zona horaria"))
     theme = forms.ChoiceField(label=_("Tema"), required=False,
-                              help_text=_("En el proyector se usa el tema claro, salvo que elija oscuro."))
+                              help_text=_("En el proyector se utiliza el tema claro, salvo que se elija el oscuro."))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

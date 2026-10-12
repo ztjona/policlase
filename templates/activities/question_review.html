@@ -9,7 +9,7 @@
 <div class="review-layout">
   <aside class="card review-aside stack">
     {% include "activities/_question_static.html" with q=question record=record reveal=True show_reference=True %}
-    {% if question.grading.mode == "ai" %}<p class="small muted">{% translate "Marcada para calificación con IA. La propuesta automática aún no está activa: califique usted." %}</p>{% endif %}
+    {% if question.grading.mode == "ai" %}<p class="small muted">{% translate "Marcada para calificación con IA. La propuesta automática aún no está disponible; califique manualmente." %}</p>{% endif %}
   </aside>
   <div class="stack">
     {% for r in rows %}{% with a=r.answer q=question %}

@@ -6,7 +6,7 @@
   <form method="post" action="{% url 'student_feedback' session.pk %}" data-answer-form data-slide="feedback" class="card stack feedback-form">
     {% csrf_token %}
     <h3 style="margin:0">{% translate "¿Cómo estuvo la clase?" %}</h3>
-    <p class="anon-note small">{% include "live/_lock.html" %} {% translate "Es anónima de verdad: tu respuesta se guarda sin tu nombre, y tu docente solo ve el resumen del grupo (y únicamente cuando respondieron al menos 3). Responde con confianza." %}</p>
+    <p class="anon-note small">{% include "live/_lock.html" %} {% translate "Es anónima: tu respuesta se guarda sin tu nombre, y tu docente solo ve el resumen del grupo, cuando han respondido al menos 3 personas." %}</p>
     <fieldset class="rating">
       <legend class="sr-only">{% translate "Valoración de 1 a 5" %}</legend>
       {% for n, label in rating_choices %}

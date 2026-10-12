@@ -10,7 +10,7 @@
         {{ s.markdown|md }}
       {% elif s.kind == "feedback" %}
         <div class="prompt">{% translate "¿Cómo estuvo la clase?" %}</div>
-        <p class="small muted">{% include "live/_lock.html" %} {% translate "Retroalimentación anónima: valoración de 1 a 5 y comentario opcional. No da puntos. Desactívela con «feedback: false»." %}</p>
+        <p class="small muted">{% include "live/_lock.html" %} {% translate "Retroalimentación anónima: valoración de 1 a 5 y comentario opcional. No otorga puntos. Se desactiva con «feedback: false»." %}</p>
       {% else %}
         {% if s.stem %}<div>{{ s.stem|md }}</div>{% endif %}
         <div class="prompt">{{ s.question.prompt|md }}</div>

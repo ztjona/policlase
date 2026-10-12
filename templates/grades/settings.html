@@ -15,7 +15,7 @@
         <div>{{ p.form.starts_on.label_tag }}{{ p.form.starts_on }}{{ p.form.starts_on.errors }}</div>
         <div>{{ p.form.ends_on.label_tag }}{{ p.form.ends_on }}{{ p.form.ends_on.errors }}</div>
       </div>
-      <span class="helptext">{% translate "El cierre decide qué clases en vivo cuentan para la participación de este parcial y es el último día para entregas atrasadas." %}</span>
+      <span class="helptext">{% translate "La fecha de cierre determina qué clases en vivo cuentan para la participación de este parcial y es el último día para entregas atrasadas." %}</span>
       {{ p.rows.management_form }}
       {% if p.rows.non_form_errors %}<div class="notice">{{ p.rows.non_form_errors }}</div>{% endif %}
       <div class="table-wrap">
@@ -42,7 +42,7 @@
           </tr></tfoot>
         </table>
       </div>
-      <span class="helptext">{% translate "La última fila vacía sirve para agregar un componente. «Clases en vivo» toma los resultados de las clases del parcial (faltar a una cuenta cero); «Actividades», las actividades que asigne a esa fila." %}</span>
+      <span class="helptext">{% translate "Utilice la última fila, vacía, para agregar un componente. «Clases en vivo» toma los resultados de las clases del parcial (la inasistencia cuenta cero); «Actividades», las actividades asignadas a esa fila." %}</span>
       {% if periods|length > 1 %}
         <div><button type="submit" form="del-{{ p.period.pk }}" class="danger small">{% blocktranslate with n=p.period.name %}Eliminar «{{ n }}»{% endblocktranslate %}</button></div>
       {% endif %}

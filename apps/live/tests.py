@@ -246,6 +246,11 @@ class AnswerTests(LiveBase):
         self.client.force_login(self.teacher)
         response = self.client.get(reverse("session_results", args=[session.pk]))
         self.assertContains(response, "ausente")                 # bruno no se conectó
+        # Terminada, la presentación muestra en su unidad cuándo se dictó, con enlace a los resultados.
+        engine.apply(session.pk, "end")
+        page = self.client.get(reverse("course_manage", args=[self.course.pk]))
+        self.assertContains(page, "Dictada:")
+        self.assertContains(page, reverse("session_results", args=[session.pk]), count=2)
 
 
 class FragmentTests(LiveBase):
@@ -415,8 +420,9 @@ class PreviewTests(LiveBase):
         data = self.preview(DEMO).json()
         self.assertEqual(data["diagnostics"], [])
         self.assertIn("slide-card", data["html"])
-        self.assertEqual(len(data["lines"]), len(self.deck.slides) - 1)   # la retroalimentación no está en el YAML
-        self.assertTrue(all(isinstance(n, int) for n in data["lines"]))
+        self.assertEqual(len(data["lines"]), len(self.deck.slides))       # una por diapositiva compilada
+        self.assertIsNone(data["lines"][-1])                                 # la retroalimentación no está en el YAML
+        self.assertTrue(all(isinstance(n, int) for n in data["lines"][:-1]))
 
     def test_vista_previa_con_errores(self):
         data = self.preview(DEMO.replace("type: choice", "type: open", 1)).json()
@@ -1036,7 +1042,8 @@ class StudioTests(LiveBase):
     def test_nuevo_con_tipo_actividad_trae_su_plantilla(self):
         page = self.client.get(reverse("deck_new", args=[self.course.pk]) + "?tipo=actividad")
         self.assertContains(page, 'data-kind="activity"')
-        self.assertContains(page, "policlase.activity/v1")
+        self.assertContains(page, "use: activity")
+        self.assertContains(page, "schema: policlase/v1")
         self.assertContains(page, 'id="studio-templates"')
 
     def test_pegar_una_actividad_en_el_editor_nuevo_crea_una_actividad(self):
@@ -1056,7 +1063,7 @@ class StudioTests(LiveBase):
         self.assertEqual(response.status_code, 200)
         self.deck.refresh_from_db()
         self.assertEqual(self.deck.source, DEMO)
-        self.assertContains(response, "no se guardó")
+        self.assertContains(response, "No se guardó")
 
     def test_vista_previa_y_panel_de_una_actividad(self):
         data = self.client.post(reverse("content_preview", args=[self.course.pk]),
@@ -1158,3 +1165,55 @@ class ManualSessionGradeTests(LiveBase):
         self.assertEqual(self.client.post(reverse("guest_link", args=[session.pk, guest.pk]),
                                           {"student": self.bruno.pk}).status_code, 404)
         self.assertTrue(User.objects.filter(pk=guest.pk).exists())
+
+
+SURVEY_CLASS = """schema: policlase/v1
+title: 'Sondeo'
+use: class
+slides:
+  - item:
+      id: S-gusto
+      questions:
+        - id: q1
+          type: choice
+          prompt: '¿Le gustó la clase anterior?'
+          grading: { mode: survey }
+          options: [{ text: 'Sí' }, { text: 'No' }]
+  - segment: { title: 'Rápidas', time_limit_s: 10 }
+  - item:
+      id: S-suma
+      questions:
+        - { id: q1, type: numeric, prompt: '2 + 2', solution: 4, grading: { atol: 0 } }
+"""
+
+
+class UnifiedClassTests(LiveBase):
+    """Una clase en el formato único: segmentos que cambian el tiempo, encuestas sin correcta."""
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.teacher)
+        self.client.post(reverse("deck_new", args=[self.course.pk]), {"source": SURVEY_CLASS})
+        self.survey_deck = Deck.objects.get(title="Sondeo")
+
+    def test_segmento_y_encuesta_en_vivo(self):
+        questions = [s for s in self.survey_deck.slides if s["kind"] == "question"]
+        self.assertEqual([q["time_limit_s"] for q in questions], [30, 10])
+        self.assertTrue(questions[0]["question"]["survey"])
+        self.client.post(reverse("session_start", args=[self.course.pk, self.survey_deck.pk]))
+        session = LiveSession.objects.get(deck=self.survey_deck)
+        self.assertEqual(sum(q["points"] for q in questions), 1)      # la encuesta no da puntos
+        engine.apply(session.pk, "start")
+        engine.apply(session.pk, "open")
+        session.refresh_from_db()
+        key = session.slide["question"]["options"][0]["key"]
+        engine.join(session, self.ana)
+        engine.submit(session.pk, self.ana, key)                      # respondió el único conectado: se cierra sola
+        engine.apply(session.pk, "reveal")
+        self.client.force_login(self.ana)
+        page = self.client.get(reverse("student_fragment", args=[session.pk]))
+        self.assertContains(page, "Respuesta registrada")
+        self.assertNotContains(page, "Incorrecto")
+        self.client.force_login(self.teacher)
+        self.assertContains(self.client.get(reverse("present_fragment", args=[session.pk])), "Encuesta: 1 respuestas")
+        self.assertContains(self.client.get(reverse("session_results", args=[session.pk])), "Encuesta: se registra")

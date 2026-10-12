@@ -4,12 +4,12 @@
 {% block main %}
 <div class="muted small"><a href="{% url 'course_activities' course.pk %}">← {{ course.name }}</a></div>
 <h1>{% translate "Fechas" %}</h1>
-<p class="muted">{% translate "Las fechas clave son las pruebas y exámenes del curso. Un deber puede vencer en relación con una de ellas (p. ej. el día anterior): si la prueba se reprograma, cambie aquí su fecha y todos esos deberes se mueven solos." %}</p>
+<p class="muted">{% translate "Las fechas clave corresponden a las pruebas y exámenes del curso. La fecha de entrega de un deber puede definirse en relación con una de ellas (p. ej., el día anterior); si la prueba se reprograma, basta con cambiar aquí su fecha para que esos deberes se actualicen automáticamente." %}</p>
 
 <h2>{% translate "Fechas clave" %}</h2>
 <div class="card table-wrap">
   <table>
-    <thead><tr><th colspan="2">{% translate "Fecha clave" %}</th><th class="center">{% translate "Actividades atadas" %}</th><th class="actions-col"></th></tr></thead>
+    <thead><tr><th colspan="2">{% translate "Fecha clave" %}</th><th class="center">{% translate "Actividades vinculadas" %}</th><th class="actions-col"></th></tr></thead>
     <tbody>
       {% for m in milestones %}
         <tr>
@@ -31,7 +31,7 @@
           </td>
         </tr>
       {% empty %}
-        <tr><td colspan="4" class="muted small">{% translate "Sin fechas clave todavía. Agregue la primera prueba abajo." %}</td></tr>
+        <tr><td colspan="4" class="muted small">{% translate "Aún no hay fechas clave. Agregue la primera a continuación." %}</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -74,13 +74,13 @@
     </div>
     {% if milestone_choices %}
       <div class="row">
-        <label class="small" style="margin:0">{% translate "Atar las seleccionadas a" %}
+        <label class="small" style="margin:0">{% translate "Vincular las seleccionadas a" %}
           <select name="milestone" class="compact">{% for m in milestone_choices %}<option value="{{ m.pk }}">{{ m.name }} ({{ m.on|date:"d M" }})</option>{% endfor %}</select></label>
         <label class="small" style="margin:0"><input type="number" name="offset" value="-1" min="-60" max="60" class="narrow"> {% translate "días (−1 = el día anterior)" %}</label>
-        <button name="action" value="link" class="secondary">{% translate "Atar" %}</button>
+        <button name="action" value="link" class="secondary">{% translate "Vincular" %}</button>
       </div>
     {% endif %}
-    <p class="small muted" style="margin:0">{% translate "Mover cambia la fecha de entrega (y la apertura, si aún no llegó). En las atadas a una fecha clave cambia cuántos días antes o después vencen, y siguen atadas." %}</p>
+    <p class="small muted" style="margin:0">{% translate "«Mover» cambia la fecha de entrega (y la de apertura, si aún no ha llegado). En las actividades vinculadas a una fecha clave, cambia el número de días antes o después de ella, y el vínculo se mantiene." %}</p>
   </form>
 {% else %}
   <p class="muted">{% translate "Todavía no hay actividades." %}</p>

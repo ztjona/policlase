@@ -1,6 +1,7 @@
 {% load i18n policlase %}
-{% comment %} Pestaña Clases: secciones (unidades) con sus presentaciones y actividades; se arrastran entre ellas.
-   Solo la unidad en curso aparece desplegada. {% endcomment %}
+{% comment %} Pestaña Clases: secciones (unidades) con sus presentaciones (y las fechas en que se dictaron), sus
+   actividades y sus registros manuales; todo se arrastra entre ellas. Solo la unidad en curso aparece
+   desplegada. {% endcomment %}
 {% include "courses/_sync_issues.html" %}
 
 <div id="units" data-csrf="{{ csrf_token }}">
@@ -12,13 +13,15 @@
           <summary>
             <span class="unit-title" data-rename="{% url 'section_rename' course.pk section.pk %}"
                   title="{% translate 'Doble clic para renombrar' %}">{{ section.title }}</span>
-            <span class="chip" title="{% translate 'Presentaciones y actividades' %}">{{ group.count }}</span>
+            <span class="chip" title="{% translate 'Presentaciones, actividades y registros manuales' %}">{{ group.count }}</span>
             <span class="spacer"></span>
             <a class="icon-btn" href="{% url 'deck_new' course.pk %}?seccion={{ section.pk }}"
                title="{% translate 'Nueva presentación en esta sección' %}" aria-label="{% translate 'Nueva presentación en esta sección' %}">{% icon "file_add" %}</a>
             <a class="icon-btn" href="{% url 'activity_new' course.pk %}?seccion={{ section.pk }}"
                title="{% translate 'Nueva actividad en esta sección' %}" aria-label="{% translate 'Nueva actividad en esta sección' %}">{% icon "task" %}</a>
-            {% if group.decks or group.activities %}
+            <a class="icon-btn" href="{% url 'manual_record_new' course.pk %}?seccion={{ section.pk }}"
+               title="{% translate 'Registrar notas en esta sección' %}" aria-label="{% translate 'Registrar notas en esta sección' %}">{% icon "record" %}</a>
+            {% if group.count %}
               <span class="icon-btn" aria-disabled="true" title="{% translate 'Para eliminar la sección, mueva o elimine antes su contenido' %}">{% icon "close" %}</span>
             {% else %}
               <button type="button" class="icon-btn danger" data-delete="{% url 'section_delete' course.pk section.pk %}"
@@ -29,17 +32,19 @@
           <div class="unit-body">
             {% include "courses/_deck_rows.html" with decks=group.decks %}
             {% include "courses/_unit_activity_rows.html" with activities=group.activities %}
-            {% if not group.decks and not group.activities %}
-              <p class="small muted drop-hint" style="margin:4px 0">{% translate "Sin contenido todavía: arrastre aquí una presentación o una actividad, o cree una con" %} {% icon "file_add" 14 %} {% icon "task" 14 %}</p>
+            {% include "courses/_unit_record_rows.html" with records=group.records %}
+            {% if not group.count %}
+              <p class="small muted drop-hint" style="margin:4px 0">{% translate "Aún no hay contenido. Arrastre aquí una presentación, una actividad o un registro, o cree uno con" %} {% icon "file_add" 14 %} {% icon "task" 14 %} {% icon "record" 14 %}</p>
             {% endif %}
           </div>
         </details>
-      {% elif group.decks or group.activities or groups|length > 1 %}
+      {% elif group.count or groups|length > 1 %}
         <section class="unit loose drop-section" data-section="">
-          <div class="loose-head small muted">{% translate "Sin sección" %} · {% translate "arrastre una presentación o una actividad a una sección para agruparla" %}</div>
+          <div class="loose-head small muted">{% translate "Sin sección" %} · {% translate "arrastre un elemento a una sección para agruparlo" %}</div>
           <div class="unit-body">
             {% include "courses/_deck_rows.html" with decks=group.decks %}
             {% include "courses/_unit_activity_rows.html" with activities=group.activities %}
+            {% include "courses/_unit_record_rows.html" with records=group.records %}
           </div>
         </section>
       {% endif %}

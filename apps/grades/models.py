@@ -19,7 +19,7 @@ class GradingRules(models.Model):
     #: Tope de cada parcial: los extras compensan lo que falte, pero un parcial no pasa de aquí.
     period_max = models.DecimalField(_("nota máxima de cada parcial"), max_digits=6, decimal_places=2,
                                      default=Decimal("20"))
-    fail_below = models.DecimalField(_("pierde con menos de"), max_digits=6, decimal_places=2,
+    fail_below = models.DecimalField(_("reprueba con menos de"), max_digits=6, decimal_places=2,
                                      default=Decimal("18"),
                                      help_text=_("Suma de los parciales."))
     pass_from = models.DecimalField(_("aprueba desde"), max_digits=6, decimal_places=2, default=Decimal("28"),
@@ -107,11 +107,16 @@ class ManualRecord(models.Model):
     Quien no tiene nota registrada cuenta cero, como quien falta a una clase. Los nombres pegados
     que no coincidieron con ningún inscrito se guardan en `unmatched` para asignarlos después: los
     estudiantes que se inscriben tarde.
+
+    La unidad (`section`) solo ubica el registro en la pestaña Clases, junto a la clase en que se hizo
+    (un cuestionario en otra plataforma durante la clase, por ejemplo); el parcial lo decide la fecha.
     """
 
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="manual_records")
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True,
                                  related_name="manual_records", verbose_name=_("ponderación"))
+    section = models.ForeignKey("live.Section", on_delete=models.SET_NULL, null=True, blank=True,
+                                related_name="manual_records", verbose_name=_("unidad"))
     title = models.CharField(_("título"), max_length=200)
     on = models.DateField(_("fecha"))
     max_points = models.DecimalField(_("puntaje máximo"), max_digits=9, decimal_places=2, default=Decimal("20"))
@@ -130,6 +135,9 @@ class ManualScore(models.Model):
     record = models.ForeignKey(ManualRecord, on_delete=models.CASCADE, related_name="scores")
     student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
     points = models.DecimalField(max_digits=9, decimal_places=2)
+    #: El nombre de la lista pegada del que salió la nota: permite revisar y deshacer la asignación
+    #: después de guardar. Vacío si el docente la escribió a mano.
+    pasted_name = models.CharField(max_length=200, blank=True)
 
     class Meta:
         constraints = [

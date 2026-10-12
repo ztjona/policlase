@@ -1,0 +1,39 @@
+{% load policlase i18n %}
+{% comment %} Panel lateral del editor: un renglón por diapositiva, ítem o segmento, en el orden del archivo.
+   data-index: posición en lo compilado (la vista previa); data-at: posición en `slides` (o `items`), la que
+   usan las operaciones del panel. {% endcomment %}
+<ol class="outline" id="outline-list">
+  {% for e in entries %}
+    {% if e.kind == "feedback" %}
+      <li class="thumb is-fixed{% if e.hidden %} is-hidden{% endif %}" data-index="{{ e.index }}" data-kind="feedback">
+        <span class="num">★</span>
+        <span class="body"><span class="kind">{% translate "Retroalimentación" %}</span><span class="title">{{ e|slide_title }}</span></span>
+        <span class="tools"><button type="button" class="icon" data-op="{% if e.hidden %}show{% else %}hide{% endif %}"
+          title="{% if e.hidden %}{% translate 'Mostrar en clase' %}{% else %}{% translate 'Ocultar en clase' %}{% endif %}"
+          aria-label="{% if e.hidden %}{% translate 'Mostrar en clase' %}{% else %}{% translate 'Ocultar en clase' %}{% endif %}">{% if e.hidden %}◌{% else %}◉{% endif %}</button></span>
+      </li>
+    {% else %}
+      <li class="thumb{% if e.kind == 'segment' %} segment{% endif %}{% if e.hidden %} is-hidden{% endif %}"
+          {% if e.index is not None %}data-index="{{ e.index }}"{% endif %} data-at="{{ e.at }}" data-line="{{ e.line|default:'' }}"
+          data-kind="{{ e.kind }}" draggable="true">
+        <span class="num">{% if e.kind == "segment" %}—{% else %}{{ forloop.counter }}{% endif %}</span>
+        <span class="body">
+          <span class="kind">{% if e.kind == "segment" %}{% translate "Segmento" %}{% if e.time_limit_s %} · {{ e.time_limit_s }} s{% endif %}{% if e.block_paste %} · {% translate "sin pegar" %}{% endif %}
+            {% elif e.kind == "content" %}{% translate "Contenido" %}
+            {% elif e.kind == "item" %}{{ e.item_id }} · {% blocktranslate count n=e.questions|length %}{{ n }} pregunta{% plural %}{{ n }} preguntas{% endblocktranslate %}{% if e.questions.0.time_limit_s %} · {{ e.questions.0.time_limit_s }} s{% endif %}
+            {% else %}{{ e.question.type }}{% if e.question.survey %} · {% translate "encuesta" %}{% endif %}{% endif %}</span>
+          <span class="title">{% if e.kind == "segment" %}{% if e.title %}{{ e.title|md_inline }}{% else %}{% translate "Restablece la configuración del documento" %}{% endif %}{% else %}{{ e|slide_title|md_inline }}{% endif %}</span>
+        </span>
+        <span class="tools">
+          <button type="button" class="icon" data-op="up" title="{% translate 'Subir' %}" aria-label="{% translate 'Subir' %}">↑</button>
+          <button type="button" class="icon" data-op="down" title="{% translate 'Bajar' %}" aria-label="{% translate 'Bajar' %}">↓</button>
+          {% if kind == "deck" and e.kind != "segment" %}
+            <button type="button" class="icon" data-op="{% if e.hidden %}show{% else %}hide{% endif %}"
+                    title="{% if e.hidden %}{% translate 'Mostrar en clase' %}{% else %}{% translate 'Ocultar en clase' %}{% endif %}"
+                    aria-label="{% if e.hidden %}{% translate 'Mostrar en clase' %}{% else %}{% translate 'Ocultar en clase' %}{% endif %}">{% if e.hidden %}◌{% else %}◉{% endif %}</button>
+          {% endif %}
+        </span>
+      </li>
+    {% endif %}
+  {% endfor %}
+</ol>

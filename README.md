@@ -16,9 +16,11 @@ Aula virtual autoalojada para cursos universitarios con carga matemática.
   se escriben en YAML (`policlase.deck/v1`) y se validan con [`policlase-gen`](../policlase-gen).
   El docente puede **abrir la clase a invitados**: un enlace (y su QR en el proyector) deja entrar
   sin cuenta, para charlas o visitas.
-- **Un solo editor** para presentaciones y actividades, con Monaco (el editor de VS Code, mismos
-  atajos) y autocompletado según el esquema: el tipo lo dice el `schema` del texto (pegar una
-  actividad convierte el editor). Panel lateral con el tipo, la sección y las diapositivas o ítems
+- **Un solo formato y un solo editor** para clases, actividades (y luego evaluaciones):
+  `policlase/v1`, donde `use` dice para qué es y los **segmentos** cambian el comportamiento de lo
+  que sigue (por ejemplo, 15 s por pregunta y sin pegar). **Encuestas** sin respuesta correcta.
+  Monaco (el editor de VS Code, mismos atajos) con autocompletado según el esquema; pegar una
+  actividad convierte el editor. Panel lateral con el tipo, la sección y las diapositivas o ítems
   para reordenar (y ocultar diapositivas, como en PowerPoint), vista previa en vivo, LaTeX de la línea
   del cursor renderizado y plantillas para cada tipo de pregunta.
 - **Clases en vivo**: pausar y retomar otro día donde quedó, +15 s / reabrir una pregunta, cierre

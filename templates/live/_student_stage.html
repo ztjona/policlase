@@ -89,6 +89,13 @@
         <p class="muted">{% if mine %}{% translate "Tu respuesta quedó registrada." %}{% else %}{% translate "No alcanzaste a responder." %}{% endif %}</p>
       </div>
 
+    {% elif session.phase == "results" and slide.question.survey %}
+      <div class="card status-card">
+        <h2>{% if mine %}{% translate "Respuesta registrada" %}{% else %}{% translate "Sin respuesta" %}{% endif %}</h2>
+        <p class="muted">{% translate "Era una encuesta: no hay respuesta correcta." %}</p>
+      </div>
+      {% if mine %}<p class="small">{% translate "Respondiste:" %} {% for a in mine_display %}{{ a|md_inline }}{% if not forloop.last %} · {% endif %}{% endfor %}</p>{% endif %}
+
     {% elif session.phase == "results" %}
       {% if mine %}
         <div class="card status-card {% if mine.correct %}ok{% elif mine.points > 0 %}{% else %}bad{% endif %}">

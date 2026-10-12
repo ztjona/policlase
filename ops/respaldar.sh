@@ -18,15 +18,24 @@ docker compose exec -T db pg_dump -U policlase -d policlase -Fc > "$DEST/policla
 docker compose exec -T db pg_restore -l < "$DEST/policlase-$STAMP.dump.part" > /dev/null
 mv "$DEST/policlase-$STAMP.dump.part" "$DEST/policlase-$STAMP.dump"
 
-# Las imágenes son del usuario del contenedor: se empaquetan desde adentro.
-docker compose exec -T web tar -C /data -czf - media > "$DEST/media-$STAMP.tar.gz.part"
-mv "$DEST/media-$STAMP.tar.gz.part" "$DEST/media-$STAMP.tar.gz"
+# Imágenes: una entrega no cambia una vez subida, así que cada copia diaria es una carpeta con
+# enlaces duros a la anterior y solo ocupa lo nuevo. Son del usuario del contenedor: con sudo se
+# copian tal cual; sin sudo, un .tar.gz completo desde el contenedor.
+if sudo -n true 2>/dev/null; then
+  LAST="$(ls -1d "$DEST"/media-*/ 2>/dev/null | tail -n 1)"
+  sudo -n rsync -a --delete ${LAST:+--link-dest="$LAST"} "$DATA/media/" "$DEST/media-$STAMP/"
+  sudo -n touch "$DEST/media-$STAMP"        # rsync copia la fecha del original; la rotación usa la de hoy
+else
+  docker compose exec -T web tar -C /data -czf - media > "$DEST/media-$STAMP.tar.gz.part"
+  mv "$DEST/media-$STAMP.tar.gz.part" "$DEST/media-$STAMP.tar.gz"
+fi
 
 # Rotación: los diarios de los últimos 30 días y el del día 1 de cada mes durante un año.
-find "$DEST" -maxdepth 1 \( -name 'policlase-*.dump' -o -name 'media-*.tar.gz' \) -mtime +30 \
-  ! -name '*-01_*' -delete
-find "$DEST" -maxdepth 1 \( -name 'policlase-*.dump' -o -name 'media-*.tar.gz' \) -mtime +400 -delete
+find "$DEST" -mindepth 1 -maxdepth 1 \( -name 'policlase-*.dump' -o -name 'media-*' \) -mtime +30 \
+  ! -name '*-01_*' -exec sudo -n rm -rf {} + 2>/dev/null || true
+find "$DEST" -mindepth 1 -maxdepth 1 \( -name 'policlase-*.dump' -o -name 'media-*' \) -mtime +400 \
+  -exec sudo -n rm -rf {} + 2>/dev/null || true
 find "$DEST" -maxdepth 1 -name '*.part' -mtime +1 -delete
 
 echo "$(date '+%F %T') respaldo $STAMP: base $(du -h "$DEST/policlase-$STAMP.dump" | cut -f1)," \
-     "imágenes $(du -h "$DEST/media-$STAMP.tar.gz" | cut -f1)"
+     "todos los respaldos $(du -sh "$DEST" 2>/dev/null | cut -f1)"

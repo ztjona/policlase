@@ -51,7 +51,7 @@ class Activity(models.Model):
     #: decidir sus fechas y su ponderación.
     published = models.BooleanField(_("publicada"), default=False)
     opens_at = models.DateTimeField(_("disponible desde"), null=True, blank=True,
-                                    help_text=_("Vacío: apenas se publica."))
+                                    help_text=_("Si se deja vacío, la actividad está disponible desde su publicación."))
     due_milestone = models.ForeignKey(Milestone, on_delete=models.SET_NULL, null=True, blank=True,
                                       related_name="activities", verbose_name=_("fecha clave"))
     due_offset_days = models.SmallIntegerField(_("días respecto a la fecha clave"), default=-1)
@@ -63,7 +63,7 @@ class Activity(models.Model):
     max_attempts = models.PositiveSmallIntegerField(_("intentos"), default=3)
     #: Impide pegar en las respuestas abiertas: obliga a escribir, nada más. No se ofrece en las
     #: numéricas: los estudiantes calculan en Python o Excel y pegan el número.
-    block_paste = models.BooleanField(_("bloquear pegar en respuestas abiertas"), default=False)
+    block_paste = models.BooleanField(_("impedir pegar texto en las respuestas abiertas"), default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -163,6 +163,9 @@ class Attempt(models.Model):
     #: Señales para el docente, no castigos: veces que pegó texto y cuánto, veces que salió de
     #: la página. El estudiante sabe que se registran.
     telemetry = models.JSONField(default=dict)
+    #: Preguntas con tiempo: clave → {"opened": ISO, "closed": ISO}. El reloj es el del servidor
+    #: (`engine.timer`): se abre a pedido del estudiante, corre aunque cierre la página y no se reinicia.
+    timers = models.JSONField(default=dict)
 
     class Meta:
         ordering = ["activity", "student", "number"]

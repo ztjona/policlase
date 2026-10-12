@@ -2,6 +2,8 @@ from django import forms
 from django.forms import inlineformset_factory
 from django.utils.translation import gettext_lazy as _
 
+from apps.live.models import Section
+
 from .models import Category, GradingRules, ManualRecord, Milestone, Period
 
 DATE = forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")
@@ -17,7 +19,7 @@ class RulesForm(forms.ModelForm):
         data = super().clean()
         fail, ok = data.get("fail_below"), data.get("pass_from")
         if fail is not None and ok is not None and fail > ok:
-            self.add_error("pass_from", _("Debe ser mayor o igual que el límite para perder."))
+            self.add_error("pass_from", _("Debe ser mayor o igual que el límite de reprobación."))
         return data
 
 
@@ -62,7 +64,7 @@ class MilestoneForm(forms.ModelForm):
 class ManualRecordForm(forms.ModelForm):
     class Meta:
         model = ManualRecord
-        fields = ["title", "category", "on", "max_points", "note"]
+        fields = ["title", "section", "category", "on", "max_points", "note"]
         widgets = {"on": DATE, "max_points": forms.NumberInput(attrs={"step": "any", "min": "0.01"}),
                    "note": forms.TextInput(attrs={"placeholder": _("p. ej. «Fuiz, código 20226»")})}
 
@@ -70,8 +72,12 @@ class ManualRecordForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["category"].queryset = Category.objects.filter(period__course=course).select_related("period")
         self.fields["category"].empty_label = _("— Sin ponderación (no cuenta) —")
-        self.fields["category"].help_text = _("Si la fecha cae en otro parcial, cuenta en la fila del mismo nombre "
-                                              "de ese parcial.")
+        self.fields["category"].help_text = _("Si la fecha corresponde a otro parcial, el registro cuenta en la fila "
+                                              "del mismo nombre en ese parcial.")
+        self.fields["section"].queryset = Section.objects.filter(course=course)
+        self.fields["section"].empty_label = _("— Sin unidad —")
+        self.fields["section"].help_text = _("El registro aparece en esa unidad, en la pestaña Clases, junto a sus "
+                                             "presentaciones y actividades.")
 
     def clean_max_points(self):
         value = self.cleaned_data["max_points"]

@@ -155,7 +155,14 @@ y notas solo están en la base.
 
 ## Actualizar con clases en curso
 
-`docker compose ... up -d --build` reinicia la plataforma y aplica las migraciones: corra antes
+**`ops/desplegar.sh` hace todo esto en orden:** se niega si hay alguien en una clase en vivo,
+respalda, construye, levanta y verifica que responda con la versión de `VERSION`. La imagen
+desplegada queda como `policlase-web:desplegada` y la anterior como `policlase-web:anterior`;
+`ops/desplegar.sh --volver` regresa a ella (si una migración cambió la base, restaure también el
+respaldo). Quien tenga un deber abierto no pierde nada: su borrador está en la base y el
+autoguardado reintenta hasta que vuelve el servidor.
+
+A mano: `docker compose ... up -d --build` reinicia la plataforma y aplica las migraciones; corra antes
 `ops/respaldar.sh`. Los teléfonos se reconectan solos en unos segundos, pero es mejor no actualizar
 en medio de una clase. Antes, revise que no haya ninguna en vivo con gente conectada:
 

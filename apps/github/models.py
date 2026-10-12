@@ -42,7 +42,7 @@ class CourseRepo(models.Model):
     repo = models.CharField(_("repositorio"), max_length=200, help_text=_("usuario/repositorio"))
     branch = models.CharField(_("rama"), max_length=100, default="main")
     folder = models.CharField(_("carpeta"), max_length=300, blank=True,
-                              help_text=_("p. ej. metodos-numericos/clases; vacío = raíz del repositorio"))
+                              help_text=_("p. ej. metodos-numericos/clases; si se deja vacío, se usa la raíz del repositorio"))
     webhook_secret = models.CharField(max_length=64, default=new_webhook_secret)
     last_synced_at = models.DateTimeField(null=True, blank=True)
     last_error = models.TextField(blank=True)

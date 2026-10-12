@@ -8,6 +8,6 @@
            class="points-input" required> / {{ q.points|floatformat:"-2" }}</label>
   <input type="text" name="comment" value="{{ a.comment }}" placeholder="{% translate 'Comentario para el estudiante (opcional)' %}" class="comment-input" maxlength="2000">
   <button type="submit" class="small">{% translate "Guardar" %}</button>
-  {% if a.auto_points is not None and a.graded_at %}<button type="submit" name="restore" value="1" class="secondary small" formnovalidate>{% translate "Volver a la automática" %}</button>{% endif %}
+  {% if a.auto_points is not None and a.graded_at %}<button type="submit" name="restore" value="1" class="secondary small" formnovalidate>{% translate "Restablecer la nota automática" %}</button>{% endif %}
   <span class="small muted" data-grade-status role="status">{% if a.needs_review %}{% translate "por revisar" %}{% elif a.graded_at %}{% translate "calificada" %}{% endif %}</span>
 </form>

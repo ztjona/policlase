@@ -279,6 +279,18 @@ class SectionSyncTests(SyncBase):
         sync.pull(self.link)
         self.assertFalse(Section.objects.filter(github_folder="unidad-02").exists())
 
+    def test_la_seccion_con_registros_manuales_se_conserva(self):
+        from django.utils import timezone
+
+        from apps.grades.models import ManualRecord
+
+        unit2 = Section.objects.get(github_folder="unidad-02")
+        record = ManualRecord.objects.create(course=self.course, section=unit2, title="Quiz", on=timezone.localdate())
+        del self.gh.files["mn/clases/unidad-02/newton.yaml"]
+        sync.pull(self.link)
+        record.refresh_from_db()
+        self.assertEqual(record.section, unit2)                  # los registros no viven en GitHub
+
     def test_crear_seccion_en_la_web_crea_la_carpeta(self):
         self.client.force_login(self.teacher)
         self.client.post(reverse("section_create", args=[self.course.pk]), {"title": "Unidad 3 - Interpolación"})

@@ -15,7 +15,7 @@
     <strong class="studio-title" id="deck-title">{% if content %}{{ content.title }}{% elif kind == "activity" %}{% translate "Nueva actividad" %}{% else %}{% translate "Nueva presentación" %}{% endif %}</strong>
     <span class="spacer"></span>
     <span class="status-pill" id="preview-status" role="status" title="{% translate 'Validación' %}"></span>
-    {% if link %}<span class="chip gh-chip" title="{% blocktranslate with repo=link.repo %}Solo «Guardar» (o Ctrl+S) hace un commit en {{ repo }}; escribir y la vista previa no.{% endblocktranslate %}">{% icon "github" 14 %} GitHub</span>{% endif %}
+    {% if link %}<span class="chip gh-chip" title="{% blocktranslate with repo=link.repo %}Solo «Guardar» (o Ctrl+S) registra un commit en {{ repo }}; la escritura y la vista previa no generan commits.{% endblocktranslate %}">{% icon "github" 14 %} GitHub</span>{% endif %}
     <button type="button" class="icon-btn" id="toggle-preview" aria-pressed="true"
             data-label-on="{% translate 'Ocultar la vista previa' %}" data-label-off="{% translate 'Mostrar la vista previa' %}"
             title="{% translate 'Ocultar la vista previa' %}" aria-label="{% translate 'Ocultar la vista previa' %}">
@@ -41,7 +41,7 @@
         </div>
       </div>
       <div class="outline-head">
-        <strong class="small"><span data-kinds="deck">{% translate "Diapositivas" %}</span><span data-kinds="activity">{% translate "Ítems" %}</span></strong>
+        <strong class="small"><span data-kinds="deck">{% translate "Diapositivas" %}</span><span data-kinds="activity">{% translate "Contenido" %}</span></strong>
         <details class="insert">
           <summary class="btn secondary small">+ {% translate "Insertar" %}</summary>
           <div class="menu">
@@ -53,12 +53,14 @@
             <button type="button" data-snippet="text">{% translate "Texto corto" %}</button>
             <button type="button" data-snippet="open" data-kinds="activity">{% translate "Respuesta abierta" %}</button>
             <button type="button" data-snippet="image" data-kinds="activity">{% translate "Subir imágenes" %}</button>
+            <button type="button" data-snippet="survey">{% translate "Encuesta" %}</button>
+            <button type="button" data-snippet="segment">{% translate "Segmento (tiempo, sin pegar)" %}</button>
           </div>
         </details>
       </div>
       <div id="outline"><p class="muted small">{% translate "Cargando…" %}</p></div>
-      <p class="small muted outline-hint" data-kinds="deck">{% translate "Arrastre para reordenar. ◉ se presenta en clase; ◌ está oculta. Los cambios van al texto y se guardan con «Guardar»." %}</p>
-      <p class="small muted outline-hint" data-kinds="activity">{% translate "Arrastre para reordenar los ítems. Aquí va solo el contenido: las fechas, la ponderación y los intentos se configuran después de guardar." %}</p>
+      <p class="small muted outline-hint" data-kinds="deck">{% translate "Arrastre para reordenar. ◉ indica que la diapositiva se presenta en clase; ◌, que está oculta. Los cambios se aplican al texto y se registran con «Guardar»." %}</p>
+      <p class="small muted outline-hint" data-kinds="activity">{% translate "Arrastre para reordenar. Un segmento cambia el comportamiento de lo que le sigue (tiempo por pregunta, pegar). Las fechas, la ponderación y los intentos se configuran después de guardar." %}</p>
     </aside>
 
     <div class="studio-editor">

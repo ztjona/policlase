@@ -21,7 +21,16 @@
   var titleEl = document.getElementById("deck-title");
   var body = document.getElementById("studio-body");
   var TEMPLATES = JSON.parse(document.getElementById("studio-templates").textContent);
-  var SCHEMA = /^schema\s*:\s*['"]?policlase\.(deck|activity)\//m;
+  // El tipo según el texto: `use:` en el formato único; el `schema` en los anteriores.
+  var USE = /^use\s*:\s*['"]?(class|activity|evaluation)\b/m;
+  var LEGACY = /^schema\s*:\s*['"]?policlase\.(deck|activity)\//m;
+  function declaredKind(text) {
+    var legacy = LEGACY.exec(text);
+    if (legacy) return legacy[1];
+    var use = USE.exec(text);
+    return use ? ({ "class": "deck", activity: "activity" }[use[1]] || null) : null;
+  }
+  function legacyActivity() { var m = LEGACY.exec(ed.get()); return !!m && m[1] === "activity"; }
 
   function kind() { return form.dataset.kind; }
   function setKind(k) {
@@ -182,8 +191,8 @@
 
   function refresh() {
     var mine = ++seq;
-    var declared = SCHEMA.exec(ed.get());
-    if (declared && form.dataset.new) setKind(declared[1]);
+    var declared = declaredKind(ed.get());
+    if (declared && form.dataset.new) setKind(declared);
     setStatus(gettext("validando…"));
     fetch(form.dataset.preview, {
       method: "POST", credentials: "same-origin",
@@ -200,7 +209,7 @@
         if (outline) outline.innerHTML = data.outline;
         if (window.policlaseMath) { window.policlaseMath(preview); if (outline) window.policlaseMath(outline); }
         if (data.title) titleEl.textContent = data.title;
-        setStatus(gettext("al día"), "ok");
+        setStatus(gettext("sin errores"), "ok");
         preview.classList.remove("stale");
         if (outline) outline.classList.remove("stale");
       } else {
@@ -234,20 +243,23 @@
     });
   }
 
+  // Las operaciones usan la posición en el archivo (data-at); los segmentos cuentan como una entrada.
   if (outline) outline.addEventListener("click", function (e) {
     var thumb = e.target.closest(".thumb");
     if (!thumb) return;
-    var index = Number(thumb.dataset.index), button = e.target.closest("[data-op]");
-    var count = outline.querySelectorAll(".thumb:not(.is-fixed)").length;
+    var button = e.target.closest("[data-op]");
     if (button) {
       var name = button.dataset.op;
-      if (thumb.dataset.kind === "feedback") op(name === "hide" ? "feedback_off" : "feedback_on", index);
-      else if (name === "up" && index > 0) op("move", index, index - 1);
-      else if (name === "down" && index < count - 1) op("move", index, index + 1);
-      else if (name === "hide" || name === "show") op(name, index);
+      if (thumb.dataset.kind === "feedback") { op(name === "hide" ? "feedback_off" : "feedback_on", 0); return; }
+      var movable = Array.prototype.slice.call(outline.querySelectorAll(".thumb[data-at]"));
+      var pos = movable.indexOf(thumb), at = Number(thumb.dataset.at);
+      if (name === "up" && pos > 0) op("move", at, Number(movable[pos - 1].dataset.at));
+      else if (name === "down" && pos < movable.length - 1) op("move", at, Number(movable[pos + 1].dataset.at));
+      else if (name === "hide" || name === "show") op(name, at);
       return;
     }
-    if (lines[index]) ed.goTo(lines[index]);
+    if (thumb.dataset.line) ed.goTo(Number(thumb.dataset.line));
+    else if (thumb.dataset.index && lines[Number(thumb.dataset.index)]) ed.goTo(lines[Number(thumb.dataset.index)]);
   });
 
   // Posar el mouse sobre una miniatura: la diapositiva (o el ítem) tal como se verá.
@@ -264,7 +276,7 @@
   if (outline) outline.addEventListener("dragstart", function (e) {
     var thumb = e.target.closest(".thumb[draggable=true]");
     if (!thumb) return;
-    dragged = Number(thumb.dataset.index);
+    dragged = Number(thumb.dataset.at);
     thumb.classList.add("dragging");
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", String(dragged));
@@ -286,7 +298,7 @@
     var thumb = e.target.closest(".thumb:not(.is-fixed)");
     if (dragged === null || !thumb) return;
     e.preventDefault();
-    var target = Number(thumb.dataset.index);
+    var target = Number(thumb.dataset.at);
     if (thumb.classList.contains("drop-after")) target += 1;
     if (target > dragged) target -= 1;
     var from = dragged;
@@ -342,6 +354,14 @@
       "              - { criterion: " + q(gettext("Criterio") + " 1") + ", points: 1 }\n" +
       "              - { criterion: " + q(gettext("Criterio") + " 2") + ", points: 1 }\n";
   };
+  SNIPPETS.survey = function () {
+    return head("choice") + "          prompt: " + q(gettext("¿Qué opina?")) + "\n          grading: { mode: survey }\n" +
+      "          options:\n            - { text: " + q(gettext("Opción") + " 1") + " }\n            - { text: " + q(gettext("Opción") + " 2") + " }\n";
+  };
+  SNIPPETS.segment = function () {
+    return "  - segment:\n      title: " + q(gettext("Con tiempo")) + "\n      time_limit_s: 30\n" +
+      (activity() ? "      block_paste: true\n" : "");
+  };
   SNIPPETS.image = function () {
     return head("image") + "          prompt: " + q(gettext("Suba la foto de su desarrollo a mano.")) + "\n          max_files: 3\n";
   };
@@ -354,7 +374,8 @@
     var next = index >= 0 && lines[index + 1] ? lines[index + 1] - 1 : parts.length;
     var before = parts.slice(0, next).join("\n").replace(/\n*$/, "\n");
     var after = parts.slice(next).join("\n");
-    var snippet = activity() ? asItem(SNIPPETS[name]()) : SNIPPETS[name]();
+    // Solo el formato anterior de actividad tiene los ítems directo en `items`.
+    var snippet = legacyActivity() && name !== "segment" ? asItem(SNIPPETS[name]()) : SNIPPETS[name]();
     ed.set(before + snippet + after);
     var first = before.split("\n").length;
     ed.select(first, first + snippet.split("\n").length - 1);
@@ -416,8 +437,35 @@
   A_VALUES.type = ["choice", "multi_choice", "true_false", "numeric", "numeric_list", "expression", "text", "open", "image"];
   A_VALUES.mode = ["manual", "ai"];
   KEYS.root.title = "Título de la clase (obligatorio)";
-  function keys() { return activity() ? A_KEYS : KEYS; }
-  function values() { return activity() ? A_VALUES : VALUES; }
+  // Formato único: los mismos ítems, con `use`, segmentos y los comportamientos en la raíz.
+  var BEHAVIOR = { time_limit_s: "Segundos por pregunta (5–600; null: sin límite)",
+                   block_paste: "Actividad/evaluación: impide pegar en las respuestas" };
+  function unified(base, isActivity) {
+    var out = JSON.parse(JSON.stringify(base));
+    out.root = Object.assign({ schema: "Versión del formato: policlase/v1", title: "Título (obligatorio)",
+                               use: "class (clase en vivo) · activity (actividad) · evaluation",
+                               slides: "Contenido, ítems y segmentos", meta: "Datos libres" }, BEHAVIOR);
+    if (isActivity) out.root.instructions = "Indicaciones (markdown), antes de empezar";
+    else Object.assign(out.root, { feedback: KEYS.root.feedback, speed_bonus: KEYS.root.speed_bonus });
+    out.slides = { markdown: KEYS.slides.markdown, item: "Un ítem", notes: KEYS.slides.notes, hidden: KEYS.slides.hidden,
+                   segment: "Cambia el comportamiento desde aquí (time_limit_s, block_paste)" };
+    out.segment = Object.assign({ title: "Título del segmento (opcional)", instructions: "Indicaciones del segmento" }, BEHAVIOR);
+    out.grading.mode = isActivity ? "open/image: manual o ai · choice/multi_choice: survey (encuesta)"
+                                  : "choice/multi_choice: survey (encuesta, sin correcta ni puntos)";
+    return out;
+  }
+  var U_KEYS = { deck: unified(KEYS, false), activity: unified(A_KEYS, true) };
+  var U_VALUES = { deck: JSON.parse(JSON.stringify(VALUES)), activity: JSON.parse(JSON.stringify(A_VALUES)) };
+  ["deck", "activity"].forEach(function (k) {
+    U_VALUES[k].schema = ["policlase/v1"];
+    U_VALUES[k].use = ["class", "activity"];
+    U_VALUES[k].block_paste = ["true", "false"];
+    U_VALUES[k].mode = k === "activity" ? ["manual", "ai", "survey"] : ["survey"];
+  });
+  VALUES.mode = ["survey"];
+  A_VALUES.mode = ["manual", "ai", "survey"];
+  function keys() { return LEGACY.exec(ed.get()) ? (activity() ? A_KEYS : KEYS) : U_KEYS[activity() ? "activity" : "deck"]; }
+  function values() { return LEGACY.exec(ed.get()) ? (activity() ? A_VALUES : VALUES) : U_VALUES[activity() ? "activity" : "deck"]; }
   var KEY_LINE = /^(\s*)(-\s+)?([A-Za-z_][\w]*)\s*:/;
 
   function parents(model, lineNumber, keyIndent) {
@@ -551,19 +599,25 @@
   toggle.addEventListener("click", function () { setPreview(body.classList.contains("no-preview")); });
   try { if (localStorage.getItem("policlase.preview") === "0") setPreview(false); } catch (e) {}
 
-  // Tipo de un documento nuevo: cambia la plantilla (si ya escribió algo, pregunta antes).
+  // Tipo de un documento nuevo. Si aún es la plantilla, pone la del otro tipo; si ya escribió algo,
+  // cambia solo `use:` y el contenido se queda (el mismo contenido sirve de clase o de actividad).
+  // En los formatos anteriores el tipo es el `schema`: ahí se pregunta antes de poner la plantilla.
   form.querySelectorAll("input[name=kind]").forEach(function (radio) {
     radio.addEventListener("change", function () {
-      var wanted = radio.value, text = ed.get().trim();
+      var wanted = radio.value, text = ed.get();
       if (wanted === kind()) return;
-      var untouched = Object.keys(TEMPLATES).some(function (k) { return TEMPLATES[k].trim() === text; });
-      if (!untouched && !window.confirm(gettext("Se reemplaza el texto por la plantilla del otro tipo. ¿Continuar?"))) {
+      var untouched = Object.keys(TEMPLATES).some(function (k) { return TEMPLATES[k].trim() === text.trim(); });
+      var use = wanted === "activity" ? "activity" : "class";
+      if (!untouched && USE.test(text) && !LEGACY.test(text)) {
+        ed.set(text.replace(USE, function (line, old) { return line.replace(old, use); }));
+      } else if (!untouched && !window.confirm(gettext("El texto se reemplazará por la plantilla del otro tipo. ¿Desea continuar?"))) {
         form.querySelector('input[name=kind][value="' + kind() + '"]').checked = true;
         return;
+      } else {
+        ed.set(TEMPLATES[wanted]);
+        titleEl.textContent = wanted === "activity" ? gettext("Nueva actividad") : gettext("Nueva presentación");
       }
       setKind(wanted);
-      ed.set(TEMPLATES[wanted]);
-      titleEl.textContent = wanted === "activity" ? gettext("Nueva actividad") : gettext("Nueva presentación");
       refresh();
     });
   });

@@ -21,6 +21,7 @@ urlpatterns = [
     path(S + "intento/imagenes/", views.attempt_upload, name="attempt_upload"),
     path(S + "intento/imagenes/<int:upload_pk>/quitar/", views.attempt_upload_remove, name="attempt_upload_remove"),
     path(S + "intento/descartar/", views.attempt_discard, name="attempt_discard"),
+    path(S + "intento/tiempo/<str:key>/<str:action>/", views.attempt_timer, name="attempt_timer"),
     # ambos
     path("entregas/<int:upload_pk>/", views.upload_file, name="upload_file"),
 ]

@@ -57,7 +57,7 @@ def course_link(request, pk):
 
     if action == "unlink" and link:
         link.delete()
-        messages.success(request, _("Curso desvinculado de GitHub. Las presentaciones quedan en policlase."))
+        messages.success(request, _("Curso desvinculado de GitHub. Las presentaciones y actividades se conservan en policlase."))
     elif action == "sync" and link:
         try:
             messages.success(request, _summary(sync.pull(link)))

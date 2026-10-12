@@ -18,13 +18,16 @@
 {% endif %}
 
 {% for item in attempt.content.items %}
-  <section class="card stack">
-    {% if item.stem %}<div>{{ item.stem|md }}</div>{% endif %}
-    {% for row in rows %}{% if row.item.item_id == item.item_id %}
-      {% include "activities/_answer.html" with row=row reveal=True %}
-      {% if row.answer %}{% include "activities/_grade_form.html" with a=row.answer q=row.question %}{% endif %}
-    {% endif %}{% endfor %}
-  </section>
+  {% if item.kind == "content" or item.kind == "segment" %}{% include "activities/_block_head.html" with index=None %}
+  {% else %}
+    <section class="card stack">
+      {% if item.stem %}<div>{{ item.stem|md }}</div>{% endif %}
+      {% for row in rows %}{% if row.item.item_id == item.item_id %}
+        {% include "activities/_answer.html" with row=row reveal=True %}
+        {% if row.answer and not row.question.survey %}{% include "activities/_grade_form.html" with a=row.answer q=row.question %}{% endif %}
+      {% endif %}{% endfor %}
+    </section>
+  {% endif %}
 {% endfor %}
 {% endblock %}
 {% block scripts %}

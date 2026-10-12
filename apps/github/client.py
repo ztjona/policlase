@@ -63,9 +63,9 @@ class GitHubClient:
             if exc.code in (409, 422) and method in ("PUT", "DELETE", "PATCH"):
                 raise Conflict(_("El archivo cambió en GitHub."), exc.code) from None
             if exc.code == 401:
-                raise GitHubError(_("GitHub rechazó el token (¿venció o fue revocado?)."), 401) from None
+                raise GitHubError(_("GitHub rechazó el token; es posible que haya caducado o que se haya revocado."), 401) from None
             if exc.code in (403, 404):
-                raise GitHubError(_("Sin acceso: revise el nombre del repositorio, la rama y los "
+                raise GitHubError(_("No hay acceso al repositorio: revise su nombre, la rama y los "
                                     "permisos del token (Contents: lectura y escritura)."), exc.code) from None
             raise GitHubError(f"GitHub {exc.code}: {detail}", exc.code) from None
         except (urllib.error.URLError, TimeoutError) as exc:

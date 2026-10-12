@@ -20,7 +20,7 @@
     if (target.hasAttribute("data-no-paste")) {
       e.preventDefault();
       delta.blocked_pastes += 1;
-      say(gettext("En esta respuesta no se puede pegar: escríbala usted."));
+      say(gettext("En esta respuesta no está permitido pegar texto."));
       return;
     }
     var text = (e.clipboardData && e.clipboardData.getData("text")) || "";
@@ -65,7 +65,7 @@
       say(interpolate(gettext("Guardado a las %s"), [data.saved_at]));
     }).catch(function () {
       dirty = true;
-      say(gettext("Sin conexión: no se guardó. Siga escribiendo; se reintentará."));
+      say(gettext("Sin conexión: no se guardó. Puede seguir escribiendo; se volverá a intentar automáticamente."));
     }).then(function () {
       saving = false;
       if (dirty) schedule();
@@ -165,6 +165,68 @@
     }
     var confirmButton = e.target.closest("button[data-confirm]");
     if (confirmButton && !window.confirm(confirmButton.dataset.confirm)) e.preventDefault();
+  });
+
+  // ------------------------------------------------------------------ preguntas con tiempo
+  // El reloj es el del servidor: aquí solo se muestra la cuenta regresiva y, al llegar a cero, se
+  // envía lo escrito (el servidor acepta unos segundos de gracia por la conexión).
+
+  function replaceTimed(block, html) {
+    var holder = document.createElement("div");
+    holder.innerHTML = html;
+    var fresh = holder.firstElementChild;
+    block.replaceWith(fresh);
+    if (window.policlaseMath) window.policlaseMath(fresh);
+    startTimer(fresh);
+    return fresh;
+  }
+
+  function timerAction(block, url) {
+    if (block.dataset.busy) return;
+    block.dataset.busy = "1";
+    var data = payload();
+    return fetch(url, {
+      method: "POST", credentials: "same-origin", body: data,
+      headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" },
+    }).then(function (r) { return r.json(); }).then(function (res) {
+      if (res.html) replaceTimed(block, res.html);
+      else { delete block.dataset.busy; if (res.error) say(res.error); }
+    }).catch(function () {
+      delete block.dataset.busy;
+      say(gettext("Sin conexión: no se pudo enviar. Se volverá a intentar automáticamente."));
+      setTimeout(function () { timerAction(block, url); }, 1500);
+    });
+  }
+
+  function startTimer(block) {
+    if (!block || !block.dataset || block.dataset.remainingMs === undefined) return;
+    var deadline = Date.now() + Number(block.dataset.remainingMs);
+    var count = block.querySelector("[data-timer-count]");
+    var close = block.querySelector("[data-timer-close]");
+    function tick() {
+      if (!block.isConnected) return;
+      var left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      if (count) {
+        count.textContent = interpolate(gettext("%s s"), [left]);
+        count.classList.toggle("urgent", left <= 5);
+      }
+      if (left <= 0) {
+        block.querySelectorAll("input, textarea").forEach(function (el) { el.readOnly = true; });
+        if (close) timerAction(block, close.getAttribute("formaction"));
+        return;
+      }
+      setTimeout(tick, 250);
+    }
+    tick();
+  }
+
+  form.querySelectorAll("[data-timed][data-remaining-ms]").forEach(startTimer);
+
+  form.addEventListener("click", function (e) {
+    var button = e.target.closest("[data-timer-open], [data-timer-close]");
+    if (!button) return;
+    e.preventDefault();
+    timerAction(button.closest("[data-timed]"), button.getAttribute("formaction"));
   });
 
   // Enviar o guardar con el botón: viajan también las señales pendientes.

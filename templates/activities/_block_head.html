@@ -1,0 +1,16 @@
+{% load i18n policlase %}
+{% comment %} Un bloque que no es un ítem: contenido (markdown entre ítems) o el comienzo de un segmento, con su
+   título, indicaciones y lo que cambia (tiempo por pregunta, pegar). `index`: para la vista previa del editor. {% endcomment %}
+{% if item.kind == "content" %}
+  <section class="card block-content{% if index is not None %} item-card{% endif %}"{% if index is not None %} data-index="{{ index }}"{% endif %}>{{ item.markdown|md }}</section>
+{% elif item.kind == "segment" %}
+  {% if item.title or item.instructions or item.time_limit_s or item.block_paste or index is not None %}
+    <div class="segment-head{% if index is not None %} item-card{% endif %}"{% if index is not None %} data-index="{{ index }}"{% endif %}>
+      {% if item.title %}<h2>{{ item.title|md_inline }}</h2>{% endif %}
+      {% if item.instructions %}<div>{{ item.instructions|md }}</div>{% endif %}
+      <p class="small muted">{% if item.time_limit_s %}{% blocktranslate with s=item.time_limit_s %}Cada pregunta tiene {{ s }} segundos desde que se abre.{% endblocktranslate %}{% endif %}
+        {% if item.block_paste %}{% translate "No se puede pegar texto." %}{% endif %}
+        {% if index is not None and not item.time_limit_s and not item.block_paste %}{% translate "Segmento: se restablece la configuración del documento." %}{% endif %}</p>
+    </div>
+  {% endif %}
+{% endif %}

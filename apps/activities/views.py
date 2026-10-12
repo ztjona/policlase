@@ -135,7 +135,7 @@ def activity_detail(request, course_pk, pk):
             form.save()
             messages.success(request, _("Configuración guardada."))
             if form.rebound:
-                messages.info(request, _("Vence en otro parcial: ahora cuenta en «%(row)s».") % {"row": activity.category})
+                messages.info(request, _("La fecha de entrega corresponde a otro parcial; la actividad cuenta ahora en «%(row)s».") % {"row": activity.category})
             return redirect("activity_detail", course_pk=course.pk, pk=activity.pk)
         messages.error(request, _("Revise los campos marcados."))
     students = _approved(course)
@@ -147,11 +147,37 @@ def activity_detail(request, course_pk, pk):
         pending[key] = pending.get(key, 0) + 1
     return render(request, "activities/detail.html", {
         "course": course, "activity": activity, "form": form, "rows": rows,
+        "surveys": _surveys(activity, rows),
         "mismatch": gradebook.mismatch(activity, list(Period.objects.filter(course=course))),
         "submitted": sum(1 for r in rows if r["attempt"]),
         "review": [{"question": q, "pending": pending.get(q["key"], 0)} for q in review],
         "milestones": Milestone.objects.filter(course=course),
     })
+
+
+def _surveys(activity, rows) -> list[dict]:
+    """Cuántos eligieron cada opción de cada encuesta, en las entregas que cuentan."""
+    surveys = [q for q in activity.questions if q.get("survey")]
+    if not surveys:
+        return []
+    counted = [r["attempt"].pk for r in rows if r["attempt"]]
+    values: dict[str, list] = {}
+    for key, value in Answer.objects.filter(attempt_id__in=counted).values_list("key", "value"):
+        values.setdefault(key, []).append(value)
+    out = []
+    for q in surveys:
+        given = values.get(q["key"], [])
+        counts = {o["key"]: 0 for o in q.get("options") or []}
+        answered = 0
+        for value in given:
+            picked = value if isinstance(value, list) else [value]
+            picked = [p for p in picked if p in counts]
+            answered += bool(picked)
+            for p in picked:
+                counts[p] += 1
+        out.append({"question": q, "answered": answered,
+                    "bars": [{"text": o["text"], "count": counts[o["key"]]} for o in q.get("options") or []]})
+    return out
 
 
 def _own_activity(request, course_pk, pk):
@@ -442,6 +468,37 @@ def attempt_form(request, course_pk, pk):
         "rows": engine.answer_rows(draft), "errors": errors, "late": late, "blocked": reason,
         "accept": images.ACCEPT_ATTR,
     })
+
+
+@login_required
+@require_POST
+def attempt_timer(request, course_pk, pk, key, action):
+    """Abrir una pregunta con tiempo, o responderla («Responder» o se acabó el tiempo). Con
+    JavaScript llega por fetch y se devuelve la pregunta redibujada; sin él, se vuelve al intento."""
+    activity = _student_activity(request, course_pk, pk)
+    draft = get_object_or_404(Attempt, activity=activity, student=request.user, submitted_at=None)
+    fetched = request.headers.get("X-Requested-With") == "fetch"
+    try:
+        if action == "abrir":
+            _save_answers(request, draft)            # sin JavaScript llega el formulario entero
+            draft = engine.open_timer(draft, key)
+        elif action == "responder":
+            question = [q for q in draft.questions if q["key"] == key]
+            draft = engine.close_timer(draft, key, engine.parse_answers(question, request.POST))
+            _save_answers(request, draft)
+        else:
+            raise Http404
+    except engine.ActionError as exc:
+        if fetched:
+            return JsonResponse({"error": str(exc)}, status=409)
+        messages.error(request, str(exc))
+        return redirect("attempt_form", course_pk=course_pk, pk=pk)
+    if not fetched:
+        return redirect(f"{reverse('attempt_form', args=[course_pk, pk])}#q-{key}")
+    row = next(r for r in engine.answer_rows(draft) if r["key"] == key)
+    html = render_to_string("activities/_question_input.html", {
+        "row": row, "activity": activity, "course": activity.course, "accept": images.ACCEPT_ATTR}, request)
+    return JsonResponse({"html": html, "remaining_ms": row["timer"].remaining_ms if row["timer"] else 0})
 
 
 def _save_answers(request, draft) -> None:

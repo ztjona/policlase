@@ -2,9 +2,11 @@
 {# Una pregunta sin campos para responder. Con `reveal`, también la solución (y la referencia, para el docente). #}
 <div class="q-block{% if q.follow_up %} follow-up{% endif %}">
   <div class="q-head">
-    <span class="chip">{{ q.points|floatformat:"-2" }} {% translate "pts" %}</span>
+    <span class="chip">{% if q.survey %}{% translate "Encuesta" %}{% else %}{{ q.points|floatformat:"-2" }} {% translate "pts" %}{% endif %}</span>
     <span class="small muted">{% include "activities/_type_label.html" %}</span>
-    {% if q.grading.mode == "ai" %}<span class="chip" title="{% translate 'Marcada para calificación con IA (aún no activa: la califica el docente)' %}">IA</span>{% endif %}
+    {% if q.time_limit_s %}<span class="chip warn" title="{% translate 'El estudiante la abre cuando decide y se cierra al agotarse el tiempo' %}">{% blocktranslate with s=q.time_limit_s %}{{ s }} s{% endblocktranslate %}</span>{% endif %}
+    {% if q.block_paste %}<span class="chip">{% translate "sin pegar" %}</span>{% endif %}
+    {% if q.grading.mode == "ai" %}<span class="chip" title="{% translate 'Marcada para calificación con IA (función aún no disponible; la califica el docente)' %}">IA</span>{% endif %}
   </div>
   {% if q.prompt %}<div class="prompt">{{ q.prompt|md }}</div>{% endif %}
   {% if q.options %}

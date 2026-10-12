@@ -1,11 +1,22 @@
 {% load i18n policlase %}
-{# Una pregunta del intento en curso, con lo guardado en el borrador. `row` viene de engine.answer_rows. #}
-{% with q=row.question value=row.draft key=row.key %}
-<fieldset class="q-block{% if q.follow_up %} follow-up{% endif %}{% if error %} has-error{% endif %}" id="q-{{ key }}">
+{% comment %} Una pregunta del intento en curso, con lo guardado en el borrador. `row` viene de engine.answer_rows.
+   Con tiempo (row.timer): sin abrir no se ve el enunciado; abierta, lleva su cuenta regresiva; cerrada,
+   solo se lee lo respondido. Los botones usan formaction: sin JavaScript también funcionan. {% endcomment %}
+{% with q=row.question value=row.draft key=row.key timer=row.timer %}
+<fieldset class="q-block{% if q.follow_up %} follow-up{% endif %}{% if error %} has-error{% endif %}{% if timer %} timed timed-{{ timer.state }}{% endif %}" id="q-{{ key }}"
+          {% if timer %}data-timed="{{ key }}"{% if timer.state == "open" %} data-remaining-ms="{{ timer.remaining_ms }}"{% endif %}{% endif %}>
   <legend class="q-head">
-    <span class="chip">{{ q.points|floatformat:"-2" }} {% translate "pts" %}</span>
+    <span class="chip">{% if q.survey %}{% translate "Encuesta" %}{% else %}{{ q.points|floatformat:"-2" }} {% translate "pts" %}{% endif %}</span>
     <span class="small muted">{% include "activities/_type_label.html" %}</span>
+    {% if timer %}<span class="chip warn">{% blocktranslate with s=q.time_limit_s %}{{ s }} s{% endblocktranslate %}</span>{% endif %}
   </legend>
+{% if timer.state == "locked" %}
+  <p class="small">{% blocktranslate with s=q.time_limit_s %}Pregunta con límite de tiempo: una vez abierta, dispone de {{ s }} segundos para responder. El tiempo sigue corriendo aunque salga de la página, y solo puede responderse una vez.{% endblocktranslate %}</p>
+  <div><button type="submit" class="secondary" formaction="{% url 'attempt_timer' course.pk activity.pk key 'abrir' %}" data-timer-open>{% translate "Abrir la pregunta" %}</button></div>
+{% elif timer.state == "closed" %}
+  {% if q.prompt %}<div class="prompt">{{ q.prompt|md }}</div>{% endif %}
+  <p class="small">{% if row.blank %}<span class="muted">{% translate "Se cerró sin respuesta." %}</span>{% else %}<strong>{% translate "Respondió:" %}</strong> <span class="mono">{% if q.type == "choice" %}{% for o in q.options %}{% if o.key == value %}{{ o.text|md_inline }}{% endif %}{% endfor %}{% elif q.type == "multi_choice" %}{% for o in q.options %}{% if o.key in value %}{{ o.text|md_inline }} {% endif %}{% endfor %}{% elif q.type == "numeric_list" %}{{ value|join:" · " }}{% elif q.type == "true_false" %}{% translate "registrado" %}{% else %}{{ value }}{% endif %}</span>{% endif %}</p>
+{% else %}
   {% if q.prompt %}<div class="prompt">{{ q.prompt|md }}</div>{% endif %}
 
   {% if q.type == "choice" or q.type == "multi_choice" %}
@@ -39,17 +50,17 @@
   {% elif q.type == "numeric_list" %}
     <div class="cells" style="--cols: {{ q.shape|last|default:1 }}">
       {% for cell in row.cells %}
-        <input type="text" name="a-{{ key }}-{{ forloop.counter0 }}" value="{{ cell }}" inputmode="decimal" autocomplete="off"
+        <input type="text" name="a-{{ key }}-{{ forloop.counter0 }}" value="{{ cell }}" inputmode="decimal" autocomplete="off" {% if q.block_paste %}data-no-paste{% endif %}
                aria-label="{% blocktranslate with n=forloop.counter %}Casilla {{ n }}{% endblocktranslate %}">
       {% endfor %}
     </div>
 
   {% elif q.type == "open" %}
     <label for="a-{{ key }}" class="sr-only">{% translate "Respuesta" %}</label>
-    <textarea id="a-{{ key }}" name="a-{{ key }}" rows="6" maxlength="10000" data-open {% if activity.block_paste %}data-no-paste{% endif %}>{{ value|default:"" }}</textarea>
+    <textarea id="a-{{ key }}" name="a-{{ key }}" rows="6" maxlength="10000" data-open {% if q.block_paste or activity.block_paste %}data-no-paste{% endif %}>{{ value|default:"" }}</textarea>
     <div class="open-preview" data-math-preview="a-{{ key }}" aria-live="polite" hidden></div>
-    <p class="small muted">{% translate "Fórmulas en LaTeX entre signos de dólar ($x^2$, $$\int_0^1 x\,dx$$): debajo se ven como las leerá el docente." %}</p>
-    {% if activity.block_paste %}<p class="small muted">{% translate "En esta respuesta no se puede pegar texto: escríbala usted." %}</p>{% endif %}
+    <p class="small muted">{% translate "Escriba las fórmulas en LaTeX entre signos de dólar ($x^2$, $$\int_0^1 x\,dx$$); debajo se muestran tal como las verá el docente." %}</p>
+    {% if q.block_paste or activity.block_paste %}<p class="small muted">{% translate "En esta respuesta no está permitido pegar texto." %}</p>{% endif %}
     {% if q.rubric %}{% include "activities/_rubric.html" with rubric=q.rubric %}{% endif %}
 
   {% elif q.type == "image" %}
@@ -58,12 +69,20 @@
 
   {% else %}
     <label for="a-{{ key }}" class="sr-only">{% translate "Respuesta" %}</label>
-    <input type="text" id="a-{{ key }}" name="a-{{ key }}" value="{{ value|default:'' }}" autocomplete="off"
+    <input type="text" id="a-{{ key }}" name="a-{{ key }}" value="{{ value|default:'' }}" autocomplete="off" {% if q.block_paste %}data-no-paste{% endif %}
            {% if q.type == "numeric" %}inputmode="decimal" placeholder="{% translate 'Número' %}"{% elif q.type == "expression" %}placeholder="{% translate 'p. ej. 3*x**2 + sin(x)' %}" spellcheck="false" autocapitalize="off"{% else %}placeholder="{% translate 'Respuesta' %}" spellcheck="false" autocapitalize="off"{% endif %}>
     {% if q.type == "expression" %}<p class="small muted">{% translate "Multiplicación explícita (2*x, no 2x); potencias con ** o ^." %}</p>{% endif %}
     {% if q.grading.units %}<p class="small muted">{% blocktranslate with u=q.grading.units %}Incluya la unidad: {{ u }}{% endblocktranslate %}</p>{% endif %}
   {% endif %}
 
+  {% if q.block_paste and q.type != "open" %}<p class="small muted">{% translate "En esta pregunta no se puede pegar texto." %}</p>{% endif %}
+  {% if timer.state == "open" %}
+    <div class="timer-bar row">
+      <span class="timer-count" data-timer-count role="timer" aria-live="off">{% blocktranslate with s=timer.remaining_s %}{{ s }} s{% endblocktranslate %}</span>
+      <button type="submit" formaction="{% url 'attempt_timer' course.pk activity.pk key 'responder' %}" data-timer-close>{% translate "Responder" %}</button>
+    </div>
+  {% endif %}
+{% endif %}
   {% if error %}<p class="field-error" role="alert">{{ error }}</p>{% endif %}
 </fieldset>
 {% endwith %}

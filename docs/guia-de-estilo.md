@@ -65,7 +65,7 @@ oscuro: los proyectores lavan los fondos oscuros.
 
 - Íconos tradicionales en SVG con `{% icon "nombre" tamaño %}` (`apps/core/templatetags/policlase.py`):
   `gear`, `edit`, `trash`, `play`, `close`, `check`, `grip`, `folder_add`, `file_add`, `results`,
-  `fullscreen`, `github`, `calendar`, `image`, `task` (actividad), `eye` / `eye_off` (mostrar u ocultar). Para uno nuevo, agregar su trazo a `ICONS`.
+  `fullscreen`, `github`, `calendar`, `image`, `task` (actividad), `record` (registro manual), `eye` / `eye_off` (mostrar u ocultar). Para uno nuevo, agregar su trazo a `ICONS`.
 - **Nada de emojis ni de caracteres poco comunes como ícono** (⛶, 🔒, 🙂…): no todos los sistemas los
   tienen y aparecen como cajas vacías. Si hace falta un dibujo, SVG (`_face.html`, `_lock.html`).
 - Todo botón de solo ícono lleva `title` (tooltip) y `aria-label`.
@@ -83,7 +83,7 @@ oscuro: los proyectores lavan los fondos oscuros.
 | `.tip[data-tip]` | tooltip propio, varias líneas, aparece al instante |
 | `.notice` | aviso importante que requiere acción; **no** se esconde en un tooltip |
 | `.messages` | confirmación tras una acción |
-| `details.unit` | sección minimizable; solo la unidad en curso viene desplegada |
+| `details.unit` | sección minimizable; solo la unidad (o el parcial, en Actividades) en curso viene desplegada |
 | `fieldset.segmented` | elegir entre dos o tres opciones excluyentes (tipo de documento en el editor) |
 
 Reglas de interacción:
@@ -106,6 +106,24 @@ Reglas de interacción:
   nada» → «Sin calificaciones»; «se pierde la materia» → «se reprueba la asignatura»). Frases
   completas e impersonales en lo que tiene peso institucional (notas, aprobación). Botones con verbo
   en infinitivo o sustantivo breve: «Guardar», «Iniciar clase», «Registrar notas».
+- **Ni telegráfico ni ingenioso.** Las frases cortadas o con aire de eslogan suenan a texto generado
+  y restan seriedad. Se escribe como en un documento institucional:
+
+  | Evitar | Preferir |
+  |---|---|
+  | Nada se guarda hasta «Guardar». | Revise las notas y pulse «Guardar» para registrarlas. |
+  | Sirve lo que se copie de una hoja de cálculo. | Puede pegar el contenido copiado de una hoja de cálculo. |
+  | Se guardan solas / se mueven solos | Se guardan automáticamente / se actualizan automáticamente |
+  | Clic para cambiarla. | Haga clic para cambiarla. |
+  | Lo atrasado se acepta… | Las entregas atrasadas se aceptan… |
+  | vacío = raíz del repositorio | si se deja vacío, se usa la raíz del repositorio |
+  | aún no activa: la califica usted | función aún no disponible; la califica usted |
+  | Cómo crear el token (2 minutos) · Nada más. | Cómo crear el token · No se requieren otros permisos. |
+
+  Señales de alerta: dos puntos que encadenan ideas sueltas, sujetos implícitos («Vence en otro
+  parcial: cuenta en…»), verbos coloquiales («sirve», «trae», «llega»), personificaciones («el cierre
+  decide»), atar/soltar por vincular/desvincular, y elementos que parecen botones sin serlo (un
+  `.chip` que pide «confirmar» debe ser una casilla o un botón de verdad).
 - Los mensajes de error dicen **qué pasó y qué hacer**: «La presentación cambió en GitHub después de
   que la abrió; no se guardó para no perder esos cambios. Copie su texto, recargue el editor…».
 - Comillas latinas «…» para nombres y títulos en mensajes.
@@ -152,9 +170,19 @@ Reglas de interacción:
   vista de todas, por parcial y filtrable por fila de la ponderación. El parcial lo decide la fecha:
   si una actividad vence en otro parcial que su fila, pasa a la fila del mismo nombre de ese parcial
   (`gradebook.rebind`); si no la hay, se avisa.
+- **Preguntas con tiempo:** el reloj es del servidor (`Attempt.timers`, `engine.timer`). La pregunta
+  no se ve hasta que el estudiante la abre, se guarda solo mientras corre (más una gracia corta) y se
+  cierra para el resto del intento; el navegador solo muestra la cuenta regresiva y envía al llegar a
+  cero. **Encuestas** (`grading.mode: survey`): se registran, no tienen correcta ni puntos, y en
+  ninguna pantalla se muestran como correctas o incorrectas.
 - **Notas fuera de policlase:** registros manuales (`ManualRecord`) que cuentan como una actividad
   (o una clase) más de su fila. Pegar una lista solo rellena: nada se guarda sin que el docente lo
-  revise, y lo que no coincide queda «sin asignar» para cuando el estudiante se inscriba.
+  revise, y lo que no coincide queda «sin asignar» para cuando el estudiante se inscriba. Cada nota
+  recuerda el nombre de la lista del que salió (`ManualScore.pasted_name`) para poder quitar la
+  asignación después; la que coincide solo por el apellido se guarda únicamente si el docente la
+  confirma. Un registro puede ir en una unidad (pestaña Clases), junto a la presentación de la clase
+  en que se hizo, que muestra las fechas en que se dictó; en un curso con GitHub, una unidad con
+  registros no se borra aunque desaparezca su carpeta.
 - **Invitados:** nunca cuentan para una nota. Si uno era un estudiante que aún no estaba inscrito,
   se le asigna su cuenta (`engine.link_guest`, con la clase terminada). Para todo lo demás, la nota
   manual de la clase (`SessionGrade`), que reemplaza la suma sin tocar las respuestas.
@@ -184,9 +212,12 @@ Reglas de interacción:
 
 - JavaScript sin dependencias ni paso de compilación: un archivo por página (`static/js/`), en
   `(function () { … })()`, con atributos `data-*` como contrato con la plantilla.
-- **Un solo editor de contenido** (`studio.html` + `studio.js`): el tipo lo dice la línea `schema`
-  del texto; lo que es de un solo tipo lleva `data-kinds="deck"` o `"activity"`. Guardar es la única
-  acción que confirma en GitHub, y su botón lo dice.
+- **Un solo formato y un solo editor** (`studio.html` + `studio.js`): clases, actividades y
+  evaluaciones se escriben en `policlase/v1` (schema.md §9), con `use` y **segmentos** que cambian el
+  comportamiento de lo que les sigue (tiempo por pregunta, pegar). El tipo lo dice el texto (`use:`;
+  el `schema` en los formatos anteriores, que siguen valiendo); lo que es de un solo tipo lleva
+  `data-kinds="deck"` o `"activity"`. Las posiciones del panel son las del archivo (`at`), con los
+  segmentos contados. Guardar es la única acción que confirma en GitHub, y su botón lo dice.
 - Mejora progresiva: sin JavaScript, los formularios siguen funcionando (`<details>`, formularios
   normales); `fetch` con `X-CSRFToken`.
 - Monaco se carga **después** de KaTeX (su cargador AMD haría que KaTeX no se registre).

@@ -7,7 +7,7 @@
     {% element p %}
         {% url 'account_signup' as student_url %}{% url 'teacher_signup' as teacher_url %}
         {% if teacher %}
-            {% translate "Tendrá su propio espacio: sus cursos, estudiantes y clases solo los ve usted." %}
+            {% translate "Dispondrá de un espacio propio: solo usted tiene acceso a sus cursos, estudiantes y clases." %}
             {% blocktranslate %}¿Es estudiante? <a href="{{ student_url }}">Cree su cuenta de estudiante</a>.{% endblocktranslate %}
         {% else %}
             {% blocktranslate %}¿Es docente? <a href="{{ teacher_url }}">Cree su cuenta de docente</a>.{% endblocktranslate %}

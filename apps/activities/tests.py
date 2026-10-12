@@ -484,6 +484,23 @@ class GitHubActivityTests(ActivityBase):
         self.assertFalse(pulled.published)
         self.assertEqual(pulled.section.title, "Unidad 01")         # una carpeta con solo actividades es sección
 
+    def test_formato_unico_en_github(self):
+        from apps.github import sync
+        from apps.live.models import Deck
+
+        clase = TIMED.replace("use: activity", "use: class").replace(", block_paste: true", "") \
+            .replace("type: text, prompt: 'Escriba la barra invertida', grading: { accept: ['\\'], normalize: [] }",
+                     "type: numeric, prompt: '1 + 1', solution: 2, grading: { atol: 0 }")
+        self.gh.files["mn/clases/unidad-01/clase-teclado.yaml"] = clase
+        self.gh.files["mn/clases/unidad-01/deber-teclado.yaml"] = TIMED
+        self.gh.files["mn/clases/unidad-01/prueba.yaml"] = TIMED.replace("use: activity", "use: evaluation")
+        result = sync.pull(self.link)
+        self.assertEqual(Deck.objects.get(github_path="mn/clases/unidad-01/clase-teclado.yaml").section.title,
+                         "Unidad 01")
+        self.assertTrue(Activity.objects.filter(github_path="mn/clases/unidad-01/deber-teclado.yaml").exists())
+        notes = [i for i in result.issues if i["path"].endswith("prueba.yaml")]
+        self.assertIn("evaluación", notes[0]["note"])
+
     def test_borrada_en_github_con_entregas_se_conserva(self):
         from apps.github import sync
 
@@ -580,3 +597,123 @@ class RedirectSafetyTests(ActivityBase):
         self.assertEqual(response["Location"], reverse("activity_detail", args=[self.course.pk, self.activity.pk]))
         response = self.client.post(url, {"points": "1", "next": "/docente/cursos/1/"})
         self.assertEqual(response["Location"], "/docente/cursos/1/")
+
+
+TIMED = r"""schema: policlase/v1
+title: 'Teclado'
+use: activity
+slides:
+  - markdown: '## Antes de empezar'
+  - item:
+      id: T-encuesta
+      questions:
+        - id: q1
+          type: choice
+          prompt: '¿Qué distribución tiene su teclado?'
+          grading: { mode: survey }
+          options: [{ text: 'Latinoamérica' }, { text: 'España' }]
+  - segment: { title: 'Rápidas', time_limit_s: 15, block_paste: true }
+  - item:
+      id: T-barra
+      questions:
+        - { id: q1, type: text, prompt: 'Escriba la barra invertida', grading: { accept: ['\'], normalize: [] } }
+  - segment: {}
+  - item:
+      id: T-suma
+      questions:
+        - { id: q1, type: numeric, prompt: '2 + 2', solution: 4, grading: { atol: 0 } }
+"""
+
+
+class TimedAndSurveyTests(ActivityBase):
+    """Formato único en una actividad: contenido y segmentos entre los ítems, preguntas con tiempo y
+    encuestas."""
+
+    def setUp(self):
+        super().setUp()
+        from policlase_gen import document as content_format
+
+        document, report, use = content_format.load_text(TIMED)
+        self.assertEqual((report.errors, use), ([], "activity"))
+        self.timed = Activity.objects.create(
+            course=self.course, title="Teclado", source=TIMED, compiled=content_format.compile_content(document),
+            category=self.deberes, published=True, due_at=timezone.now() + timedelta(days=2))
+        self.survey_key = "T-encuesta.q1"
+        self.latina = self.timed.compiled["items"][1]["questions"][0]["options"][0]["key"]
+
+    def test_la_pregunta_con_tiempo_se_abre_a_pedido_y_se_cierra_sola(self):
+        attempt = engine.start(self.timed, self.ana)
+        question = next(q for q in attempt.questions if q["key"] == "T-barra.q1")
+        self.assertEqual(engine.timer(attempt, question).state, "locked")
+        engine.save_draft(attempt, {"T-barra.q1": "\\"})                 # sin abrir: no se guarda
+        attempt.refresh_from_db()
+        self.assertNotIn("T-barra.q1", attempt.answers)
+
+        start = timezone.now()
+        attempt = engine.open_timer(attempt, "T-barra.q1", now=start)
+        engine.save_draft(attempt, {"T-barra.q1": "\\"}, now=start + timedelta(seconds=10))
+        attempt.refresh_from_db()
+        self.assertEqual(attempt.answers["T-barra.q1"], "\\")
+        late = start + timedelta(seconds=15 + engine.TIMER_GRACE_S + 1)
+        engine.save_draft(attempt, {"T-barra.q1": "/"}, now=late)         # se acabó: no cambia
+        attempt.refresh_from_db()
+        self.assertEqual(attempt.answers["T-barra.q1"], "\\")
+        self.assertEqual(engine.timer(attempt, question, now=late).state, "closed")
+        attempt = engine.open_timer(attempt, "T-barra.q1", now=late)      # abrir otra vez no reinicia
+        self.assertEqual(attempt.timers["T-barra.q1"]["opened"], start.isoformat())
+
+        engine.save_draft(attempt, {self.survey_key: self.latina, "T-suma.q1": "4"})
+        attempt = engine.submit(attempt)
+        answers = {a.key: a for a in attempt.answer_rows.all()}
+        self.assertTrue(answers["T-barra.q1"].correct)
+        self.assertEqual(answers[self.survey_key].points, 0)              # la encuesta no da puntos
+        self.assertEqual((attempt.points, attempt.max_points), (2, 2))
+
+    def test_responder_cierra_la_pregunta_y_el_autoguardado_no_la_reabre(self):
+        attempt = engine.open_timer(engine.start(self.timed, self.ana), "T-barra.q1")
+        attempt = engine.close_timer(attempt, "T-barra.q1", {"T-barra.q1": "\\"})
+        engine.save_draft(attempt, {"T-barra.q1": "otra"})
+        attempt.refresh_from_db()
+        self.assertEqual(attempt.answers["T-barra.q1"], "\\")
+        with self.assertRaises(engine.ActionError):
+            engine.open_timer(attempt, "T-suma.q1")                       # no tiene tiempo
+
+    def test_paginas_y_vistas_del_reloj(self):
+        self.client.force_login(self.ana)
+        self.client.post(reverse("attempt_start", args=[self.course.pk, self.timed.pk]))
+        page = self.client.get(reverse("attempt_form", args=[self.course.pk, self.timed.pk]))
+        self.assertContains(page, "Antes de empezar")                     # contenido entre ítems
+        self.assertContains(page, "Rápidas")                              # el segmento
+        self.assertContains(page, "Abrir la pregunta")
+        self.assertNotContains(page, "Escriba la barra invertida")        # sin abrir no se ve el enunciado
+        self.assertContains(page, "Encuesta")
+
+        open_url = reverse("attempt_timer", args=[self.course.pk, self.timed.pk, "T-barra.q1", "abrir"])
+        data = self.client.post(open_url, {"form": "attempt"}, HTTP_X_REQUESTED_WITH="fetch").json()
+        self.assertIn("Escriba la barra invertida", data["html"])
+        self.assertIn("data-no-paste", data["html"])
+        self.assertGreater(data["remaining_ms"], 10_000)
+        close_url = reverse("attempt_timer", args=[self.course.pk, self.timed.pk, "T-barra.q1", "responder"])
+        data = self.client.post(close_url, {"form": "attempt", "a-T-barra.q1": "\\"},
+                                HTTP_X_REQUESTED_WITH="fetch").json()
+        self.assertIn("Respondió", data["html"])
+        self.assertEqual(Attempt.objects.get(student=self.ana, activity=self.timed).answers["T-barra.q1"], "\\")
+
+        self.client.force_login(self.bruno)                               # sin intento propio: 404
+        self.assertEqual(self.client.post(open_url).status_code, 404)
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.post(open_url).status_code, 404)
+
+    def test_el_docente_ve_la_distribucion_de_la_encuesta(self):
+        for student in (self.ana, self.bruno):
+            attempt = engine.start(self.timed, student)
+            engine.save_draft(attempt, {self.survey_key: self.latina})
+            engine.submit(attempt)
+        self.client.force_login(self.teacher)
+        page = self.client.get(reverse("activity_detail", args=[self.course.pk, self.timed.pk]))
+        self.assertContains(page, "¿Qué distribución tiene su teclado?")
+        self.assertContains(page, "2 respuestas")
+        preview = self.client.post(reverse("content_preview", args=[self.course.pk]), {"source": TIMED}).json()
+        self.assertEqual(preview["kind"], "activity")
+        self.assertIn("15 s", preview["html"])
+        self.assertIn("segment", preview["outline"])
