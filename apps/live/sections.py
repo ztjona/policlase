@@ -85,9 +85,9 @@ def section_delete(request, course_pk, pk):
 
     course = owned_course(request, course_pk)
     section = get_object_or_404(Section, pk=pk, course=course)
-    if section.decks.exists() or section.activities.exists() or section.manual_records.exists():
+    if section.decks.exists() or section.activities.exists():
         messages.error(request, _("Solo se pueden eliminar secciones vacías: mueva o elimine antes sus "
-                                  "presentaciones, actividades y registros manuales."))
+                                  "presentaciones y actividades."))
         return redirect("course_manage", pk=course.pk)
     link = _link(course)
     if link:

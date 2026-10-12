@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.http import Http404, JsonResponse
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -12,7 +12,6 @@ from django.views.decorators.http import require_POST
 
 from apps.courses.access import can_view_course, owned_course, teacher_required
 from apps.courses.models import Course, Enrollment
-from apps.live.models import Section
 
 from . import gradebook, matching
 from .forms import CategoryFormSet, ManualRecordForm, PeriodForm, RulesForm
@@ -174,7 +173,7 @@ def manual_record(request, pk, record_pk=None):
     record = get_object_or_404(ManualRecord, pk=record_pk, course=course) if record_pk else None
     students = _students(course)
     action = request.POST.get("action", "save") if request.method == "POST" else ""
-    initial = None if record else {"on": timezone.localdate(), "section": request.GET.get("seccion") or None}
+    initial = None if record else {"on": timezone.localdate()}
     form = ManualRecordForm(request.POST or None, instance=record, course=course, initial=initial)
     values = {s.pk: "" for s in students}
     sources: dict[int, dict] = {}
@@ -322,19 +321,6 @@ def _save_record(request, course, form, record, students, values, sources, unmat
         messages.warning(request, ngettext("Queda %(n)d nombre sin asignar.", "Quedan %(n)d nombres sin asignar.",
                                            len(keep)) % {"n": len(keep)})
     return redirect("manual_record", pk=course.pk, record_pk=record.pk)
-
-
-@teacher_required
-@require_POST
-def manual_record_move(request, pk, record_pk):
-    """Arrastrarlo a otra unidad en la pestaña Clases. Los registros no viven en GitHub: solo
-    cambia la base."""
-    course = owned_course(request, pk)
-    record = get_object_or_404(ManualRecord, pk=record_pk, course=course)
-    wanted = request.POST.get("section", "")
-    record.section = get_object_or_404(Section, pk=wanted, course=course) if wanted else None
-    record.save(update_fields=["section"])
-    return JsonResponse({"ok": True})
 
 
 @teacher_required

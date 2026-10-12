@@ -328,25 +328,30 @@ class ManualRecordTests(GradesBase):
                          {self.ana.pk: "Andrade A", self.bruno.pk: "Bravo Z"})
         self.assertContains(self.client.get(url), f'value="quitar-{self.bruno.pk}"')
 
-    def test_el_registro_va_en_su_unidad(self):
+    def test_el_registro_lleva_su_unidad_y_sin_ponderacion_tambien_se_ve(self):
         from apps.live.models import Section
 
         unit = Section.objects.create(course=self.course, title="Unidad 01")
-        other = Section.objects.create(course=self.course, title="Unidad 02")
-        self.assertContains(self.client.get(self.url + f"?seccion={unit.pk}"), f'<option value="{unit.pk}" selected>')
         self.client.post(self.url, self.data(action="save", section=unit.pk, category=""))
         record = ManualRecord.objects.get()
         self.assertEqual(record.section, unit)
-        classes = self.client.get(reverse("course_manage", args=[self.course.pk]))
-        self.assertContains(classes, reverse("manual_record_move", args=[self.course.pk, record.pk]))
-        # Sin ponderación también se ve en Actividades, en su grupo.
-        self.assertContains(self.client.get(reverse("course_activities", args=[self.course.pk])), "Quiz 1 (Fuiz)")
-        # Una unidad con registros no se elimina; se arrastra a otra.
-        self.client.post(reverse("section_delete", args=[self.course.pk, unit.pk]))
-        self.assertTrue(Section.objects.filter(pk=unit.pk).exists())
-        self.client.post(reverse("manual_record_move", args=[self.course.pk, record.pk]), {"section": other.pk})
-        record.refresh_from_db()
-        self.assertEqual(record.section, other)
+        page = self.client.get(reverse("course_activities", args=[self.course.pk]))
+        self.assertContains(page, "Quiz 1 (Fuiz)")                          # en «Sin ponderación»
+        self.assertContains(page, "Unidad 01")
+        # Las notas no están en la pestaña Clases: allí solo va el material.
+        self.assertNotContains(self.client.get(reverse("course_manage", args=[self.course.pk])), "Quiz 1 (Fuiz)")
+
+    def test_el_parcial_se_elige_aparte_y_lo_propone_la_fecha(self):
+        self.p1.ends_on = timezone.localdate() - timedelta(days=1)
+        self.p1.save()
+        page = self.client.get(self.url).content.decode()
+        self.assertIn(f'<option value="{self.p2.pk}" selected>', page)    # hoy cae en el parcial 2
+        self.assertIn(f'data-period="{self.p1.pk}"', page)
+        # Una fila de otro parcial pasa a la del mismo nombre en el parcial elegido.
+        self.p1.ends_on = None
+        self.p1.save()
+        self.client.post(self.url, self.data(action="save", period=self.p2.pk))
+        self.assertEqual(ManualRecord.objects.get().category, self.row(self.p2, "Participación en clase"))
 
     def test_solo_el_parcial_en_curso_viene_desplegado(self):
         page = self.client.get(reverse("course_activities", args=[self.course.pk])).content.decode()

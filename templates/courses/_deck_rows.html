@@ -11,9 +11,7 @@
         {% blocktranslate with when=d.updated_at|date:"d M H:i" %}editada {{ when }}{% endblocktranslate %}
       </div>
       {% if d.taught %}
-        <div class="small taught">{% translate "Dictada:" %}
-          {% for s in d.taught %}<a href="{% url 'session_results' s.pk %}" title="{% translate 'Resultados de la clase' %}">{{ s.started_at|default:s.created_at|date:"D d M" }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}
-        </div>
+        <div class="small taught">{% translate "Dictada:" %} {% for s in d.taught %}{{ s.started_at|default:s.created_at|date:"D d M" }}{% if not forloop.last %} · {% endif %}{% endfor %}</div>
       {% endif %}
     </div>
     <div class="row-actions">

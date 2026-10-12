@@ -246,11 +246,19 @@ class AnswerTests(LiveBase):
         self.client.force_login(self.teacher)
         response = self.client.get(reverse("session_results", args=[session.pk]))
         self.assertContains(response, "ausente")                 # bruno no se conectó
-        # Terminada, la presentación muestra en su unidad cuándo se dictó, con enlace a los resultados.
+        # Terminada, la presentación dice en Clases cuándo se dictó, y la clase aparece con sus resultados
+        # entre lo calificado (Actividades); el estudiante ve su nota de esa clase en «Calificaciones».
         engine.apply(session.pk, "end")
         page = self.client.get(reverse("course_manage", args=[self.course.pk]))
         self.assertContains(page, "Dictada:")
+        self.assertNotContains(page, reverse("session_results", args=[session.pk]))
+        page = self.client.get(reverse("course_activities", args=[self.course.pk]))
         self.assertContains(page, reverse("session_results", args=[session.pk]), count=2)
+        self.client.force_login(self.ana)
+        mine = self.client.get(reverse("my_grades", args=[self.course.pk]))
+        self.assertContains(mine, session.title)
+        self.client.force_login(self.bruno)
+        self.assertContains(self.client.get(reverse("my_grades", args=[self.course.pk])), "ausente")
 
 
 class FragmentTests(LiveBase):

@@ -53,6 +53,13 @@
 
   // ------------------------------------------------------------ editor (Monaco o textarea)
 
+  // El texto viaja en el textarea: se mantiene al día para que «Guardar» y «Cancelar» se habiliten
+  // solo con cambios (forms.js).
+  function touched() {
+    if (editor) textarea.value = editor.getValue();
+    form.dispatchEvent(new Event("dirty-check"));
+  }
+
   var ed = {
     get: function () { return editor ? editor.getValue() : textarea.value; },
     set: function (text) {
@@ -63,6 +70,7 @@
         editor.pushUndoStop();
       } else {
         textarea.value = text;
+        touched();
       }
     },
     line: function () {
@@ -144,6 +152,7 @@
       });
       form.classList.add("has-monaco");
       editor.onDidChangeModelContent(schedule);
+      editor.onDidChangeModelContent(touched);
       editor.onDidChangeCursorPosition(function () { highlight(true); });
       editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, function () { form.requestSubmit(); });
       registerCompletions(monaco);

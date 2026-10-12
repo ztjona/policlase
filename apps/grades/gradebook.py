@@ -158,12 +158,29 @@ def recompute_due_dates(milestone) -> int:
 
 
 @dataclass
+class Item:
+    """Una clase, actividad o registro que cuenta en una fila: el detalle que ve el estudiante."""
+
+    kind: str                            # "live" | "activity" | "record"
+    title: str
+    day: object                          # date o None
+    got: float                           # puntos obtenidos (cero si faltó o no entregó)
+    top: float                           # puntos posibles
+    note: str = ""                       # «sin entrega», «ausente», «por revisar»…
+
+    @property
+    def percent(self) -> int:
+        return round(100 * min(1.0, self.got / self.top)) if self.top else 0
+
+
+@dataclass
 class Cell:
     category: Category
     fraction: float | None = None        # promedio de lo que cuenta; None si aún no hay nada
     counted: int = 0
     pending: int = 0                     # entregas con preguntas por revisar
     scale: float = 20.0
+    items: list[Item] = field(default_factory=list)
 
     @property
     def weight(self) -> float:
@@ -239,7 +256,7 @@ class StudentGrades:
 def course_grades(course, students, now=None) -> list[StudentGrades]:
     """Notas de cada estudiante en cada parcial. Pocas consultas: todo se arma en memoria."""
     from apps.activities.models import Activity, Attempt
-    from apps.live.models import LiveSession, Response, SessionGrade
+    from apps.live.models import LiveSession, Participant, Response, SessionGrade
 
     from .models import ManualRecord, ManualScore
 
@@ -265,6 +282,8 @@ def course_grades(course, students, now=None) -> list[StudentGrades]:
                 if s.max_points > 0]
     asked = {s.pk: set(s.asked_indices) for s in sessions}
     live_points: dict[tuple[int, int], float] = {}
+    present = set(Participant.objects.filter(session__in=sessions, student_id__in=student_ids)
+                  .values_list("session_id", "student_id"))
     for r in Response.objects.filter(session__in=sessions, student_id__in=student_ids):
         if r.slide_index in asked[r.session_id]:
             live_points[(r.session_id, r.student_id)] = live_points.get((r.session_id, r.student_id), 0) + r.points
@@ -295,18 +314,31 @@ def course_grades(course, students, now=None) -> list[StudentGrades]:
                 values = []
                 if category.source == Source.LIVE:
                     for s in sessions_in.get(period.pk, []):
-                        values.append(live_points.get((s.pk, student.pk), 0.0) / s.max_points)
+                        got = live_points.get((s.pk, student.pk), 0.0)
+                        values.append(got / s.max_points)
+                        absent = (s.pk, student.pk) not in present and (s.pk, student.pk) not in live_points
+                        cell.items.append(Item("live", s.title, timezone.localdate(s.started_at or s.created_at),
+                                               got, s.max_points, _("ausente") if absent else ""))
                 else:
                     for activity in by_category.get(category.pk, []):
                         attempt = last.get((activity.pk, student.pk))
+                        day = day_of(activity)
                         if attempt is not None:
                             values.append(attempt.fraction or 0.0)
                             cell.pending += 1 if attempt.pending else 0
+                            cell.items.append(Item("activity", activity.title, day, attempt.points or 0.0,
+                                                   attempt.max_points, _("por revisar") if attempt.pending else ""))
                         elif activity.is_past_due(now):
                             values.append(0.0)
+                            cell.items.append(Item("activity", activity.title, day, 0.0, activity.points,
+                                                   _("sin entrega")))
                 for record in records_in.get(category.pk, []):
                     top = float(record.max_points)
-                    values.append(min(1.0, scores.get((record.pk, student.pk), 0.0) / top) if top > 0 else 0.0)
+                    got = scores.get((record.pk, student.pk))
+                    values.append(min(1.0, (got or 0.0) / top) if top > 0 else 0.0)
+                    cell.items.append(Item("record", record.title, record.on, got or 0.0, top,
+                                           _("sin nota registrada") if got is None else ""))
+                cell.items.sort(key=lambda i: (i.day is None, i.day or today))
                 if values:
                     cell.fraction, cell.counted = sum(values) / len(values), len(values)
                 pg.cells.append(cell)

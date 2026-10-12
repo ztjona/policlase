@@ -63,8 +63,7 @@ hasta que cambien.
 - La sección y el parcial son cosas distintas: una unidad puede repartirse entre dos parciales. El
   parcial de una actividad lo decide su fecha de entrega, que vive en policlase, no en GitHub.
 - Los **registros manuales** (notas de algo hecho fuera de policlase) viven solo en policlase. Si la
-  carpeta de una sección desaparece de GitHub y la sección tiene registros, la sección se conserva
-  para que no queden sin unidad; arrástrelos a otra y elimínela.
+  carpeta de su unidad desaparece de GitHub, quedan sin unidad.
 
 Estructura recomendada (vincule el curso a `metodos-numericos/clases`):
 

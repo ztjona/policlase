@@ -165,11 +165,14 @@ Reglas de interacción:
   ya se respondió. La nota del docente no borra la automática (`auto_points`).
 - Las fechas y la ponderación viven en la plataforma, nunca en el YAML. Un vencimiento relativo a
   una fecha clave se recalcula al moverla (`gradebook.recompute_due_dates`).
-- **Unidad y parcial son ejes distintos.** La unidad (sección) organiza el contenido: sus
-  presentaciones y sus actividades van juntas en la pestaña Clases, y la pestaña Actividades es una
-  vista de todas, por parcial y filtrable por fila de la ponderación. El parcial lo decide la fecha:
-  si una actividad vence en otro parcial que su fila, pasa a la fila del mismo nombre de ese parcial
-  (`gradebook.rebind`); si no la hay, se avisa.
+- **Material y notas, separados.** La pestaña Clases es el material, por unidad: presentaciones
+  (con las fechas en que se dictaron) y actividades. La pestaña Actividades es todo lo que se
+  califica, por parcial y en orden de fecha: clases dictadas, actividades y registros manuales,
+  filtrable por fila de la ponderación. El estudiante ve en «Calificaciones» la nota de cada uno.
+- **Unidad y parcial son ejes distintos.** La unidad (sección) organiza el contenido; el parcial
+  lo decide la fecha: si una actividad vence en otro parcial que su fila, pasa a la fila del mismo
+  nombre de ese parcial (`gradebook.rebind`); si no la hay, se avisa. En los formularios, el parcial
+  se elige aparte de la fila y viene propuesto por la fecha.
 - **Preguntas con tiempo:** el reloj es del servidor (`Attempt.timers`, `engine.timer`). La pregunta
   no se ve hasta que el estudiante la abre, se guarda solo mientras corre (más una gracia corta) y se
   cierra para el resto del intento; el navegador solo muestra la cuenta regresiva y envía al llegar a
@@ -180,9 +183,7 @@ Reglas de interacción:
   revise, y lo que no coincide queda «sin asignar» para cuando el estudiante se inscriba. Cada nota
   recuerda el nombre de la lista del que salió (`ManualScore.pasted_name`) para poder quitar la
   asignación después; la que coincide solo por el apellido se guarda únicamente si el docente la
-  confirma. Un registro puede ir en una unidad (pestaña Clases), junto a la presentación de la clase
-  en que se hizo, que muestra las fechas en que se dictó; en un curso con GitHub, una unidad con
-  registros no se borra aunque desaparezca su carpeta.
+  confirma. La unidad de un registro solo lo rotula.
 - **Invitados:** nunca cuentan para una nota. Si uno era un estudiante que aún no estaba inscrito,
   se le asigna su cuenta (`engine.link_guest`, con la clase terminada). Para todo lo demás, la nota
   manual de la clase (`SessionGrade`), que reemplaza la suma sin tocar las respuestas.

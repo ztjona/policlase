@@ -6,6 +6,7 @@
 {% get_current_language as LANG %}
 {# Editor de contenido: el mismo para presentaciones y actividades. El tipo lo dice el `schema` del texto. #}
 <form method="post" enctype="multipart/form-data" id="deck-form" class="studio" data-kind="{{ kind }}"
+      data-dirty{% if request.method == "POST" %}="1"{% endif %}
       data-new="{% if content %}{% else %}1{% endif %}"
       data-preview="{% url 'content_preview' course.pk %}" data-ops="{% url 'content_ops' course.pk %}"
       data-monaco="{% get_static_prefix %}vendor/monaco/" data-lang="{{ LANG }}">
@@ -20,8 +21,8 @@
             data-label-on="{% translate 'Ocultar la vista previa' %}" data-label-off="{% translate 'Mostrar la vista previa' %}"
             title="{% translate 'Ocultar la vista previa' %}" aria-label="{% translate 'Ocultar la vista previa' %}">
       <span class="when-on">{% icon "eye" %}</span><span class="when-off">{% icon "eye_off" %}</span></button>
-    <a class="btn secondary small" href="{{ back }}">{% translate "Cancelar" %}</a>
-    <button type="submit" class="small" title="{% if link %}{% translate 'Guardar y confirmar en GitHub (Ctrl+S)' %}{% else %}{% translate 'Guardar (Ctrl+S)' %}{% endif %}">{% translate "Guardar" %}</button>
+    <a class="btn secondary small" href="{{ back }}" data-dirty-enable>{% translate "Cancelar" %}</a>
+    <button type="submit" class="small" data-dirty-enable title="{% if link %}{% translate 'Guardar y confirmar en GitHub (Ctrl+S)' %}{% else %}{% translate 'Guardar (Ctrl+S)' %}{% endif %}">{% translate "Guardar" %}</button>
   </header>
 
   <div class="studio-body" id="studio-body">

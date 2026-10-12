@@ -1,6 +1,9 @@
 from django import forms
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from apps.grades.forms import PeriodRowMixin, TaggedSelect
+from apps.grades.gradebook import day_of
 from apps.grades.models import Category, Milestone
 
 from .models import Activity
@@ -8,7 +11,7 @@ from .models import Activity
 DATETIME = forms.DateTimeInput(attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M")
 
 
-class ActivitySettingsForm(forms.ModelForm):
+class ActivitySettingsForm(PeriodRowMixin, forms.ModelForm):
     """Lo que la plataforma decide de una actividad: ponderación, fechas, atrasos e intentos."""
 
     DUE_NONE, DUE_FIXED, DUE_MILESTONE = "none", "fixed", "milestone"
@@ -22,7 +25,7 @@ class ActivitySettingsForm(forms.ModelForm):
         fields = ["category", "published", "opens_at", "due_milestone", "due_offset_days", "due_time",
                   "due_at", "late_policy", "late_penalty", "max_attempts", "block_paste"]
         widgets = {
-            "opens_at": DATETIME, "due_at": DATETIME,
+            "opens_at": DATETIME, "due_at": DATETIME, "due_milestone": TaggedSelect(),
             "due_time": forms.TimeInput(attrs={"type": "time"}, format="%H:%M"),
             "due_offset_days": forms.NumberInput(attrs={"min": "-60", "max": "60"}),
             "late_penalty": forms.NumberInput(attrs={"min": "0", "max": "100"}),
@@ -33,8 +36,12 @@ class ActivitySettingsForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["category"].queryset = Category.objects.filter(period__course=course).select_related("period")
         self.fields["category"].empty_label = _("— Sin ponderación (no cuenta) —")
-        self.fields["due_milestone"].queryset = Milestone.objects.filter(course=course)
+        milestones = Milestone.objects.filter(course=course)
+        self.fields["due_milestone"].queryset = milestones
         self.fields["due_milestone"].empty_label = _("— Elija una fecha clave —")
+        # La fecha de cada fecha clave, para que el navegador proponga el parcial de la entrega.
+        self.fields["due_milestone"].widget.tags = {str(m.pk): {"data-day": m.on.isoformat()} for m in milestones}
+        self.setup_period(course, day_of(self.instance) or timezone.localdate())
         self.fields["due_at"].label = _("Fecha y hora de entrega")
         instance = self.instance
         if not self.is_bound:
@@ -78,7 +85,7 @@ class ActivitySettingsForm(forms.ModelForm):
         opens, due = data.get("opens_at"), data.get("due_at")
         if mode == self.DUE_FIXED and opens and due and due <= opens:
             self.add_error("due_at", _("Debe ser posterior a la apertura."))
-        return data
+        return self.clean_period_row(data)
 
     def save(self, commit=True):
         from apps.grades.gradebook import rebind

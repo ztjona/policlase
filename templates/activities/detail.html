@@ -12,13 +12,17 @@
 <p class="muted small">{% blocktranslate with n=activity.questions|length p=activity.points|floatformat:"-2" %}{{ n }} preguntas · {{ p }} puntos{% endblocktranslate %}{% if activity.github_path %} · <span class="mono">{{ activity.github_path }}</span>{% endif %}</p>
 
 <div class="grid two">
-  <form method="post" class="card stack" id="settings">
+  <form method="post" class="card stack" id="settings" data-dirty{% if form.errors %}="1"{% endif %}>
     {% csrf_token %}
     <h2>{% translate "Configuración" %}</h2>
     {% if form.non_field_errors %}<div class="notice">{{ form.non_field_errors }}</div>{% endif %}
     <label class="check-toggle">{{ form.published }} {% translate "Publicada (visible para los estudiantes)" %}</label>
-    <div>{{ form.category.label_tag }}{{ form.category }}{{ form.category.errors }}
-      <span class="helptext">{% translate "Las filas provienen de las ponderaciones del curso. Si la fecha de entrega corresponde a otro parcial, la actividad pasa a la fila del mismo nombre en ese parcial." %} <a href="{% url 'grading_settings' course.pk %}">{% translate "Editar ponderaciones" %}</a></span>
+    <div>
+      <div class="grid two tight">
+        <div>{{ form.period.label_tag }}{{ form.period }}{{ form.period.errors }}</div>
+        <div>{{ form.category.label_tag }}{{ form.category }}{{ form.category.errors }}</div>
+      </div>
+      <span class="helptext">{% translate "El parcial se propone según la fecha de entrega, y la ponderación muestra las filas de ese parcial. Si la fecha de entrega corresponde a otro parcial, la actividad pasa a la fila del mismo nombre en ese parcial." %} <a href="{% url 'grading_settings' course.pk %}">{% translate "Editar ponderaciones" %}</a></span>
       {% if mismatch %}<div class="notice small">{% blocktranslate with p=mismatch.name row=activity.category %}Vence en «{{ p }}», pero cuenta en «{{ row }}»: ese parcial no tiene una fila con el mismo nombre. Elija la fila que corresponde.{% endblocktranslate %}</div>{% endif %}</div>
     <div>{{ form.opens_at.label_tag }}{{ form.opens_at }}{{ form.opens_at.errors }}<span class="helptext">{{ form.opens_at.help_text }}</span></div>
 
@@ -43,7 +47,7 @@
     <div>{{ form.max_attempts.label_tag }}{{ form.max_attempts }}{{ form.max_attempts.errors }}
       <span class="helptext">{% translate "Se califica el último intento enviado. Entre intentos, el estudiante ve su puntaje; las soluciones se muestran al vencer la fecha de entrega." %}</span></div>
     <label class="check-toggle">{{ form.block_paste }} {{ form.block_paste.label|capfirst }}</label>
-    <div class="row"><button type="submit">{% translate "Guardar" %}</button>
+    <div class="row"><button type="submit" data-dirty-enable>{% translate "Guardar" %}</button>
       {% if activity.due_at %}<span class="small muted">{% blocktranslate with when=activity.due_at|date:"D d M Y, H:i" %}Vence: {{ when }}{% endblocktranslate %}</span>{% endif %}</div>
   </form>
 

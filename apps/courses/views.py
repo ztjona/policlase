@@ -175,15 +175,12 @@ def course_manage(request, pk, tab="clases"):
         "live": LiveSession.objects.active().filter(course=course).first(),
     }
     if tab == "clases":
+        # El material del curso, por unidad: presentaciones y actividades. Las notas (clases dictadas,
+        # entregas, registros manuales) están en la pestaña Actividades.
         from apps.activities.models import Activity
-        from apps.grades.models import ManualRecord
 
         decks = list(Deck.objects.filter(course=course))
-        activities = list(Activity.objects.filter(course=course).select_related("category__period"))
-        records = list(ManualRecord.objects.filter(course=course).select_related("category__period")
-                       .annotate(scored=Count("scores")))
-        # Cada presentación muestra cuándo se dictó, con sus resultados: junto a ella quedan las
-        # actividades y los registros manuales de la misma unidad (un cuestionario hecho en esa clase).
+        activities = list(Activity.objects.filter(course=course))
         taught: dict[int, list] = {}
         for session in (LiveSession.objects.filter(course=course, status=LiveSession.Status.ENDED, deck__isnull=False)
                         .order_by("started_at", "created_at")):
@@ -198,19 +195,16 @@ def course_manage(request, pk, tab="clases"):
         # enterrada bajo una lista creciente de presentaciones sin sección.
         groups = [{"section": s,
                    "decks": sorted([d for d in decks if d.section_id == s.pk], key=key),
-                   "activities": sorted([a for a in activities if a.section_id == s.pk], key=key),
-                   "records": [r for r in records if r.section_id == s.pk]}
+                   "activities": sorted([a for a in activities if a.section_id == s.pk], key=key)}
                   for s in sections]
         groups.append({"section": None,
                        "decks": sorted([d for d in decks if d.section_id is None], key=key),
-                       "activities": sorted([a for a in activities if a.section_id is None], key=key),
-                       "records": [r for r in records if r.section_id is None]})
+                       "activities": sorted([a for a in activities if a.section_id is None], key=key)})
         for group in groups:
-            group["count"] = len(group["decks"]) + len(group["activities"]) + len(group["records"])
+            group["count"] = len(group["decks"]) + len(group["activities"])
         context.update({
-            "groups": groups, "has_content": bool(decks or activities or records),
+            "groups": groups, "has_content": bool(decks or activities),
             "current_section": current_section(course, sections),
-            "past_sessions": LiveSession.objects.filter(course=course, status=LiveSession.Status.ENDED)[:10],
         })
     elif tab == "actividades":
         context.update(_activities_tab(course, context["approved_count"], request.GET.get("fila", "")))
@@ -240,51 +234,65 @@ def current_section(course, sections) -> int | None:
 
 
 def _activities_tab(course, enrolled: int, wanted: str = "") -> dict:
-    """Todas las actividades del curso en una vista: por parcial (según su ponderación), con su
-    unidad, entregas y lo pendiente de revisar. Se filtra por fila de la ponderación (deberes,
-    extracurriculares…). Cada actividad vive en su unidad, en la pestaña Clases."""
+    """Todo lo que se califica, por parcial: las clases dictadas, las actividades y los registros
+    manuales, en orden de fecha, con su unidad, entregas (o asistencia) y lo pendiente de revisar.
+    Se filtra por fila de la ponderación. El material (presentaciones y contenido de las
+    actividades) vive en la pestaña Clases."""
+    from apps.accounts.models import User
     from apps.activities.models import Activity
-    from apps.grades.gradebook import ensure_defaults, mismatch, period_for
-    from apps.grades.models import ManualRecord, Period
+    from apps.grades.gradebook import day_of, ensure_defaults, mismatch, period_for
+    from apps.grades.models import Category, ManualRecord, Period
+    from apps.live.models import LiveSession
 
     ensure_defaults(course)
     periods = list(Period.objects.filter(course=course).prefetch_related("categories"))
-    activities = list(
-        Activity.objects.filter(course=course).select_related("category__period", "due_milestone", "section",
-                                                               "course__owner")
-        .annotate(submitted=Count("attempts__student", filter=Q(attempts__submitted_at__isnull=False),
-                                  distinct=True),
-                  to_review=Count("attempts__answer_rows", filter=Q(attempts__answer_rows__needs_review=True))))
     names = []
     for period in periods:
         for category in period.categories.all():
-            if category.source == category.Source.WORK and category.name not in names:
+            if category.name not in names:
                 names.append(category.name)
-    if wanted and wanted in names:
-        activities = [a for a in activities if a.category_id and a.category.name == wanted]
-    else:
-        wanted = ""
+    wanted = wanted if wanted in names else ""
+    keep = (lambda category: category is not None and category.name == wanted) if wanted else (lambda category: True)
+
+    rows: dict[int | None, list[dict]] = {p.pk: [] for p in periods}
+    rows[None] = []
+    activities = (Activity.objects.filter(course=course)
+                  .select_related("category__period", "due_milestone", "section", "course__owner")
+                  .annotate(submitted=Count("attempts__student", filter=Q(attempts__submitted_at__isnull=False),
+                                            distinct=True),
+                            to_review=Count("attempts__answer_rows",
+                                            filter=Q(attempts__answer_rows__needs_review=True))))
     for a in activities:
-        a.mismatch = mismatch(a, periods)
-    records = list(ManualRecord.objects.filter(course=course).select_related("category__period", "section"))
-    if wanted:
-        records = [r for r in records if r.category_id and r.category.name == wanted]
-    groups = []
-    for period in periods:
-        groups.append({"period": period,
-                       "activities": [a for a in activities if a.category_id and a.category.period_id == period.pk],
-                       "records": [r for r in records if r.category_id and r.category.period_id == period.pk]})
-    loose = [a for a in activities if not a.category_id]
-    loose_records = [r for r in records if not r.category_id]
-    if loose or loose_records:
-        groups.append({"period": None, "activities": loose, "records": loose_records})
+        if keep(a.category):
+            a.mismatch = mismatch(a, periods)
+            rows[a.category.period_id if a.category_id else None].append(
+                {"kind": "activity", "item": a, "day": day_of(a)})
+    for r in ManualRecord.objects.filter(course=course).select_related("category__period", "section"):
+        if keep(r.category):
+            rows[r.category.period_id if r.category_id else None].append({"kind": "record", "item": r, "day": r.on})
+    # Cada clase dictada cuenta en la fila de participación del parcial de su fecha (como en las notas).
+    sessions = (LiveSession.objects.filter(course=course, status=LiveSession.Status.ENDED)
+                .select_related("deck__section")
+                .annotate(present=Count("participants", filter=Q(participants__student__role=User.Role.STUDENT))))
+    for session in sessions:
+        day = timezone.localdate(session.started_at or session.created_at)
+        period = period_for(periods, day)
+        row = next((c for c in period.categories.all() if c.source == Category.Source.LIVE), None) if period else None
+        session.row = row if session.max_points > 0 else None
+        if keep(session.row):
+            rows[period.pk if period else None].append({"kind": "live", "item": session, "day": day})
+    order = {"live": 0, "activity": 1, "record": 2}
+    groups = [{"period": p, "rows": rows[p.pk]} for p in periods]
+    if rows[None]:
+        groups.append({"period": None, "rows": rows[None]})
     # Como las unidades: solo el parcial en curso viene desplegado. «Sin ponderación» también, porque
     # pide atención; con un filtro, todo parcial que tenga algo.
     current = period_for(periods, timezone.localdate())
     for group in groups:
-        group["count"] = len(group["activities"]) + len(group["records"])
+        group["rows"].sort(key=lambda r: (r["day"] is None, r["day"] or timezone.localdate(), order[r["kind"]]))
+        group["count"] = len(group["rows"])
         group["open"] = group["period"] is None or group["period"] == current or bool(wanted and group["count"])
-    return {"activity_groups": groups, "has_activities": bool(activities or records), "enrolled": enrolled,
+    return {"activity_groups": groups, "has_activities": any(g["count"] for g in groups), "enrolled": enrolled,
             "filters": names, "wanted": wanted}
 
 

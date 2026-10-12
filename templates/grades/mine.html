@@ -5,6 +5,7 @@
 <div class="muted small"><a href="{% url 'course_detail' course.pk %}">← {{ course.name }}</a></div>
 <h1>{% translate "Calificaciones" %}</h1>
 <p class="muted">{% blocktranslate with max=rules.period_max|floatformat:"-2" %}Cada parcial se califica sobre {{ max }} puntos. Los componentes opcionales se suman a los obligatorios y permiten compensar los puntos no obtenidos; la nota del parcial no excede {{ max }} puntos.{% endblocktranslate %}</p>
+<p class="muted small">{% translate "Abra un componente para ver la nota de cada clase, actividad o registro que cuenta en él." %}</p>
 
 {% for pg in grades.periods %}
   <section class="card">
@@ -18,7 +19,23 @@
         <tbody>
           {% for c in pg.cells %}
             <tr>
-              <td>{{ c.category.name }}{% if c.category.optional %} <span class="chip ok">{% translate "opcional" %}</span>{% endif %}</td>
+              <td>
+                {% if c.items %}
+                  <details class="grade-items">
+                    <summary>{{ c.category.name }}{% if c.category.optional %} <span class="chip ok">{% translate "opcional" %}</span>{% endif %}
+                      <span class="small muted">({{ c.items|length }})</span></summary>
+                    <ul class="plain small">
+                      {% for i in c.items %}
+                        <li><span class="muted">{% if i.day %}{{ i.day|date:"d M" }} · {% endif %}{% if i.kind == "live" %}{% translate "clase" %}{% elif i.kind == "record" %}{% translate "registro" %}{% else %}{% translate "actividad" %}{% endif %}</span>
+                          {{ i.title }} — <strong>{{ i.got|floatformat:"-2" }}</strong> / {{ i.top|floatformat:"-2" }}
+                          <span class="muted">({{ i.percent }} %){% if i.note %} · {{ i.note }}{% endif %}</span></li>
+                      {% endfor %}
+                    </ul>
+                  </details>
+                {% else %}
+                  {{ c.category.name }}{% if c.category.optional %} <span class="chip ok">{% translate "opcional" %}</span>{% endif %}
+                {% endif %}
+              </td>
               <td class="num">{{ c.category.weight|floatformat:"-2" }} %</td>
               <td class="num">{% if c.fraction is None %}<span class="muted">{% translate "Pendiente" %}</span>{% else %}{{ c.points|floatformat:2 }} <span class="muted">/ {{ c.max_points|floatformat:"-2" }}</span>{% endif %}</td>
             </tr>

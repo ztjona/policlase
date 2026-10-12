@@ -1,5 +1,5 @@
 {% load i18n policlase %}
-{# Actividades de una unidad en la pestaña Clases: se arrastran entre secciones como las presentaciones. #}
+{# Actividades de una unidad en la pestaña Clases (su contenido): se arrastran entre secciones como las presentaciones. #}
 {% for a in activities %}
   <div class="deck-row" draggable="true" data-move="{% url 'activity_move' course.pk a.pk %}">
     <span class="grip" title="{% translate 'Arrastre para mover a otra sección' %}">{% icon "grip" 16 %}</span>
@@ -8,7 +8,8 @@
       <a href="{% url 'activity_detail' course.pk a.pk %}"><strong>{{ a.title }}</strong></a>
       {% if not a.published %}<span class="chip warn">{% translate "Borrador" %}</span>{% endif %}
       <div class="small muted">
-        {% if a.category %}{{ a.category.name }} · {{ a.category.period.name }}{% else %}{% translate "sin ponderación" %}{% endif %} ·
+        {% blocktranslate count n=a.questions|length %}{{ n }} pregunta{% plural %}{{ n }} preguntas{% endblocktranslate %} ·
+        {% blocktranslate with p=a.points|floatformat:"-2" %}{{ p }} puntos{% endblocktranslate %} ·
         {% if a.due_at %}{% blocktranslate with when=a.due_at|date:"D d M, H:i" %}vence {{ when }}{% endblocktranslate %}{% else %}{% translate "sin fecha" %}{% endif %}
       </div>
     </div>

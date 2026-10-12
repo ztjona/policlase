@@ -632,6 +632,8 @@ dl.facts { display: flex; flex-wrap: wrap; gap: 8px 28px; margin: 0 0 14px; }
 dl.facts dt { color: var(--muted); font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; }
 dl.facts dd { margin: 0; }
 .grid.two { grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); align-items: start; }
+.grid.two.tight { grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 10px; }
+a.btn.disabled, a.btn[aria-disabled] { opacity: .45; pointer-events: none; cursor: default; }
 fieldset.due { border: 1px solid var(--rule); border-radius: var(--radius); padding: 10px 12px; margin: 0; display: flex; flex-direction: column; gap: 8px; }
 fieldset.due legend { font-weight: 600; font-size: .92rem; padding: 0 4px; }
 .radio-row { display: flex; align-items: center; gap: 8px; margin: 0; font-weight: 400; }
@@ -668,7 +670,11 @@ table.record .source-cell { display: flex; flex-wrap: wrap; align-items: center;
 table.record .confirm-check { display: inline-flex; align-items: center; gap: 4px; color: var(--warn); font-weight: 600; }
 table.record .confirm-check input { width: auto; margin: 0; }
 table.record button.small { padding: 2px 10px; }
-.deck-row .taught a { white-space: nowrap; }
+.deck-row .taught { color: var(--muted); }
+table.graded .row-kind { color: var(--muted); display: inline-flex; vertical-align: -2px; margin-right: 2px; }
+details.grade-items > summary { cursor: pointer; }
+details.grade-items ul { margin: 6px 0 4px 14px; }
+details.grade-items li { padding: 2px 0; }
 .open-preview { padding: 8px 10px; border: 1px dashed var(--rule); border-radius: var(--radius); background: var(--surface-alt);
   overflow-x: auto; }
 textarea.code.pasted { min-height: 0; }

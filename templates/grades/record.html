@@ -6,27 +6,28 @@
 <h1>{% if record %}{{ record.title }}{% else %}{% translate "Registrar notas" %}{% endif %}</h1>
 <p class="muted">{% translate "Registro de calificaciones de una actividad realizada fuera de policlase, como una prueba escrita, un cuestionario en otra plataforma o una exposición. Cuenta en la fila de la ponderación seleccionada como una actividad adicional (o como una clase adicional, en la fila de participación). Los estudiantes sin nota registrada obtienen cero." %}</p>
 
-<form method="post" class="stack" id="record">
+<form method="post" class="stack" id="record" data-dirty{% if request.method == "POST" %}="1"{% endif %}>
   {% csrf_token %}
   {% comment %} Enter en cualquier casilla guarda: el primer botón del formulario es el que usa el navegador. {% endcomment %}
-  <button type="submit" name="action" value="save" class="sr-only" tabindex="-1" aria-hidden="true"></button>
+  <button type="submit" name="action" value="save" class="sr-only" tabindex="-1" aria-hidden="true" data-dirty-enable></button>
   <section class="card stack">
     {% if form.non_field_errors %}<div class="notice">{{ form.non_field_errors }}</div>{% endif %}
     <div class="grid two">
       <div>{{ form.title.label_tag }}{{ form.title }}{{ form.title.errors }}</div>
       <div>{{ form.section.label_tag }}{{ form.section }}{{ form.section.errors }}<span class="helptext">{{ form.section.help_text }}</span></div>
-      <div>{{ form.category.label_tag }}{{ form.category }}{{ form.category.errors }}<span class="helptext">{{ form.category.help_text }}</span></div>
       <div>{{ form.on.label_tag }}{{ form.on }}{{ form.on.errors }}</div>
       <div>{{ form.max_points.label_tag }}{{ form.max_points }}{{ form.max_points.errors }}
         <span class="helptext">{% translate "Cada nota se calcula como proporción de este valor. En cuestionarios que otorgan puntaje por rapidez, puede usarse el puntaje máximo posible o el más alto obtenido, según su criterio." %}</span></div>
-      <div>{{ form.note.label_tag }}{{ form.note }}{{ form.note.errors }}</div>
+      <div>{{ form.period.label_tag }}{{ form.period }}{{ form.period.errors }}<span class="helptext">{% translate "Se propone según la fecha del registro." %}</span></div>
+      <div>{{ form.category.label_tag }}{{ form.category }}{{ form.category.errors }}<span class="helptext">{{ form.category.help_text }}</span></div>
     </div>
+    <div>{{ form.note.label_tag }}{{ form.note }}{{ form.note.errors }}</div>
   </section>
 
   <details class="card"{% if report %} open{% endif %}>
     <summary><strong>{% translate "Pegar una lista" %}</strong> <span class="small muted">· {% translate "una línea por estudiante, con el nombre y el puntaje" %}</span></summary>
     <div class="stack" style="margin-top:10px">
-      <textarea name="pasted" rows="8" class="code pasted" spellcheck="false"
+      <textarea name="pasted" rows="8" class="code pasted" spellcheck="false" data-dirty-ignore
                 placeholder="{% translate 'Castro P Leandro 20117' %}&#10;{% translate 'Robalino.T.Valeria 20277' %}"></textarea>
       <span class="helptext">{% translate "Puede pegar el contenido copiado de una tabla de resultados o de una hoja de cálculo. Los nombres se comparan con los de los estudiantes inscritos por apellidos y nombres, sin distinguir tildes." %}</span>
       <div><button type="submit" name="action" value="paste" class="secondary" formnovalidate>{% translate "Procesar la lista" %}</button></div>
@@ -101,8 +102,8 @@
     </section>
   {% endif %}
 
-  <div class="row"><button type="submit" name="action" value="save">{% translate "Guardar" %}</button>
-    <a class="btn secondary" href="{% url 'course_activities' course.pk %}">{% translate "Cancelar" %}</a></div>
+  <div class="row"><button type="submit" name="action" value="save" data-dirty-enable>{% translate "Guardar" %}</button>
+    <a class="btn secondary" href="{% url 'course_activities' course.pk %}" data-dirty-enable>{% translate "Cancelar" %}</a></div>
 </form>
 
 {% if record %}

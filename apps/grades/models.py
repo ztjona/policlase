@@ -108,8 +108,7 @@ class ManualRecord(models.Model):
     que no coincidieron con ningún inscrito se guardan en `unmatched` para asignarlos después: los
     estudiantes que se inscriben tarde.
 
-    La unidad (`section`) solo ubica el registro en la pestaña Clases, junto a la clase en que se hizo
-    (un cuestionario en otra plataforma durante la clase, por ejemplo); el parcial lo decide la fecha.
+    La unidad (`section`) solo lo rotula (pestaña Actividades); el parcial lo decide la fecha.
     """
 
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="manual_records")

@@ -199,10 +199,7 @@ def _sync_sections(link: CourseRepo, decks: dict[str, Deck], activities: dict[st
         sections[folder] = Section.objects.create(course=link.course, title=folder_title(folder),
                                                   github_folder=folder)
     for folder in set(sections) - folders:
-        # La carpeta ya no existe en GitHub. Si la unidad tiene registros manuales (que no viven en
-        # GitHub), se conserva para no dejarlos sin unidad.
-        if not sections[folder].manual_records.exists():
-            sections.pop(folder).delete()
+        sections.pop(folder).delete()                  # la carpeta ya no existe en GitHub
     for position, folder in enumerate(sorted(sections, key=natural_key)):
         section = sections[folder]
         if section.position != position or section.title != folder_title(folder):
