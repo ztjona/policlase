@@ -6,6 +6,7 @@
     <span class="row-kind" title="{% translate 'Actividad' %}">{% icon "task" 16 %}</span>
     <div class="deck-info">
       <a href="{% url 'activity_detail' course.pk a.pk %}"><strong>{{ a.title }}</strong></a>
+      {% if a.category %}<span class="weight-chip c{{ row_colors|get_item:a.category.name }}">{{ a.category.name }}</span>{% endif %}
       {% if not a.published %}<span class="chip warn">{% translate "Borrador" %}</span>{% endif %}
       <div class="small muted">
         {% blocktranslate count n=a.questions|length %}{{ n }} pregunta{% plural %}{{ n }} preguntas{% endblocktranslate %} ·

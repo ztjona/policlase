@@ -11,7 +11,9 @@
         {% blocktranslate with when=d.updated_at|date:"d M H:i" %}editada {{ when }}{% endblocktranslate %}
       </div>
       {% if d.taught %}
-        <div class="small taught">{% translate "Dictada:" %} {% for s in d.taught %}{{ s.started_at|default:s.created_at|date:"D d M" }}{% if not forloop.last %} · {% endif %}{% endfor %}</div>
+        <div class="small taught">{% translate "Dictada:" %}
+          {% for s in d.taught %}<a href="{% url 'session_results' s.pk %}" title="{% translate 'Resultados de esa clase' %}">{{ s.started_at|default:s.created_at|date:"D d M" }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}
+        </div>
       {% endif %}
     </div>
     <div class="row-actions">
@@ -19,6 +21,9 @@
         <form method="post" action="{% url 'session_start' course.pk d.pk %}">{% csrf_token %}
           <button class="icon-btn primary" title="{% translate 'Iniciar clase' %}" aria-label="{% translate 'Iniciar clase' %}">{% icon "play" %}</button></form>
       {% endif %}
+      {% if d.taught %}{% with last=d.taught|last %}
+        <a class="icon-btn" href="{% url 'session_results' last.pk %}" title="{% translate 'Resultados de la última clase dictada' %}" aria-label="{% translate 'Resultados de la última clase dictada' %}">{% icon "results" %}</a>
+      {% endwith %}{% endif %}
       <a class="icon-btn" href="{% url 'deck_edit' course.pk d.pk %}" title="{% translate 'Editar' %}" aria-label="{% translate 'Editar' %}">{% icon "edit" %}</a>
       <form method="post" action="{% url 'deck_delete' course.pk d.pk %}"
             onsubmit="return confirm('{% if d.github_path %}{% blocktranslate with t=d.title path=d.github_path asvar msg %}¿Eliminar «{{ t }}»? También se borra su archivo en GitHub ({{ path }}). Las clases ya dictadas conservan sus resultados.{% endblocktranslate %}{% else %}{% blocktranslate with t=d.title asvar msg %}¿Eliminar «{{ t }}»? Las clases ya dictadas conservan sus resultados.{% endblocktranslate %}{% endif %}{{ msg|escapejs }}')">

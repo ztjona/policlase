@@ -8,7 +8,7 @@
 {% if filters|length > 1 %}
   <nav class="filters small" aria-label="{% translate 'Filtrar por ponderación' %}">
     <a href="{% url 'course_activities' course.pk %}" {% if not wanted %}aria-current="true"{% endif %}>{% translate "Todas" %}</a>
-    {% for name in filters %}<a href="{% url 'course_activities' course.pk %}?fila={{ name|urlencode }}" {% if name == wanted %}aria-current="true"{% endif %}>{{ name }}</a>{% endfor %}
+    {% for name in filters %}<a href="{% url 'course_activities' course.pk %}?fila={{ name|urlencode }}" {% if name == wanted %}aria-current="true"{% endif %}><span class="row-dot c{{ row_colors|get_item:name }}" aria-hidden="true"></span>{{ name }}</a>{% endfor %}
   </nav>
 {% endif %}
 
@@ -43,7 +43,7 @@
                       <a href="{% url 'session_results' x.pk %}"><strong>{{ x.title }}</strong></a>
                       {% if not x.row %}<span class="chip" title="{% translate 'No se abrió ninguna pregunta calificada: la clase no cuenta para la nota' %}">{% translate "sin preguntas calificadas" %}</span>{% endif %}</td>
                     <td class="small">{% if x.deck.section %}{{ x.deck.section.title }}{% else %}<span class="muted">—</span>{% endif %}</td>
-                    <td class="small">{% if x.row %}{{ x.row.name }}{% else %}<span class="muted">—</span>{% endif %}</td>
+                    <td class="small">{% if x.row %}<span class="weight-chip c{{ row_colors|get_item:x.row.name }}">{{ x.row.name }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
                     <td class="small">{{ x.started_at|default:x.created_at|date:"D d M, H:i" }}</td>
                     <td class="center">{{ x.present }} / {{ enrolled }}</td>
                     <td class="center"><span class="muted">—</span></td>
@@ -64,7 +64,7 @@
                       {% if x.mismatch %}<span class="chip danger" title="{% blocktranslate with p=x.mismatch.name %}Vence en «{{ p }}», pero cuenta en otro parcial.{% endblocktranslate %}">{% translate "otro parcial" %}</span>{% endif %}
                     </td>
                     <td class="small">{% if x.section %}{{ x.section.title }}{% else %}<span class="muted">—</span>{% endif %}</td>
-                    <td class="small">{% if x.category %}{{ x.category.name }}{% else %}<span class="muted">—</span>{% endif %}</td>
+                    <td class="small">{% if x.category %}<span class="weight-chip c{{ row_colors|get_item:x.category.name }}">{{ x.category.name }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
                     <td class="small">
                       {% if x.due_at %}{% blocktranslate with when=x.due_at|date:"D d M, H:i" %}vence {{ when }}{% endblocktranslate %}
                         {% if x.due_milestone %}<div class="muted">{{ x.due_rule }}</div>{% endif %}
@@ -84,7 +84,7 @@
                       <span class="chip" title="{% translate 'Calificaciones registradas manualmente de una actividad realizada fuera de policlase' %}">{% translate "registro manual" %}</span>
                       {% if x.unmatched %}<span class="chip warn" title="{% translate 'Nombres de la lista que aún no se han asignado a un estudiante' %}">{% blocktranslate count n=x.unmatched|length %}{{ n }} sin asignar{% plural %}{{ n }} sin asignar{% endblocktranslate %}</span>{% endif %}</td>
                     <td class="small">{% if x.section %}{{ x.section.title }}{% else %}<span class="muted">—</span>{% endif %}</td>
-                    <td class="small">{% if x.category %}{{ x.category.name }}{% else %}<span class="muted">—</span>{% endif %}</td>
+                    <td class="small">{% if x.category %}<span class="weight-chip c{{ row_colors|get_item:x.category.name }}">{{ x.category.name }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
                     <td class="small">{{ x.on|date:"D d M" }}</td>
                     <td class="center"><span class="muted">—</span></td>
                     <td class="center"><span class="muted">—</span></td>

@@ -154,7 +154,9 @@ AUTHENTICATION_BACKENDS = [
 ACCOUNT_LOGIN_METHODS = {"username", "email"}
 ACCOUNT_SIGNUP_FIELDS = ["email*", "username*", "password1*", "password2*"]
 ACCOUNT_SIGNUP_FORM_CLASS = "apps.accounts.forms.ProfileSignupForm"
-ACCOUNT_EMAIL_VERIFICATION = "mandatory"
+# Obligatoria para docentes, opcional para estudiantes (apps/accounts/stages.py explica por qué).
+ACCOUNT_EMAIL_VERIFICATION = "optional"
+ACCOUNT_ADAPTER = "apps.accounts.adapter.AccountAdapter"
 ACCOUNT_UNIQUE_EMAIL = True
 ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
 ACCOUNT_CONFIRM_EMAIL_ON_GET = False

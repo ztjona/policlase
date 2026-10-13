@@ -3,7 +3,10 @@
 #   1. nadie en una clase en vivo (si hay alguien, no se despliega);
 #   2. respaldo de la base y las imágenes;
 #   3. la imagen en uso queda como policlase-web:anterior, para volver atrás;
-#   4. construir, levantar (corre las migraciones) y verificar que responde con la versión nueva.
+#   4. construir y comprobar la imagen nueva (manage.py check con la configuración de producción)
+#      antes de reemplazar la que corre;
+#   5. levantar (corre las migraciones) y verificar que responde con la versión nueva; si no
+#      responde, se vuelve sola a la anterior.
 #
 #   ops/desplegar.sh            despliega el árbol de trabajo actual
 #   ops/desplegar.sh --volver   vuelve a la imagen anterior (si una migración cambió la base,
@@ -58,9 +61,29 @@ ops/respaldar.sh
 docker tag policlase-web:desplegada policlase-web:anterior 2>/dev/null \
   || echo "Aviso: no hay imagen desplegada etiquetada; esta vez no habrá --volver (el respaldo sí)."
 
-# 4. Construir y levantar. Si la construcción falla, sigue corriendo la versión de antes.
-$COMPOSE up -d --build
-wait_ready
+# 4. Construir y comprobar sin tocar lo que corre. Si la construcción o la comprobación fallan, sigue
+#    la versión de antes. La comprobación usa la configuración de producción (.env): un error que solo
+#    aparece ahí (así cayó la 0.10.1: un ciclo de importación en las comprobaciones del arranque)
+#    se detecta antes de reemplazar el contenedor.
+$COMPOSE build web
+if ! $COMPOSE run --rm --no-deps -T web python manage.py check > /dev/null; then
+  echo "La versión nueva no pasa «manage.py check» con la configuración de producción: no se despliega." >&2
+  docker tag policlase-web:desplegada policlase-web:latest 2>/dev/null || true   # que un «up» no la levante
+  exit 1
+fi
+
+# 5. Levantar. Si no responde, vuelve sola a la imagen anterior (las migraciones ya aplicadas se
+#    quedan: ver «Respaldos» en docs/deploy.md).
+$COMPOSE up -d --no-build web
+if ! wait_ready; then
+  if docker image inspect policlase-web:anterior > /dev/null 2>&1; then
+    echo "Volviendo a la imagen anterior." >&2
+    docker tag policlase-web:anterior policlase-web:latest
+    $COMPOSE up -d --no-build web
+    wait_ready && echo "De vuelta en: $(curl -s "$LOCAL/cuenta/login/" | grep -o 'policlase [0-9.]*' | head -n 1)" >&2
+  fi
+  exit 1
+fi
 VERSION="$(cat VERSION)"
 if curl -s "$LOCAL/cuenta/login/" | grep -q "policlase $VERSION"; then
   docker tag policlase-web:latest policlase-web:desplegada

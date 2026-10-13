@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% load static i18n policlase %}
-{% block title %}{% translate "Fechas" %} · {{ course.name }}{% endblock %}
+{% block title %}{% translate "Evaluaciones" %} · {{ course.name }}{% endblock %}
 {% block main %}
-<div class="muted small"><a href="{% url 'course_activities' course.pk %}">← {{ course.name }}</a></div>
-<h1>{% translate "Fechas" %}</h1>
-<p class="muted">{% translate "Las fechas clave corresponden a las pruebas y exámenes del curso. La fecha de entrega de un deber puede definirse en relación con una de ellas (p. ej., el día anterior); si la prueba se reprograma, basta con cambiar aquí su fecha para que esos deberes se actualicen automáticamente." %}</p>
+{% include "courses/_course_head.html" with tab="evaluaciones" %}
+<p class="muted">{% translate "Las fechas clave corresponden a las pruebas y exámenes del curso. La fecha de entrega de un deber puede definirse en relación con una de ellas (p. ej., el día anterior); si la prueba se reprograma, basta con cambiar aquí su fecha para que esos deberes se actualicen automáticamente." %}
+  <span class="small">{% translate "La creación de pruebas y exámenes con preguntas generadas para cada estudiante estará disponible en esta pestaña." %}</span></p>
 
 <h2>{% translate "Fechas clave" %}</h2>
 <div class="card table-wrap">

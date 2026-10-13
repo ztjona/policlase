@@ -251,7 +251,7 @@ class AnswerTests(LiveBase):
         engine.apply(session.pk, "end")
         page = self.client.get(reverse("course_manage", args=[self.course.pk]))
         self.assertContains(page, "Dictada:")
-        self.assertNotContains(page, reverse("session_results", args=[session.pk]))
+        self.assertContains(page, reverse("session_results", args=[session.pk]), count=2)   # la fecha y el ícono
         page = self.client.get(reverse("course_activities", args=[self.course.pk]))
         self.assertContains(page, reverse("session_results", args=[session.pk]), count=2)
         self.client.force_login(self.ana)
@@ -564,6 +564,19 @@ class FeedbackTests(LiveBase):
         names = {f.name for f in Feedback._meta.get_fields()}
         self.assertEqual(names, {"id", "session", "rating", "comment"})
 
+    def test_saltar_a_la_retroalimentacion(self):
+        session = self.start()
+        engine.apply(session.pk, "start")
+        self.client.force_login(self.teacher)
+        page = self.client.get(reverse("present_fragment", args=[session.pk]))
+        last = len(session.slides) - 1
+        self.assertContains(page, f'data-action="goto" data-index="{last}" class="secondary"')
+        self.client.post(reverse("present_action", args=[session.pk]), {"action": "goto", "index": last})
+        session.refresh_from_db()
+        self.assertTrue(session.is_feedback)
+        page = self.client.get(reverse("present_fragment", args=[session.pk]))
+        self.assertNotContains(page, "Ir a la retroalimentación")       # ya está ahí
+
     def test_una_vez_por_persona(self):
         session = self.to_feedback()
         self.give(self.ana, session)
@@ -695,7 +708,7 @@ class SectionsAndTabsTests(LiveBase):
         self.assertEqual(section.decks.count(), 1)
 
     def test_pestanas(self):
-        for name in ("course_manage", "course_assessments", "course_activities"):
+        for name in ("course_manage", "activity_dates", "course_activities", "course_gradebook"):
             self.assertEqual(self.client.get(reverse(name, args=[self.course.pk])).status_code, 200, name)
 
     def test_otro_docente_no_toca_secciones(self):
@@ -840,7 +853,8 @@ class CoursePageActionsTests(LiveBase):
 
     def test_eliminar_clase_dictada(self):
         session = engine.apply(self.start().pk, "end")
-        self.client.post(reverse("session_delete", args=[session.pk]))
+        response = self.client.post(reverse("session_delete", args=[session.pk]))
+        self.assertRedirects(response, reverse("course_activities", args=[self.course.pk]))  # donde se listan
         self.assertFalse(LiveSession.objects.exists())
 
     def test_no_se_elimina_una_clase_en_curso(self):

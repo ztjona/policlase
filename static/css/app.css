@@ -263,7 +263,13 @@ svg.i { display: inline-block; vertical-align: -4px; }
   color: var(--ink-soft); text-decoration: none; font-weight: 600; margin-bottom: -1px; }
 .tabs a[aria-current=page] { background: var(--surface); border-color: var(--rule); color: var(--accent); }
 .tabs a:hover { color: var(--accent); }
-@media (max-width: 480px) { .tabs a { padding: 8px 9px; } }   /* las tres pestañas caben en un teléfono */
+.tabs a { white-space: nowrap; flex: none; }
+/* En un teléfono las cuatro pestañas no caben: la barra se desplaza de lado, sin mover la página. */
+@media (max-width: 600px) {
+  .tabs { overflow-x: auto; min-width: 0; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tabs a { padding: 8px 9px; margin-bottom: 0; }
+}
 .unit { margin-bottom: 12px; }
 .unit > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 10px 14px;
   background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); }
@@ -405,6 +411,10 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 /* ------------------------------------------------------------------ clase en vivo */
 
 .live-shell { min-height: 100vh; display: flex; flex-direction: column; }
+/* El proyector ocupa exactamente la pantalla: solo se desplaza el contenido de la diapositiva (y el
+   panel lateral); la barra de arriba y los controles de abajo quedan siempre a la vista. El teléfono
+   del estudiante (la misma estructura) se desplaza entero, como una página. */
+.live-shell.projector-shell { height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; }
 .live-bar {
   display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
   padding: 8px 16px; background: var(--surface); border-bottom: 1px solid var(--rule); font-size: .92rem;
@@ -415,14 +425,14 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .conn.on::before { background: var(--ok); }
 .conn.off::before { background: var(--danger); }
 
-.stage { flex: 1; display: flex; flex-direction: column; }
+.stage { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 
 /* proyector con panel de diapositivas */
-.projector-wrap { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr); min-height: 0; }
+.projector-wrap { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); min-height: 0; }
 .live-outline { display: none; }
 .show-outline .projector-wrap { grid-template-columns: 230px minmax(0, 1fr); }
 .show-outline .live-outline { display: block; overflow: auto; padding: 10px; background: var(--surface-alt);
-  border-right: 1px solid var(--rule); max-height: calc(100vh - 46px); }
+  border-right: 1px solid var(--rule); min-height: 0; }
 .live-outline .thumb { grid-template-columns: 1fr auto; padding: 0; }
 .live-outline .thumb-go { display: grid; grid-template-columns: 22px 1fr; gap: 6px; text-align: left; width: 100%;
   background: none; border: 0; color: var(--ink); padding: 7px 8px; font: inherit; font-size: .84rem; font-weight: 400; cursor: pointer; }
@@ -433,7 +443,10 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 @media (max-width: 900px) { .show-outline .projector-wrap { grid-template-columns: minmax(0, 1fr); } .show-outline .live-outline { display: none; } }
 
 /* proyector */
-.projector { flex: 1; display: grid; grid-template-rows: 1fr auto; }
+.projector { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.projector > .slide-scroll { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
+.projector > .slide-scroll > .slide { margin: auto; }      /* centrada si cabe; si no, desde arriba y desplazable */
+.projector > .controls { flex: none; }
 .slide {
   padding: clamp(20px, 4vw, 56px);
   font-size: clamp(18px, 2.3vw, 34px);
@@ -445,6 +458,12 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .slide p { margin: .3em 0; }
 .slide .math.block { margin: .4em 0; }
 .slide .prompt { font-size: 1.15em; font-weight: 600; }
+/* Las tablas y el código siguen el tamaño de la diapositiva (la regla general de las tablas usa rem). */
+.slide table { font-size: .85em; width: auto; max-width: 100%; margin: .3em 0; }
+.slide th, .slide td { padding: .25em .7em; }
+.slide th { text-transform: none; letter-spacing: normal; font-size: 1em; color: inherit; }   /* no la de las tablas de la plataforma */
+.slide .math.block { overflow-x: auto; overflow-y: hidden; }
+.slide img { max-width: 100%; height: auto; }
 
 .controls {
   display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: center;
@@ -671,6 +690,16 @@ table.record .confirm-check { display: inline-flex; align-items: center; gap: 4p
 table.record .confirm-check input { width: auto; margin: 0; }
 table.record button.small { padding: 2px 10px; }
 .deck-row .taught { color: var(--muted); }
+.deck-row .taught a { white-space: nowrap; }
+/* La fila de la ponderación de cada actividad, con un color por nombre (courses.views.row_colors). El texto
+   mezcla el color con --ink para que se lea en ambos temas. */
+.weight-chip { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: .8rem; font-weight: 700;
+  white-space: nowrap; color: color-mix(in srgb, var(--c) 72%, var(--ink));
+  background: color-mix(in srgb, var(--c) 15%, var(--surface)); border: 1px solid color-mix(in srgb, var(--c) 35%, transparent); }
+.row-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; background: var(--c); }
+.weight-chip.c0, .row-dot.c0 { --c: var(--opt-0); } .weight-chip.c1, .row-dot.c1 { --c: var(--opt-1); }
+.weight-chip.c2, .row-dot.c2 { --c: var(--opt-2); } .weight-chip.c3, .row-dot.c3 { --c: var(--opt-3); }
+.weight-chip.c4, .row-dot.c4 { --c: var(--opt-4); } .weight-chip.c5, .row-dot.c5 { --c: var(--opt-5); }
 table.graded .row-kind { color: var(--muted); display: inline-flex; vertical-align: -2px; margin-right: 2px; }
 details.grade-items > summary { cursor: pointer; }
 details.grade-items ul { margin: 6px 0 4px 14px; }

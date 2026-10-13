@@ -125,10 +125,41 @@
         });
     }
 
+    // El fragmento se reemplaza con cada cambio (incluso cada respuesta que llega): el panel lateral
+    // y la diapositiva conservan su desplazamiento, y el panel muestra la diapositiva actual solo
+    // cuando esta cambia (no en cada recarga, para que el docente pueda recorrerlo).
+    var shownSlide = null;
+    function keepScroll() {
+      var outline = stage.querySelector(".live-outline"), body = stage.querySelector(".slide-scroll");
+      var projector = stage.querySelector(".projector");
+      return { outline: outline ? outline.scrollTop : 0, body: body ? body.scrollTop : 0,
+               slide: projector ? projector.dataset.slide + projector.dataset.status : null };
+    }
+    function restoreScroll(kept) {
+      var outline = stage.querySelector(".live-outline"), body = stage.querySelector(".slide-scroll");
+      var projector = stage.querySelector(".projector");
+      var slide = projector ? projector.dataset.slide + projector.dataset.status : null;
+      if (outline) {
+        outline.scrollTop = kept.outline;
+        var current = outline.querySelector(".thumb.current");
+        if (current && slide !== shownSlide) {
+          var top = current.getBoundingClientRect().top - outline.getBoundingClientRect().top + outline.scrollTop;
+          var bottom = top + current.offsetHeight;
+          if (top < outline.scrollTop || bottom > outline.scrollTop + outline.clientHeight) {
+            outline.scrollTop = Math.max(0, top - outline.clientHeight / 3);
+          }
+        }
+      }
+      if (body && slide === kept.slide) body.scrollTop = kept.body;
+      shownSlide = slide;
+    }
+
     function swap(html) {
       // Lo marcado se arrastra también a través de pantallas sin formulario (p. ej. la pausa).
       var kept = keepForm(stage) || carried;
+      var scroll = keepScroll();
       stage.innerHTML = html;
+      restoreScroll(scroll);
       restoreForm(stage, kept);
       carried = stage.querySelector("[data-answer-form]") ? null : kept;
       if (window.policlaseMath) window.policlaseMath(stage);

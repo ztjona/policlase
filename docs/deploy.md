@@ -93,7 +93,7 @@ POLICLASE_DOMAIN=aula.ejemplo.ec
 POLICLASE_HTTPS=1
 POLICLASE_HSTS_SECONDS=0          # súbalo a 31536000 tras una semana sin problemas
 
-POLICLASE_EMAIL_BACKEND=smtp      # los estudiantes deben recibir la verificación y la recuperación
+POLICLASE_EMAIL_BACKEND=smtp      # confirmación del correo y recuperación de contraseña
 EMAIL_HOST=smtp.su-proveedor.com
 EMAIL_PORT=587
 EMAIL_HOST_USER=...
@@ -104,6 +104,14 @@ DEFAULT_FROM_EMAIL=policlase <no-responder@aula.ejemplo.ec>
 Para el correo, la opción más simple con dominio propio es un servicio transaccional (Brevo,
 Mailgun, Amazon SES, Postmark…) con los registros SPF y DKIM que le pida en el DNS. Sin ellos, los
 correos de verificación terminan en la carpeta de spam.
+
+Aun con SPF, DKIM y DMARC correctos, algunos servidores institucionales (Microsoft 365) retienen en
+cuarentena el correo de un dominio nuevo sin avisarle al destinatario. Por eso la confirmación del
+correo es **obligatoria solo para docentes** (el registro de docentes es abierto) y **opcional para
+estudiantes**, que entran de inmediato: el docente aprueba cada inscripción por nombre y cédula, y el
+estudiante ve en «Mis cursos» un recordatorio para confirmar su correo, necesario para recuperar la
+contraseña (`apps/accounts/stages.py`). Si una institución retiene los correos, lo más efectivo es
+pedirle a su área de TI que agregue el dominio como remitente permitido.
 
 ## 5. Levantar detrás del nginx
 
@@ -156,7 +164,9 @@ y notas solo están en la base.
 ## Actualizar con clases en curso
 
 **`ops/desplegar.sh` hace todo esto en orden:** se niega si hay alguien en una clase en vivo,
-respalda, construye, levanta y verifica que responda con la versión de `VERSION`. La imagen
+respalda, construye, corre `manage.py check` en la imagen nueva con la configuración de producción
+(si falla, no toca lo que corre), levanta y verifica que responda con la versión de `VERSION`; si no
+responde en 90 s, vuelve sola a la imagen anterior. La imagen
 desplegada queda como `policlase-web:desplegada` y la anterior como `policlase-web:anterior`;
 `ops/desplegar.sh --volver` regresa a ella (si una migración cambió la base, restaure también el
 respaldo). Quien tenga un deber abierto no pierde nada: su borrador está en la base y el

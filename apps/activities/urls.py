@@ -7,7 +7,8 @@ S = "cursos/<int:course_pk>/actividades/<int:pk>/"
 
 urlpatterns = [
     # docente
-    path(T + "fechas/", views.dates_panel, name="activity_dates"),
+    # La pestaña Evaluaciones: las fechas clave (pruebas y exámenes) y el vencimiento de las actividades.
+    path("docente/cursos/<int:course_pk>/evaluaciones/", views.dates_panel, name="activity_dates"),
     path(T + "<int:pk>/", views.activity_detail, name="activity_detail"),
     path(T + "<int:pk>/mover/", views.activity_move, name="activity_move"),
     path(T + "<int:pk>/eliminar/", views.activity_delete, name="activity_delete"),

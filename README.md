@@ -4,8 +4,9 @@ Aula virtual autoalojada para cursos universitarios con carga matemática.
 
 **Estado: prototipo.** Funciona de punta a punta:
 
-- **Cuentas** con usuario y contraseña (django-allauth): registro, verificación obligatoria del
-  correo, recuperación y cambio de contraseña, límites de intentos, contraseñas con Argon2.
+- **Cuentas** con usuario y contraseña (django-allauth): registro, confirmación del correo
+  (obligatoria para docentes, opcional para estudiantes), recuperación y cambio de contraseña, límites
+  de intentos, contraseñas con Argon2.
 - **Docentes** se registran solos en `/cuenta/registro-docente/`. Cada uno tiene su espacio: ningún
   docente ve ni modifica cursos, estudiantes, presentaciones ni resultados de otro.
 - **Cursos** del docente con **código de inscripción**. Cualquiera crea su cuenta; para entrar a un

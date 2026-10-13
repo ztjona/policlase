@@ -98,7 +98,7 @@ def session_delete(request, pk):
     course_pk = session.course_id
     session.delete()
     messages.success(request, _("Clase eliminada."))
-    return redirect("course_manage", pk=course_pk)
+    return redirect("course_activities", pk=course_pk)         # donde se listan las clases dictadas
 
 
 # ------------------------------------------------------------------ sesión: docente
@@ -194,6 +194,8 @@ def _progress(session: LiveSession) -> dict:
         "has_next": any(i > session.index for i in visible),
         "outline": [{"index": i, "slide": s, "asked": i in session.opened, "current": i == session.index}
                     for i, s in enumerate(session.slides)],
+        # Para saltar a la retroalimentación sin pasar por las diapositivas que quedan.
+        "feedback_index": next((i for i in visible if session.slides[i].get("kind") == "feedback"), None),
     }
 
 

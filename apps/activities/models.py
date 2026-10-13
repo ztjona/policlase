@@ -14,7 +14,7 @@ from apps.live.models import Section
 
 
 def course_tz(course) -> ZoneInfo:
-    """Las horas de entrega («23:59») se entienden en la zona del docente del curso."""
+    """Las horas de entrega («21:59») se entienden en la zona del docente del curso."""
     name = getattr(course.owner, "timezone", "") or settings.TIME_ZONE
     try:
         return ZoneInfo(name)
@@ -55,7 +55,7 @@ class Activity(models.Model):
     due_milestone = models.ForeignKey(Milestone, on_delete=models.SET_NULL, null=True, blank=True,
                                       related_name="activities", verbose_name=_("fecha clave"))
     due_offset_days = models.SmallIntegerField(_("días respecto a la fecha clave"), default=-1)
-    due_time = models.TimeField(_("hora de entrega"), default=time(23, 59))
+    due_time = models.TimeField(_("hora de entrega"), default=time(21, 59))
     due_at = models.DateTimeField(_("fecha de entrega"), null=True, blank=True)
     late_policy = models.CharField(_("entregas atrasadas"), max_length=8, choices=Late.choices,
                                    default=Late.PENALTY)

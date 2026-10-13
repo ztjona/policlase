@@ -1,0 +1,11 @@
+{% load i18n policlase %}
+{% comment %} Encabezado de las pestañas que son páginas propias (Evaluaciones, Calificaciones): el curso y las
+   pestañas, como en la página del curso. {% endcomment %}
+<div class="muted small mono">{{ course.code }}</div>
+<div class="course-head">
+  <h1>{{ course.name }}</h1>
+  <a class="icon-btn" href="{% url 'course_settings' course.pk %}" title="{% translate 'Configuración del curso' %}" aria-label="{% translate 'Configuración del curso' %}">{% icon "gear" 22 %}</a>
+</div>
+<div class="tabs-bar">
+  {% include "courses/_course_tabs.html" %}
+</div>

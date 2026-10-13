@@ -220,12 +220,15 @@ def manual_record(request, pk, record_pk=None):
         if response:
             return response
 
-    # Sugerencias para lo que sigue sin asignar (estudiantes que se inscribieron después).
+    # Sugerencias para lo que sigue sin asignar (estudiantes que se inscribieron después). Vienen ya
+    # elegidas en la lista, pero no están guardadas: la página cuenta como cambio pendiente.
     assigned = {pk for pk, v in values.items() if v not in ("", None)}
+    suggested = 0
     for u in unmatched:
         if "suggest" not in u:
             student, strength, _weight = matching.best(u["name"], [s for s in students if s.pk not in assigned])
             u["suggest"] = student.pk if student and strength == matching.STRONG else ""
+            suggested += bool(u["suggest"])
     rows = []
     for s in students:
         value = values.get(s.pk, "")
@@ -234,6 +237,7 @@ def manual_record(request, pk, record_pk=None):
     return render(request, "grades/record.html", {
         "course": course, "record": record, "form": form, "rows": rows, "unmatched": unmatched,
         "report": report, "students": students, "pending": action == "paste" or action.startswith("quitar-"),
+        "suggested": suggested, "unsaved": request.method == "POST" or bool(suggested),
     })
 
 

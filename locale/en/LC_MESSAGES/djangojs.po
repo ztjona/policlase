@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: policlase\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-12 15:17-0500\n"
+"POT-Creation-Date: 2026-10-12 19:04-0500\n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -36,8 +36,7 @@ msgstr "Saved at %s"
 msgid ""
 "Sin conexión: no se guardó. Puede seguir escribiendo; se volverá a intentar "
 "automáticamente."
-msgstr ""
-"Offline: not saved. You can keep writing; it will retry automatically."
+msgstr "Offline: not saved. You can keep writing; it will retry automatically."
 
 #: static/js/activity.js:122
 msgid "Subiendo imagen…"
@@ -52,8 +51,7 @@ msgid "Imagen guardada."
 msgstr "Image saved."
 
 #: static/js/activity.js:196
-msgid ""
-"Sin conexión: no se pudo enviar. Se volverá a intentar automáticamente."
+msgid "Sin conexión: no se pudo enviar. Se volverá a intentar automáticamente."
 msgstr "Offline: could not be sent. It will retry automatically."
 
 #: static/js/activity.js:210
@@ -69,32 +67,32 @@ msgstr "No access to this class."
 msgid "sin conexión"
 msgstr "offline"
 
-#: static/js/live.js:141
+#: static/js/live.js:172
 msgid "en vivo"
 msgstr "live"
 
-#: static/js/live.js:142
+#: static/js/live.js:173
 msgid "reconectando…"
 msgstr "reconnecting…"
 
-#: static/js/live.js:147
+#: static/js/live.js:178
 msgid "clase terminada"
 msgstr "class ended"
 
-#: static/js/live.js:174
+#: static/js/live.js:205
 #, javascript-format
 msgid "No se pudo aplicar la acción (%s)."
 msgstr "Couldn't apply the action (%s)."
 
-#: static/js/live.js:280
+#: static/js/live.js:311
 msgid "Enviando…"
 msgstr "Sending…"
 
-#: static/js/live.js:285
+#: static/js/live.js:316
 msgid "Enviar respuesta"
 msgstr "Submit answer"
 
-#: static/js/live.js:286
+#: static/js/live.js:317
 msgid "No se pudo enviar. Revise su conexión e intente de nuevo."
 msgstr "Couldn't send. Check your connection and try again."
 

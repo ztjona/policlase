@@ -2,6 +2,7 @@ import re
 
 from allauth.account.models import EmailAddress
 from django.core import mail
+from django.core.cache import cache
 from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -21,20 +22,25 @@ def signup_data(**over):
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 class SignupTests(TestCase):
-    def test_registro_crea_estudiante_con_perfil_y_exige_verificar_el_correo(self):
+    def setUp(self):
+        cache.clear()           # allauth limita un correo de confirmación por dirección cada 3 minutos
+
+    def test_registro_crea_estudiante_que_entra_sin_confirmar_el_correo(self):
+        # La confirmación es opcional para estudiantes: entra de inmediato y el correo se envía igual.
         response = self.client.post(reverse("account_signup"), signup_data())
-        self.assertRedirects(response, reverse("account_email_verification_sent"))
+        self.assertRedirects(response, reverse("home"), fetch_redirect_response=False)
+        self.assertIn("_auth_user_id", self.client.session)
+        self.assertIn("/cuenta/confirm-email/", mail.outbox[-1].body)
 
         user = User.objects.get(username="ana")
         self.assertEqual(user.role, User.Role.STUDENT)
         self.assertEqual((user.first_name, user.last_name, user.student_id), ("Ana", "Pérez", "1700000001"))
         self.assertFalse(EmailAddress.objects.get(user=user).verified)
+        self.assertContains(self.client.get(reverse("home")), reverse("account_email"))   # el recordatorio
 
-        # Sin verificar, iniciar sesión no da acceso: allauth reenvía a la verificación.
         self.client.logout()
         response = self.client.post(reverse("account_login"), {"login": "ana", "password": PASSWORD})
-        self.assertRedirects(response, reverse("account_email_verification_sent"))
-        self.assertNotIn("_auth_user_id", self.client.session)
+        self.assertRedirects(response, reverse("home"), fetch_redirect_response=False)
 
     def test_el_enlace_de_verificacion_activa_la_cuenta(self):
         self.client.post(reverse("account_signup"), signup_data())
@@ -70,6 +76,12 @@ class SignupTests(TestCase):
         self.assertEqual(user.student_id, "")
         self.assertFalse(EmailAddress.objects.get(user=user).verified)
         self.assertIn("/cuenta/confirm-email/", mail.outbox[-1].body)
+
+        # Para docentes sigue siendo obligatoria: sin confirmar, iniciar sesión no da acceso.
+        self.client.logout()
+        response = self.client.post(reverse("account_login"), {"login": "profe", "password": PASSWORD})
+        self.assertRedirects(response, reverse("account_email_verification_sent"))
+        self.assertNotIn("_auth_user_id", self.client.session)
 
     def test_cada_pagina_enlaza_a_la_otra(self):
         self.assertContains(self.client.get(reverse("account_signup")), reverse("teacher_signup"))

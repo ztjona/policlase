@@ -73,18 +73,12 @@
 {% endif %}
 
 <div class="tabs-bar">
-<nav class="tabs" aria-label="{% translate 'Secciones del curso' %}">
-  <a href="{% url 'course_manage' course.pk %}" {% if tab == "clases" %}aria-current="page"{% endif %}>{% translate "Clases" %}</a>
-  <a href="{% url 'course_assessments' course.pk %}" {% if tab == "evaluaciones" %}aria-current="page"{% endif %}>{% translate "Evaluaciones" %}</a>
-  <a href="{% url 'course_activities' course.pk %}" {% if tab == "actividades" %}aria-current="page"{% endif %}>{% translate "Actividades" %}</a>
-</nav>
+{% include "courses/_course_tabs.html" %}
 {% if tab == "clases" %}{% include "courses/_unit_actions.html" %}{% elif tab == "actividades" %}{% include "courses/_activity_actions.html" %}{% endif %}
 </div>
 
 {% if tab == "clases" %}
   {% include "courses/_tab_classes.html" %}
-{% elif tab == "evaluaciones" %}
-  <div class="card muted">{% translate "Próximamente: pruebas y exámenes con preguntas generadas para cada estudiante (policlase-gen)." %}</div>
 {% else %}
   {% include "courses/_tab_activities.html" %}
 {% endif %}

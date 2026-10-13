@@ -5,7 +5,7 @@
 {% block html_theme %} data-theme="{{ theme|default:'light' }}"{% endblock %}
 {% block color_scheme %}{{ theme|default:'light' }}{% endblock %}
 {% block chrome %}
-<div class="live-shell show-outline" id="shell">
+<div class="live-shell projector-shell show-outline" id="shell">
   <div class="live-bar">
     <button type="button" class="secondary small" id="toggle-outline" aria-pressed="true" title="{% translate 'Panel de diapositivas' %}">☰ <span class="sr-only">{% translate "Panel de diapositivas" %}</span></button>
     <a class="brand" href="{% url 'course_manage' course.pk %}"><img src="{% static 'img/icon.svg' %}" alt="" width="22" height="22">poli<span>clase</span></a>

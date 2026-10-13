@@ -4,6 +4,13 @@
 {% block main %}
 <h1>{% translate "Mis cursos" %}</h1>
 
+{% if unconfirmed %}
+  <div class="notice small" role="status">
+    {% translate "Su correo electrónico aún no está confirmado. Confírmelo para poder recuperar su contraseña si la olvida; si no encuentra el mensaje, revise la carpeta de correo no deseado." %}
+    <a href="{% url 'account_email' %}">{% translate "Confirmar o cambiar el correo" %}</a>
+  </div>
+{% endif %}
+
 {% for e in rejected %}
   <div class="notice" role="alert">
     <span>{% blocktranslate with course=e.course.name teacher=e.course.owner.display_name %}Su solicitud a <strong>{{ course }}</strong> fue rechazada. Si cree que es un error, hable con {{ teacher }}.{% endblocktranslate %}</span>

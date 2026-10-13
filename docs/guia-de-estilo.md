@@ -84,6 +84,8 @@ oscuro: los proyectores lavan los fondos oscuros.
 | `.notice` | aviso importante que requiere acción; **no** se esconde en un tooltip |
 | `.messages` | confirmación tras una acción |
 | `details.unit` | sección minimizable; solo la unidad (o el parcial, en Actividades) en curso viene desplegada |
+| `.weight-chip.cN` | la fila de la ponderación de una actividad, con un color por nombre (`courses.views.row_colors`) |
+| `form[data-dirty]` | «Guardar» y «Cancelar» (`data-dirty-enable`) solo con cambios sin guardar (`static/js/forms.js`) |
 | `fieldset.segmented` | elegir entre dos o tres opciones excluyentes (tipo de documento en el editor) |
 
 Reglas de interacción:
@@ -165,8 +167,12 @@ Reglas de interacción:
   ya se respondió. La nota del docente no borra la automática (`auto_points`).
 - Las fechas y la ponderación viven en la plataforma, nunca en el YAML. Un vencimiento relativo a
   una fecha clave se recalcula al moverla (`gradebook.recompute_due_dates`).
+- **Pestañas del curso:** Clases | Evaluaciones | Actividades | Calificaciones
+  (`courses/_course_tabs.html`). Evaluaciones reúne las fechas clave (pruebas y exámenes) y el
+  vencimiento de las actividades; Calificaciones es la planilla. Las dos son páginas propias con el
+  mismo encabezado (`courses/_course_head.html`).
 - **Material y notas, separados.** La pestaña Clases es el material, por unidad: presentaciones
-  (con las fechas en que se dictaron) y actividades. La pestaña Actividades es todo lo que se
+  (con las fechas en que se dictaron, cada una enlazada a sus resultados) y actividades. La pestaña Actividades es todo lo que se
   califica, por parcial y en orden de fecha: clases dictadas, actividades y registros manuales,
   filtrable por fila de la ponderación. El estudiante ve en «Calificaciones» la nota de cada uno.
 - **Unidad y parcial son ejes distintos.** La unidad (sección) organiza el contenido; el parcial

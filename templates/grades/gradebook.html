@@ -3,17 +3,16 @@
 {% block title %}{% translate "Calificaciones" %} · {{ course.name }}{% endblock %}
 
 {% block main %}
-<div class="muted small"><a href="{% url 'course_activities' course.pk %}">← {{ course.name }}</a></div>
+{% include "courses/_course_head.html" with tab="calificaciones" %}
 <div class="spread">
-  <h1>{% translate "Calificaciones" %}</h1>
-  <a class="small" href="{% url 'grading_settings' course.pk %}">{% translate "Ponderaciones y aprobación" %}</a>
+  <nav class="filters small" aria-label="{% translate 'Parciales' %}">
+    <a href="{% url 'course_gradebook' course.pk %}" {% if not chosen %}aria-current="true"{% endif %}>{% translate "Resumen" %}</a>
+    {% for p in periods %}<a href="{% url 'course_gradebook' course.pk %}?parcial={{ p.pk }}" {% if chosen == p %}aria-current="true"{% endif %}>{{ p.name }}</a>{% endfor %}
+  </nav>
+  <a class="small" href="{% url 'grading_settings' course.pk %}">{% icon "gear" 14 %} {% translate "Ponderaciones y aprobación" %}</a>
 </div>
 <p class="muted small">{% blocktranslate with max=rules.period_max|floatformat:"-2" %}Nota acumulada de cada parcial sobre {{ max }} puntos, con lo calificado a la fecha. Una actividad se califica desde su fecha de entrega (sin entrega, cero); cada clase en vivo finalizada se califica para todos los inscritos (inasistencia, cero); los registros manuales, desde que se registran. Las pruebas, el examen y el proyecto se incorporarán con la pestaña Evaluaciones.{% endblocktranslate %}</p>
 
-<nav class="tabs" aria-label="{% translate 'Parciales' %}">
-  <a href="{% url 'course_gradebook' course.pk %}" {% if not chosen %}aria-current="page"{% endif %}>{% translate "Resumen" %}</a>
-  {% for p in periods %}<a href="{% url 'course_gradebook' course.pk %}?parcial={{ p.pk }}" {% if chosen == p %}aria-current="page"{% endif %}>{{ p.name }}</a>{% endfor %}
-</nav>
 
 {% if grades %}
   <div class="card table-wrap">

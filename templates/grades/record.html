@@ -6,7 +6,7 @@
 <h1>{% if record %}{{ record.title }}{% else %}{% translate "Registrar notas" %}{% endif %}</h1>
 <p class="muted">{% translate "Registro de calificaciones de una actividad realizada fuera de policlase, como una prueba escrita, un cuestionario en otra plataforma o una exposición. Cuenta en la fila de la ponderación seleccionada como una actividad adicional (o como una clase adicional, en la fila de participación). Los estudiantes sin nota registrada obtienen cero." %}</p>
 
-<form method="post" class="stack" id="record" data-dirty{% if request.method == "POST" %}="1"{% endif %}>
+<form method="post" class="stack" id="record" data-dirty{% if unsaved %}="1"{% endif %}>
   {% csrf_token %}
   {% comment %} Enter en cualquier casilla guarda: el primer botón del formulario es el que usa el navegador. {% endcomment %}
   <button type="submit" name="action" value="save" class="sr-only" tabindex="-1" aria-hidden="true" data-dirty-enable></button>
@@ -83,6 +83,7 @@
   {% if unmatched %}
     <section class="card stack" id="sin-asignar">
       <h2>{% translate "Sin asignar" %}</h2>
+      {% if suggested %}<div class="notice small" role="status">{% blocktranslate count n=suggested %}Se sugiere asignar {{ n }} nombre a un estudiante que se inscribió después. Revise la sugerencia y pulse «Guardar» para registrarla.{% plural %}Se sugiere asignar {{ n }} nombres a estudiantes que se inscribieron después. Revise las sugerencias y pulse «Guardar» para registrarlas.{% endblocktranslate %}</div>{% endif %}
       <p class="small muted" style="margin:0">{% translate "Nombres de la lista que no corresponden a ningún estudiante inscrito, que corresponden a un estudiante que ya tiene nota o cuya asignación se quitó. Se conservan en el registro para asignarlos más adelante, por ejemplo, cuando el estudiante se inscriba." %}</p>
       {% for u in unmatched %}
         <div class="row unmatched">

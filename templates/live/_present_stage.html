@@ -1,7 +1,9 @@
 {% load policlase i18n %}
 <div class="projector-wrap">
 {% include "live/_live_outline.html" %}
-<div class="projector" data-status="{{ session.status }}" data-phase="{{ session.phase }}">
+<div class="projector" data-status="{{ session.status }}" data-phase="{{ session.phase }}" data-slide="{{ session.index }}">
+  {% comment %} Solo el contenido se desplaza; los controles quedan fijos abajo, siempre a la vista. {% endcomment %}
+  <div class="slide-scroll">
   {% if session.status == "lobby" %}
     <div class="slide lobby">
       <h1>{{ session.title }}</h1>
@@ -125,6 +127,7 @@
   {% endif %}
 
   {% if slide.notes and session.status == "live" %}<p class="notes">{% translate "Notas:" %} {{ slide.notes }}</p>{% endif %}
+  </div>
 
   <div class="controls">
     {% if session.status == "lobby" %}
@@ -146,6 +149,10 @@
       <button data-action="next" class="secondary" {% if not has_next or session.phase == "open" %}disabled{% endif %} title="{% translate 'Flecha derecha' %}">{% translate "Siguiente" %} ▶</button>
       {% include "live/_guest_toggle.html" %}
       <button data-action="pause" class="secondary" title="{% translate 'Permite retomarla otro día desde donde quedó' %}">❚❚ {% translate "Pausar" %}</button>
+      {% if feedback_index is not None and feedback_index != session.index %}
+        <button data-action="goto" data-index="{{ feedback_index }}" class="secondary" {% if session.phase == "open" %}disabled{% endif %}
+                title="{% translate 'Pasar directamente a la retroalimentación anónima, sin las diapositivas que quedan' %}">★ {% translate "Ir a la retroalimentación" %}</button>
+      {% endif %}
       <button data-action="end" class="danger" data-confirm="{% translate '¿Terminar la clase? Los estudiantes ya no podrán responder.' %}">{% translate "Terminar" %}</button>
     {% elif session.status == "paused" %}
       <button data-action="resume" class="big" title="{% translate 'Espacio' %}">▶ {% translate "Reanudar" %}</button>

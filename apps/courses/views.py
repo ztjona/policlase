@@ -1,3 +1,4 @@
+from allauth.account.models import EmailAddress
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
@@ -45,6 +46,9 @@ def home(request):
                    .values_list("course_id", flat=True))
     return render(request, "courses/student_home.html", {
         "enrollments": active, "rejected": rejected, "live_ids": live_ids,
+        # El correo sin confirmar no impide entrar (la confirmación es opcional para estudiantes), pero
+        # sin él no se recupera la contraseña: se recuerda aquí.
+        "unconfirmed": not EmailAddress.objects.filter(user=request.user, verified=True).exists(),
         # Inscribirse se hace una vez: solo está al frente mientras no tenga ningún curso.
         "join_form": JoinForm() if not active else None,
     })
@@ -149,14 +153,15 @@ def course_create(request):
     return render(request, "courses/course_form.html", {"form": form})
 
 
-TABS = ("clases", "evaluaciones", "actividades")
+TABS = ("clases", "actividades")      # Evaluaciones y Calificaciones son páginas propias (_course_tabs.html)
 
 
 @teacher_required
 def course_manage(request, pk, tab="clases"):
     """El frente del curso: la clase en vivo (o en pausa), solicitudes por aprobar (si las hay) y
-    las pestañas Clases | Evaluaciones | Actividades. Lo que se configura una vez —código, datos
-    del curso, inscritos— vive en `course_settings`."""
+    las pestañas Clases y Actividades (Evaluaciones y Calificaciones son páginas propias con las mismas
+    pestañas). Lo que se configura una vez —código, datos del curso, inscritos— vive en
+    `course_settings`."""
     from apps.github import sync
     from apps.github.models import CourseRepo
     from apps.live.models import Deck, LiveSession, Section
@@ -180,7 +185,7 @@ def course_manage(request, pk, tab="clases"):
         from apps.activities.models import Activity
 
         decks = list(Deck.objects.filter(course=course))
-        activities = list(Activity.objects.filter(course=course))
+        activities = list(Activity.objects.filter(course=course).select_related("category"))
         taught: dict[int, list] = {}
         for session in (LiveSession.objects.filter(course=course, status=LiveSession.Status.ENDED, deck__isnull=False)
                         .order_by("started_at", "created_at")):
@@ -204,11 +209,24 @@ def course_manage(request, pk, tab="clases"):
             group["count"] = len(group["decks"]) + len(group["activities"])
         context.update({
             "groups": groups, "has_content": bool(decks or activities),
-            "current_section": current_section(course, sections),
+            "current_section": current_section(course, sections), "row_colors": row_colors(course),
         })
     elif tab == "actividades":
         context.update(_activities_tab(course, context["approved_count"], request.GET.get("fila", "")))
     return render(request, "courses/course_manage.html", context)
+
+
+def row_colors(course) -> dict[str, int]:
+    """Un color (0–5) por nombre de fila de la ponderación, el mismo en todos los parciales y pestañas:
+    «Deberes» se reconoce de un vistazo junto a cada actividad."""
+    from apps.grades.models import Category
+
+    names = []
+    for name in Category.objects.filter(period__course=course).order_by("period__position", "position", "pk") \
+            .values_list("name", flat=True):
+        if name not in names:
+            names.append(name)
+    return {name: i % 6 for i, name in enumerate(names)}
 
 
 def current_section(course, sections) -> int | None:
@@ -293,7 +311,7 @@ def _activities_tab(course, enrolled: int, wanted: str = "") -> dict:
         group["count"] = len(group["rows"])
         group["open"] = group["period"] is None or group["period"] == current or bool(wanted and group["count"])
     return {"activity_groups": groups, "has_activities": any(g["count"] for g in groups), "enrolled": enrolled,
-            "filters": names, "wanted": wanted}
+            "filters": names, "wanted": wanted, "row_colors": row_colors(course)}
 
 
 @teacher_required

@@ -354,9 +354,20 @@ class ManualRecordTests(GradesBase):
         self.assertEqual(ManualRecord.objects.get().category, self.row(self.p2, "Participación en clase"))
 
     def test_solo_el_parcial_en_curso_viene_desplegado(self):
+        self.activity("Deber 1", self.row(self.p1, "Deberes"))
         page = self.client.get(reverse("course_activities", args=[self.course.pk])).content.decode()
+        self.assertIn('class="weight-chip c', page)                     # la fila de la ponderación, resaltada
         self.assertIn(f'id="parcial-{self.p1.pk}" open', page)        # sin fechas: el primero
         self.assertIn(f'id="parcial-{self.p2.pk}">', page)
+
+    def test_una_sugerencia_cuenta_como_cambio_sin_guardar(self):
+        # «Bravo B» quedó sin asignar; Bruno se inscribe después y la página lo sugiere ya elegido.
+        record = ManualRecord.objects.create(course=self.course, title="Q", on=timezone.localdate(),
+                                             max_points=10, unmatched=[{"name": "Bravo Bruno", "points": "7", "also": ""}])
+        page = self.client.get(reverse("manual_record", args=[self.course.pk, record.pk]))
+        self.assertContains(page, f'<option value="{self.bruno.pk}" selected>')
+        self.assertContains(page, 'id="record" data-dirty="1"')            # «Guardar» habilitado
+        self.assertContains(page, "Se sugiere asignar 1 nombre")
 
     def test_notas_fuera_de_rango_no_se_guardan(self):
         page = self.client.post(self.url, self.data(**{"action": "save", f"s-{self.ana.pk}": "25000"}))

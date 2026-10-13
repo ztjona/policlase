@@ -1,0 +1,9 @@
+{% load i18n %}
+{% comment %} Las pestañas del curso del docente: el material (Clases), las pruebas y exámenes con sus fechas
+   (Evaluaciones), lo que se califica (Actividades) y las notas (Calificaciones). `tab` dice cuál está abierta. {% endcomment %}
+<nav class="tabs" aria-label="{% translate 'Secciones del curso' %}">
+  <a href="{% url 'course_manage' course.pk %}" {% if tab == "clases" %}aria-current="page"{% endif %}>{% translate "Clases" %}</a>
+  <a href="{% url 'activity_dates' course.pk %}" {% if tab == "evaluaciones" %}aria-current="page"{% endif %}>{% translate "Evaluaciones" %}</a>
+  <a href="{% url 'course_activities' course.pk %}" {% if tab == "actividades" %}aria-current="page"{% endif %}>{% translate "Actividades" %}</a>
+  <a href="{% url 'course_gradebook' course.pk %}" {% if tab == "calificaciones" %}aria-current="page"{% endif %}>{% translate "Calificaciones" %}</a>
+</nav>
