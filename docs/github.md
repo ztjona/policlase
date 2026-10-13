@@ -88,7 +88,30 @@ repositorio-de-cursos/                  ← privado: los ítems llevan las respu
 curso nuevo vinculado a la misma carpeta: las presentaciones se reutilizan y los resultados de cada
 semestre quedan separados en policlase.
 
-## 4. Cuándo se sincroniza
+## 4. Imágenes
+
+Las presentaciones y actividades pueden mostrar imágenes guardadas en la carpeta del curso, con la
+sintaxis de markdown de siempre:
+
+```yaml
+- markdown: |
+    ## Error de redondeo
+    ![Gráfica del error relativo](img/error-relativo.png)
+```
+
+- La ruta es **relativa al archivo YAML**, como en GitHub: `img/error.png` junto a
+  `unidad-01/aritmetica.yaml` es `unidad-01/img/error.png`. Si empieza con `/`, es relativa a la
+  carpeta del curso (`/comun/logo.png`), útil para imágenes que comparten varias unidades.
+- Formatos: PNG, JPEG, GIF, WebP y SVG, hasta 5 MB cada una.
+- policlase descarga cada imagen al sincronizar y la sirve desde una dirección que depende de su
+  contenido: cambiar la imagen en GitHub actualiza las presentaciones que la usan, mientras que las
+  clases ya dictadas y los intentos ya enviados conservan la imagen con la que se hicieron.
+- Una imagen que no está (ruta mal escrita, archivo sin subir) aparece como aviso en la pestaña Clases
+  y en la vista previa del editor.
+- Las direcciones externas (`https://…`) funcionan en cualquier curso; las rutas relativas, solo en
+  cursos vinculados a GitHub.
+
+## 5. Cuándo se sincroniza
 
 - **Al abrir** la pestaña Clases o Actividades del curso, o un editor, si pasó más de un minuto desde
   la última vez.
@@ -101,7 +124,7 @@ semestre quedan separados en policlase.
 El ícono de GitHub junto a la rueda del curso muestra el repositorio, la carpeta y la última
 sincronización; se pone rojo si la última falló (token vencido, sin acceso…).
 
-## 5. Qué escribe policlase
+## 6. Qué escribe policlase
 
 Solo en cursos vinculados, **un commit por acción**, con el token del docente (los commits quedan a
 su nombre):
@@ -132,14 +155,14 @@ su nombre):
   retroalimentación, inscripciones, y de las actividades sus fechas, ponderación, intentos,
   entregas e imágenes.
 
-## 6. Conflictos
+## 7. Conflictos
 
 Cada escritura lleva el sha del archivo tal como policlase lo conoce. Si alguien lo cambió en GitHub
 entretanto, GitHub rechaza el commit y **policlase no guarda nada**: el texto del editor sigue en
 pantalla para copiarlo, recargar y volver a aplicarlo. En las operaciones de varios archivos, además,
 el commit solo entra si la rama no avanzó mientras tanto.
 
-## 7. Seguridad
+## 8. Seguridad
 
 - El repositorio de cursos debe ser **privado**: los ítems contienen las respuestas.
 - El token solo necesita *Contents: read and write* sobre ese repositorio.

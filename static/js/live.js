@@ -302,6 +302,26 @@
         box.querySelector(".math-out").innerHTML = html || "";
       });
 
+      // Doble toque sobre una opción (pregunta de opción única): la elige y la envía, sin ir hasta el
+      // botón. Tocar la etiqueta dispara además un clic en el radio oculto: solo cuenta el de la
+      // etiqueta, o un toque simple enviaría. Con varias correctas no aplica: el segundo toque desmarca.
+      var lastTap = { option: null, at: 0 };
+      live.stage.addEventListener("click", function (e) {
+        var option = e.target.closest("[data-answer-form] label.option");
+        if (!option || e.target.tagName === "INPUT") return;
+        var radio = option.querySelector("input[type=radio]");
+        if (!radio) return;
+        var now = Date.now();
+        if (lastTap.option === option && now - lastTap.at < 450) {
+          lastTap.option = null;
+          radio.checked = true;
+          var form = option.closest("form");
+          if (form.requestSubmit) form.requestSubmit(); else form.querySelector("button[type=submit]").click();
+          return;
+        }
+        lastTap = { option: option, at: now };
+      });
+
       function bindForm(stage) {
         var form = stage.querySelector("[data-answer-form]");
         if (!form) return;

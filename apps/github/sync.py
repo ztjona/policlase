@@ -20,6 +20,7 @@ como unidad. Mover y renombrar se hacen en un solo commit (`GitHubClient.commit`
 
 from __future__ import annotations
 
+import posixpath
 import re
 from dataclasses import dataclass, field
 from datetime import timedelta
@@ -33,6 +34,7 @@ from policlase_gen import document as content_format
 from apps.activities.models import Activity
 from apps.live.models import Deck, Section
 
+from . import images
 from .client import Blob, Conflict, GitHubClient, GitHubError  # noqa: F401  (reexportados)
 from .models import CourseRepo
 
@@ -104,6 +106,12 @@ def pull(link: CourseRepo) -> PullResult:
 
     files = {path: sha for path, sha in tree.items()
              if path.startswith(link.prefix) and path.endswith(YAML_SUFFIXES)}
+    # Las imágenes primero: lo que se compile en esta pasada ya las encuentra.
+    found_images, image_problems = images.fetch(link, client, tree)
+    changed_images = {p for p in set(found_images) | set(link.images)
+                      if found_images.get(p) != link.images.get(p)}
+    for path, problem in image_problems.items():
+        result.issues.append({"path": path, "diagnostics": [], "note": problem})
     markers = {_folder_of(link, path) for path in tree
                if path.startswith(link.prefix) and path.endswith("/" + SECTION_MARKER)}
     decks = {d.github_path: d for d in Deck.objects.filter(course=link.course).exclude(github_path="")}
@@ -140,7 +148,9 @@ def pull(link: CourseRepo) -> PullResult:
             result.issues.append({"path": path, "diagnostics": [], "note": _(
                 "cambió de tipo (use) en GitHub y no se actualizó. Para usar el otro tipo, cree un archivo nuevo.")})
             continue
-        compiled = content_format.compile_content(document)
+        compiled, missing = images.rewrite(content_format.compile_content(document), path, link.prefix, found_images)
+        if missing:
+            result.issues.append(_missing_images_issue(path, missing))
         if use == "activity":
             if activity is None:
                 activities[path] = Activity.objects.create(
@@ -181,10 +191,41 @@ def pull(link: CourseRepo) -> PullResult:
                 activity.delete()
             result.deleted.append(path)
 
+    if changed_images:
+        _refresh_images(link, changed_images, found_images, {*result.created, *result.updated},
+                        [*decks.values(), *activities.values()], result)
     _sync_sections(link, decks, activities, markers)
     link.issues, link.skipped, link.last_error, link.last_synced_at = result.issues, skipped, "", timezone.now()
-    link.save(update_fields=["issues", "skipped", "last_error", "last_synced_at"])
+    link.images = found_images
+    link.save(update_fields=["issues", "skipped", "last_error", "last_synced_at", "images"])
     return result
+
+
+def _missing_images_issue(path: str, missing: list[str]) -> dict:
+    return {"path": path, "diagnostics": [], "note": _(
+        "se actualizó, pero estas imágenes no están en GitHub: %(images)s") % {"images": ", ".join(missing)}}
+
+
+def _refresh_images(link: CourseRepo, changed: set[str], found: dict[str, str], done: set[str],
+                    contents: list, result: PullResult) -> None:
+    """Una imagen cambió (o apareció) en GitHub sin que cambiara el YAML que la cita: se vuelve a
+    compilar ese contenido para que apunte a la imagen nueva. Las clases dictadas y los intentos
+    enviados conservan la suya."""
+    names = {posixpath.basename(p) for p in changed}
+    for content in contents:
+        if content.github_path in done or not any(name in content.source for name in names):
+            continue
+        document, report, _use = content_format.load_text(content.source)
+        if document is None or report.errors:
+            continue
+        compiled, missing = images.rewrite(content_format.compile_content(document), content.github_path,
+                                           link.prefix, found)
+        if compiled != content.compiled:
+            content.compiled = compiled
+            content.save(update_fields=["compiled"])
+            result.updated.append(content.github_path)
+        if missing:
+            result.issues.append(_missing_images_issue(content.github_path, missing))
 
 
 def _sync_sections(link: CourseRepo, decks: dict[str, Deck], activities: dict[str, Activity],

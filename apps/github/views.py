@@ -3,7 +3,8 @@ import hmac
 import json
 
 from django.contrib import messages
-from django.http import HttpResponse, HttpResponseForbidden
+from django.contrib.auth.decorators import login_required
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.translation import gettext as _
 from django.utils.translation import ngettext
@@ -12,7 +13,7 @@ from django.views.decorators.http import require_POST
 
 from apps.courses.access import owned_course, teacher_required
 
-from . import sync
+from . import images, sync
 from .client import GitHubClient, GitHubError
 from .forms import CourseRepoForm, TokenForm
 from .models import CourseRepo, GitHubAccount
@@ -113,3 +114,23 @@ def webhook(request, pk):
             except GitHubError as exc:
                 return HttpResponse(str(exc), status=502)
     return HttpResponse(status=204)
+
+
+@login_required
+def repo_image(request, name):
+    """Una imagen del repositorio de un curso (images.py). El nombre es su sha de git: no cambia
+    nunca y no se adivina, así que se guarda en caché para siempre y basta con haber iniciado sesión
+    (los invitados de una clase en vivo también la ven)."""
+    if not images.NAME.match(name):
+        raise Http404
+    path = images.folder() / name
+    if not path.is_file():
+        raise Http404
+    ext = name.rsplit(".", 1)[1]
+    response = FileResponse(path.open("rb"), content_type=images.TYPES["." + ext])
+    response["Cache-Control"] = "private, max-age=31536000, immutable"
+    response["X-Content-Type-Options"] = "nosniff"
+    if ext == "svg":
+        # Dentro de <img> un SVG no ejecuta scripts; abierto directamente, sí: se le prohíbe.
+        response["Content-Security-Policy"] = "default-src 'none'; style-src 'unsafe-inline'; sandbox"
+    return response

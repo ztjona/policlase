@@ -94,7 +94,7 @@ body {
   line-height: 1.55;
 }
 a { color: var(--accent); }
-img { max-width: 100%; }
+img { max-width: 100%; height: auto; }
 code, pre { font-family: var(--mono); font-size: .92em; }
 pre { overflow-x: auto; }
 h1, h2, h3 { line-height: 1.2; text-wrap: balance; }
@@ -516,7 +516,8 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .phone .prompt { font-size: 1.1rem; font-weight: 600; }
 .answer-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
 @media (min-width: 520px) { .answer-grid { grid-template-columns: 1fr 1fr; } }
-.answer-grid label.option { cursor: pointer; margin: 0; font-size: 1.05rem; min-height: 64px; }
+.answer-grid label.option { cursor: pointer; margin: 0; font-size: 1.05rem; min-height: 64px;
+  touch-action: manipulation; user-select: none; }   /* el doble toque envía (live.js), no hace zoom ni selecciona */
 .answer-grid input { position: absolute; opacity: 0; pointer-events: none; }
 .answer-grid label.option:has(input:checked) { outline: 4px solid var(--ink); outline-offset: 2px; }
 .answer-grid label.option:has(input:focus-visible) { outline: 3px dashed var(--ink); outline-offset: 2px; }

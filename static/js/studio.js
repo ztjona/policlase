@@ -205,7 +205,9 @@
     setStatus(gettext("validando…"));
     fetch(form.dataset.preview, {
       method: "POST", credentials: "same-origin",
-      body: new URLSearchParams({ source: ed.get(), kind: kind(), fixed: form.dataset.new ? "" : "1" }),
+      // La ruta del archivo (o su sección) resuelve las imágenes del repositorio: ![…](img/x.png).
+      body: new URLSearchParams({ source: ed.get(), kind: kind(), fixed: form.dataset.new ? "" : "1",
+                                  path: form.dataset.path || "", section: form.elements.section ? form.elements.section.value : "" }),
       headers: { "X-CSRFToken": csrf() },
     }).then(function (r) { return r.json(); }).then(function (data) {
       if (mine !== seq) return;                       // llegó una respuesta más nueva

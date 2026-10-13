@@ -6,7 +6,7 @@
 {% get_current_language as LANG %}
 {# Editor de contenido: el mismo para presentaciones y actividades. El tipo lo dice el `schema` del texto. #}
 <form method="post" enctype="multipart/form-data" id="deck-form" class="studio" data-kind="{{ kind }}"
-      data-dirty{% if request.method == "POST" %}="1"{% endif %}
+      data-dirty{% if request.method == "POST" %}="1"{% endif %} data-path="{{ content.github_path|default:'' }}"
       data-new="{% if content %}{% else %}1{% endif %}"
       data-preview="{% url 'content_preview' course.pk %}" data-ops="{% url 'content_ops' course.pk %}"
       data-monaco="{% get_static_prefix %}vendor/monaco/" data-lang="{{ LANG }}">

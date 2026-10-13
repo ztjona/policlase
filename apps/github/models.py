@@ -51,6 +51,9 @@ class CourseRepo(models.Model):
     #: {ruta: sha} de los YAML que no son presentaciones o tienen errores: no se descargan de
     #: nuevo hasta que cambien.
     skipped = models.JSONField(default=dict, blank=True)
+    #: {ruta en el repositorio: archivo guardado («<sha>.<ext>»)} de las imágenes de la carpeta del
+    #: curso, para resolver `![…](img/x.png)` en las presentaciones y actividades (images.py).
+    images = models.JSONField(default=dict, blank=True)
 
     def __str__(self) -> str:
         return f"{self.repo}@{self.branch}/{self.folder}"

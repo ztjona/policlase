@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: policlase\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-12 19:06-0500\n"
+"POT-Creation-Date: 2026-10-13 11:46-0500\n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -607,7 +607,7 @@ msgstr "The course is accepting requests."
 msgid "El curso ya no acepta solicitudes."
 msgstr "The course no longer accepts requests."
 
-#: apps/github/client.py:64 apps/github/client.py:125 apps/github/client.py:141
+#: apps/github/client.py:64 apps/github/client.py:128 apps/github/client.py:144
 msgid "El archivo cambió en GitHub."
 msgstr "The file changed on GitHub."
 
@@ -641,6 +641,15 @@ msgstr "Personal access token"
 msgid "Escríbalo como usuario/repositorio."
 msgstr "Write it as owner/repository."
 
+#: apps/github/images.py:76
+msgid "la imagen supera 5 MB y no se descargó."
+msgstr "the image is larger than 5 MB and was not downloaded."
+
+#: apps/github/images.py:79
+#, python-format
+msgid "el archivo no es una imagen %(ext)s válida y no se descargó."
+msgstr "the file is not a valid %(ext)s image and was not downloaded."
+
 #: apps/github/models.py:42
 msgid "repositorio"
 msgstr "repository"
@@ -664,11 +673,11 @@ msgid ""
 msgstr ""
 "e.g. numerical-methods/classes; if left empty, the repository root is used"
 
-#: apps/github/sync.py:50
+#: apps/github/sync.py:52
 msgid "Conecte su cuenta de GitHub en el menú de usuario → GitHub."
 msgstr "Connect your GitHub account in the user menu → GitHub."
 
-#: apps/github/sync.py:135
+#: apps/github/sync.py:143
 msgid ""
 "es una evaluación (use: evaluation); las evaluaciones estarán disponibles "
 "con la pestaña Evaluaciones."
@@ -676,7 +685,7 @@ msgstr ""
 "is an evaluation (use: evaluation); evaluations will be available with the "
 "Evaluations tab."
 
-#: apps/github/sync.py:141
+#: apps/github/sync.py:149
 msgid ""
 "cambió de tipo (use) en GitHub y no se actualizó. Para usar el otro tipo, "
 "cree un archivo nuevo."
@@ -684,7 +693,7 @@ msgstr ""
 "changed type (use) on GitHub and was not updated. To use the other type, "
 "create a new file."
 
-#: apps/github/sync.py:178
+#: apps/github/sync.py:188
 msgid ""
 "se eliminó en GitHub, pero tiene entregas; se conserva en policlase, sin "
 "sincronización. Si ya no la necesita, elimínela desde la página de la "
@@ -693,25 +702,30 @@ msgstr ""
 "was deleted on GitHub but has submissions; it is kept in policlase, without "
 "synchronization. If it is no longer needed, delete it from the activity page."
 
-#: apps/github/sync.py:301
+#: apps/github/sync.py:206
+#, python-format
+msgid "se actualizó, pero estas imágenes no están en GitHub: %(images)s"
+msgstr "was updated, but these images are not on GitHub: %(images)s"
+
+#: apps/github/sync.py:342
 msgid "Ya existe una carpeta con ese nombre en GitHub."
 msgstr "A folder with that name already exists on GitHub."
 
-#: apps/github/views.py:28
+#: apps/github/views.py:29
 msgid "Cuenta de GitHub desconectada. El token se borró de policlase."
 msgstr "GitHub account disconnected. The token was deleted from policlase."
 
-#: apps/github/views.py:40
+#: apps/github/views.py:41
 #, python-format
 msgid "Conectado a GitHub como @%(login)s."
 msgstr "Connected to GitHub as @%(login)s."
 
-#: apps/github/views.py:46
+#: apps/github/views.py:47
 #, python-format
 msgid "Sincronizado: %(c)d nuevas, %(u)d actualizadas, %(d)d eliminadas."
 msgstr "Synced: %(c)d new, %(u)d updated, %(d)d deleted."
 
-#: apps/github/views.py:60
+#: apps/github/views.py:61
 msgid ""
 "Curso desvinculado de GitHub. Las presentaciones y actividades se conservan "
 "en policlase."
@@ -719,7 +733,7 @@ msgstr ""
 "Course unlinked from GitHub. Presentations and activities are kept in "
 "policlase."
 
-#: apps/github/views.py:90
+#: apps/github/views.py:91
 #, python-format
 msgid "%(n)d archivo de policlase se subió a GitHub."
 msgid_plural ""
@@ -1197,11 +1211,11 @@ msgstr ""
 msgid "Sección eliminada."
 msgstr "Section deleted."
 
-#: apps/live/studio.py:156 apps/live/studio.py:249
+#: apps/live/studio.py:157 apps/live/studio.py:254
 msgid "El archivo supera 512 KB."
 msgstr "The file is larger than 512 KB."
 
-#: apps/live/studio.py:164
+#: apps/live/studio.py:165
 msgid ""
 "Las evaluaciones estarán disponibles con la pestaña Evaluaciones; por ahora, "
 "guarde el documento como actividad (use: activity)."
@@ -1209,7 +1223,7 @@ msgstr ""
 "Evaluations will be available with the Evaluations tab; for now, save the "
 "document as an activity (use: activity)."
 
-#: apps/live/studio.py:167
+#: apps/live/studio.py:168
 msgid ""
 "No se guardó: el documento es una presentación y el texto corresponde a una "
 "actividad, o viceversa. Para crear un documento del otro tipo, use los "
@@ -1219,15 +1233,15 @@ msgstr ""
 "vice versa. To create a document of the other type, use the section's create "
 "buttons."
 
-#: apps/live/studio.py:200
+#: apps/live/studio.py:201
 msgid "La actividad tiene errores; no se guardó."
 msgstr "The activity has errors; it was not saved."
 
-#: apps/live/studio.py:201
+#: apps/live/studio.py:202
 msgid "La presentación tiene errores; no se guardó."
 msgstr "The presentation has errors; it wasn't saved."
 
-#: apps/live/studio.py:213
+#: apps/live/studio.py:214
 msgid ""
 "El archivo cambió en GitHub después de que lo abrió; no se guardó para no "
 "perder esos cambios. Copie su texto, recargue el editor y vuelva a aplicarlo."
@@ -1235,19 +1249,26 @@ msgstr ""
 "The file changed on GitHub after you opened it; it was not saved so those "
 "changes are not lost. Copy your text, reload the editor and apply it again."
 
-#: apps/live/studio.py:218
+#: apps/live/studio.py:219
 #, python-format
 msgid "No se guardó: %(error)s"
 msgstr "Not saved: %(error)s"
 
 #: apps/live/studio.py:223
 #, python-format
+msgid "Estas imágenes no están en GitHub (o aún no se sincronizan): %(images)s"
+msgstr ""
+"These images are not on GitHub (or have not been synchronized yet): "
+"%(images)s"
+
+#: apps/live/studio.py:228
+#, python-format
 msgid ""
 "Actividad «%(title)s» guardada: %(questions)d preguntas, %(points)s puntos."
 msgstr ""
 "Activity “%(title)s” saved: %(questions)d questions, %(points)s points."
 
-#: apps/live/studio.py:227
+#: apps/live/studio.py:232
 #, python-format
 msgid ""
 "Presentación «%(title)s» guardada: %(slides)d diapositivas, %(questions)d "
@@ -1255,16 +1276,16 @@ msgid ""
 msgstr ""
 "Presentation “%(title)s” saved: %(slides)d slides, %(questions)d questions."
 
-#: apps/live/studio.py:232
+#: apps/live/studio.py:237
 #, python-format
 msgid "Confirmado en GitHub: %(path)s"
 msgstr "Committed to GitHub: %(path)s"
 
-#: apps/live/studio.py:235
+#: apps/live/studio.py:240
 msgid "Asigne la ponderación y la fecha de entrega, y publique la actividad."
 msgstr "Assign the weighting and the due date, and publish the activity."
 
-#: apps/live/studio.py:257
+#: apps/live/studio.py:262
 msgid ""
 "Este documento se guardó con otro tipo, que no puede cambiarse desde el "
 "texto."
@@ -1272,11 +1293,26 @@ msgstr ""
 "This document was saved as another type, which cannot be changed from the "
 "text."
 
-#: apps/live/studio.py:314
+#: apps/live/studio.py:294
+#, python-format
+msgid ""
+"Las imágenes con ruta relativa (%(images)s) solo se muestran en cursos "
+"vinculados a GitHub; fuera de ellos, use una dirección https://."
+msgstr ""
+"Images with a relative path (%(images)s) are only shown in courses linked to "
+"GitHub; otherwise, use an https:// address."
+
+#: apps/live/studio.py:305
+#, python-format
+msgid "La imagen %(path)s no está en GitHub (o aún no se sincroniza)."
+msgstr ""
+"The image %(path)s is not on GitHub (or has not been synchronized yet)."
+
+#: apps/live/studio.py:344
 msgid "Operación desconocida."
 msgstr "Unknown operation."
 
-#: apps/live/studio.py:316
+#: apps/live/studio.py:346
 #, python-format
 msgid "Corrija los errores antes de usar el panel: %(error)s"
 msgstr "Fix the errors before using the panel: %(error)s"
@@ -1545,18 +1581,18 @@ msgid "Marque todas las correctas. Cada marca incorrecta resta."
 msgstr "Mark all correct options. Each wrong mark subtracts."
 
 #: templates/activities/_question_input.html:40
-#: templates/live/_student_stage.html:64
+#: templates/live/_student_stage.html:65
 #, python-format
 msgid "Afirmación %(n)s"
 msgstr "Statement %(n)s"
 
 #: templates/activities/_question_input.html:43
-#: templates/live/_student_stage.html:67
+#: templates/live/_student_stage.html:68
 msgid "Verdadero"
 msgstr "True"
 
 #: templates/activities/_question_input.html:44
-#: templates/live/_student_stage.html:68
+#: templates/live/_student_stage.html:69
 msgid "Falso"
 msgstr "False"
 
@@ -1568,7 +1604,7 @@ msgstr "Cell %(n)s"
 #: templates/activities/_question_input.html:60
 #: templates/activities/_question_input.html:72
 #: templates/activities/_question_input.html:74
-#: templates/live/_student_stage.html:74 templates/live/_student_stage.html:76
+#: templates/live/_student_stage.html:75 templates/live/_student_stage.html:77
 #: templates/live/results.html:81
 msgid "Respuesta"
 msgstr "Answer"
@@ -1586,7 +1622,7 @@ msgid "En esta respuesta no está permitido pegar texto."
 msgstr "Pasting text is not allowed in this answer."
 
 #: templates/activities/_question_input.html:74
-#: templates/live/_student_stage.html:76
+#: templates/live/_student_stage.html:77
 msgid "Número"
 msgstr "Number"
 
@@ -3882,7 +3918,7 @@ msgstr ""
 msgid "Tu puntaje: <strong>%(total)s</strong>"
 msgstr "Your score: <strong>%(total)s</strong>"
 
-#: templates/live/_student_stage.html:23 templates/live/_student_stage.html:113
+#: templates/live/_student_stage.html:23 templates/live/_student_stage.html:114
 #, python-format
 msgid "puesto %(my_rank)s"
 msgstr "rank %(my_rank)s"
@@ -3909,71 +3945,75 @@ msgstr "The question will open in a moment."
 msgid "Marca todas las correctas. Cada marca incorrecta resta."
 msgstr "Mark all the correct ones. Each wrong mark subtracts points."
 
-#: templates/live/_student_stage.html:77 templates/live/studio.html:83
+#: templates/live/_student_stage.html:60
+msgid "Toca dos veces una opción para enviarla directamente."
+msgstr "Tap an option twice to send it right away."
+
+#: templates/live/_student_stage.html:78 templates/live/studio.html:83
 msgid "Vista previa"
 msgstr "Preview"
 
-#: templates/live/_student_stage.html:80
+#: templates/live/_student_stage.html:81
 msgid "Enviar respuesta"
 msgstr "Submit answer"
 
-#: templates/live/_student_stage.html:84
+#: templates/live/_student_stage.html:85
 msgid "Respuesta enviada"
 msgstr "Answer submitted"
 
-#: templates/live/_student_stage.html:84
+#: templates/live/_student_stage.html:85
 msgid "Espera a que se cierre la pregunta."
 msgstr "Wait for the question to close."
 
-#: templates/live/_student_stage.html:88
+#: templates/live/_student_stage.html:89
 msgid "Tiempo terminado"
 msgstr "Time's up"
 
-#: templates/live/_student_stage.html:89
+#: templates/live/_student_stage.html:90
 msgid "Tu respuesta quedó registrada."
 msgstr "Your answer was recorded."
 
-#: templates/live/_student_stage.html:89
+#: templates/live/_student_stage.html:90
 msgid "No alcanzaste a responder."
 msgstr "You didn't answer in time."
 
-#: templates/live/_student_stage.html:94
+#: templates/live/_student_stage.html:95
 msgid "Respuesta registrada"
 msgstr "Answer recorded"
 
-#: templates/live/_student_stage.html:94 templates/live/_student_stage.html:108
+#: templates/live/_student_stage.html:95 templates/live/_student_stage.html:109
 msgid "Sin respuesta"
 msgstr "No answer"
 
-#: templates/live/_student_stage.html:95
+#: templates/live/_student_stage.html:96
 msgid "Era una encuesta: no hay respuesta correcta."
 msgstr "It was a survey: there is no correct answer."
 
-#: templates/live/_student_stage.html:97 templates/live/_student_stage.html:106
+#: templates/live/_student_stage.html:98 templates/live/_student_stage.html:107
 msgid "Respondiste:"
 msgstr "You answered:"
 
-#: templates/live/_student_stage.html:103
+#: templates/live/_student_stage.html:104
 msgid "¡Correcto!"
 msgstr "Correct!"
 
-#: templates/live/_student_stage.html:103
+#: templates/live/_student_stage.html:104
 msgid "Parcialmente correcto"
 msgstr "Partially correct"
 
-#: templates/live/_student_stage.html:103
+#: templates/live/_student_stage.html:104
 msgid "Incorrecto"
 msgstr "Incorrect"
 
-#: templates/live/_student_stage.html:104
+#: templates/live/_student_stage.html:105
 msgid "incluye el bono por rapidez"
 msgstr "includes the speed bonus"
 
-#: templates/live/_student_stage.html:111
+#: templates/live/_student_stage.html:112
 msgid "Respuesta correcta:"
 msgstr "Correct answer:"
 
-#: templates/live/_student_stage.html:113
+#: templates/live/_student_stage.html:114
 #, python-format
 msgid "Tu total: <strong>%(total)s</strong>"
 msgstr "Your total: <strong>%(total)s</strong>"

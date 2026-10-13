@@ -20,8 +20,8 @@ SMALL = 'schema: policlase.deck/v1\ntitle: "{title}"\nslides:\n  - markdown: "# 
 BROKEN = "schema: policlase.deck/v1\ntitle: Rota\nslides: []\n"
 
 
-def sha_of(text: str) -> str:
-    return hashlib.sha1(text.encode()).hexdigest()
+def sha_of(text) -> str:
+    return hashlib.sha1(text if isinstance(text, bytes) else text.encode()).hexdigest()
 
 
 class FakeGitHub:
@@ -46,6 +46,10 @@ class FakeGitHub:
 
     def read(self, repo, sha):
         return next(t for t in self.files.values() if sha_of(t) == sha)
+
+    def read_bytes(self, repo, sha):
+        found = self.read(repo, sha)
+        return found if isinstance(found, bytes) else found.encode()
 
     def write(self, repo, branch, path, text, message, sha=""):
         current = self.files.get(path)
@@ -357,3 +361,81 @@ class GitHubIconTests(SyncBase):
         self.assertContains(page, "https://github.com/profe/cursos/tree/main/mn/clases")
         self.assertContains(page, "data-tip=")
         self.assertNotContains(page, "⎇ Sincronizadas con")
+
+
+PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 40
+PNG2 = b"\x89PNG\r\n\x1a\n" + b"\x01" * 40
+WITH_IMAGE = ('schema: policlase/v1\ntitle: "Errores"\nuse: class\nslides:\n'
+              '  - markdown: "![Error de redondeo](img/error.png) y ![logo](/comun/logo.png) '
+              'y ![fuera](https://ejemplo.ec/x.png)"\n')
+
+
+class ImagesTests(SyncBase):
+    """Las imágenes de la carpeta del curso se ven en las presentaciones (images.py)."""
+
+    def setUp(self):
+        super().setUp()
+        import tempfile
+
+        from django.test import override_settings
+
+        media = tempfile.mkdtemp()
+        self.addCleanup(__import__("shutil").rmtree, media, True)
+        settings = override_settings(MEDIA_ROOT=media)
+        settings.enable()
+        self.addCleanup(settings.disable)
+        self.gh.files.update({"mn/clases/unidad-01/errores.yaml": WITH_IMAGE,
+                              "mn/clases/unidad-01/img/error.png": PNG,
+                              "mn/clases/comun/logo.png": PNG2,
+                              "mn/clases/unidad-01/img/falsa.png": "no soy una imagen"})
+
+    def deck(self):
+        return Deck.objects.get(github_path="mn/clases/unidad-01/errores.yaml")
+
+    def test_rutas_relativas_y_desde_la_carpeta_del_curso(self):
+        from . import images
+
+        sync.pull(self.link)
+        markdown = self.deck().slides[0]["markdown"]
+        self.assertIn(reverse("repo_image", args=[f"{sha_of(PNG)}.png"]), markdown)
+        self.assertIn(reverse("repo_image", args=[f"{sha_of(PNG2)}.png"]), markdown)
+        self.assertIn("https://ejemplo.ec/x.png", markdown)                  # externa: intacta
+        self.assertTrue((images.folder() / f"{sha_of(PNG)}.png").exists())
+        self.link.refresh_from_db()
+        notes = {i["path"]: i.get("note", "") for i in self.link.issues}
+        self.assertIn("no es una imagen", notes["mn/clases/unidad-01/img/falsa.png"])
+
+    def test_la_imagen_se_sirve_solo_con_sesion(self):
+        sync.pull(self.link)
+        url = reverse("repo_image", args=[f"{sha_of(PNG)}.png"])
+        self.assertEqual(self.client.get(url).status_code, 302)
+        self.client.force_login(make_user("ana", User.Role.STUDENT))
+        response = self.client.get(url)
+        self.assertEqual((response.status_code, response["Content-Type"]), (200, "image/png"))
+        self.assertEqual(b"".join(response.streaming_content), PNG)
+        self.assertEqual(self.client.get(reverse("repo_image", args=["settings.py"])).status_code, 404)
+        self.assertEqual(self.client.get("/imagenes/..%2Fsettings.py").status_code, 404)
+
+    def test_cambiar_la_imagen_actualiza_la_presentacion_sin_tocar_el_yaml(self):
+        sync.pull(self.link)
+        self.gh.files["mn/clases/unidad-01/img/error.png"] = PNG2
+        sync.pull(self.link)
+        self.assertIn(f"{sha_of(PNG2)}.png", self.deck().slides[0]["markdown"])
+        self.assertNotIn(f"{sha_of(PNG)}.png", self.deck().slides[0]["markdown"])
+
+    def test_una_imagen_que_falta_se_avisa(self):
+        del self.gh.files["mn/clases/comun/logo.png"]
+        sync.pull(self.link)
+        self.link.refresh_from_db()
+        notes = {i["path"]: i.get("note", "") for i in self.link.issues}
+        self.assertIn("mn/clases/comun/logo.png", notes["mn/clases/unidad-01/errores.yaml"])
+        self.assertIn("![logo](/comun/logo.png)", self.deck().slides[0]["markdown"])
+
+    def test_la_vista_previa_resuelve_las_imagenes(self):
+        sync.pull(self.link)
+        self.client.force_login(self.teacher)
+        response = self.client.post(reverse("content_preview", args=[self.course.pk]), {
+            "source": WITH_IMAGE.replace("comun/logo.png", "comun/otra.png"), "kind": "deck",
+            "path": "mn/clases/unidad-01/errores.yaml"}).json()
+        self.assertIn(f"{sha_of(PNG)}.png", response["html"])
+        self.assertTrue(any("mn/clases/comun/otra.png" in d["message"] for d in response["diagnostics"]))

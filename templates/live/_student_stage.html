@@ -56,7 +56,8 @@
                 </label>
               {% endfor %}
             </div>
-            {% if q.type == "multi_choice" %}<p class="small muted">{% translate "Marca todas las correctas. Cada marca incorrecta resta." %}</p>{% endif %}
+            {% if q.type == "multi_choice" %}<p class="small muted">{% translate "Marca todas las correctas. Cada marca incorrecta resta." %}</p>
+            {% else %}<p class="small muted">{% translate "Toca dos veces una opción para enviarla directamente." %}</p>{% endif %}
           {% elif q.type == "true_false" %}
             <div class="tf">
               {% for s in q.statements %}

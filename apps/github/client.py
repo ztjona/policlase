@@ -94,8 +94,11 @@ class GitHubClient:
         return {e["path"]: e["sha"] for e in data.get("tree", []) if e.get("type") == "blob"}
 
     def read(self, repo: str, sha: str) -> str:
+        return self.read_bytes(repo, sha).decode("utf-8", errors="replace")
+
+    def read_bytes(self, repo: str, sha: str) -> bytes:
         data = self._call("GET", f"/repos/{self._q(repo)}/git/blobs/{sha}")
-        return base64.b64decode(data["content"]).decode("utf-8", errors="replace")
+        return base64.b64decode(data["content"])
 
     # ------------------------------------------------------------------ escritura
 

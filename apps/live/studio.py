@@ -23,6 +23,7 @@ from policlase_gen import deck_text, loader
 from policlase_gen import document as content_format
 
 from apps.courses.access import owned_course, teacher_required
+from apps.github import images
 
 from .models import Deck, Section
 
@@ -217,6 +218,10 @@ def _save(request, course, link, kind, content, source, section, document, repor
         except sync.GitHubError as exc:
             messages.error(request, _("No se guardó: %(error)s") % {"error": exc})
             return None
+        compiled, missing = images.rewrite(compiled, content.github_path, link.prefix, link.images)
+        if missing:
+            messages.warning(request, _("Estas imágenes no están en GitHub (o aún no se sincronizan): %(images)s")
+                             % {"images": ", ".join(missing)})
     content.source, content.compiled = source, compiled
     content.save()
     if kind == ACTIVITY:
@@ -241,7 +246,7 @@ def _save(request, course, link, kind, content, source, section, document, repor
 @require_POST
 def preview(request, course_pk):
     """Vista previa en vivo: valida, compila y devuelve el contenido renderizado y su índice."""
-    owned_course(request, course_pk)
+    course = owned_course(request, course_pk)
     source = request.POST.get("source", "")
     posted = request.POST.get("kind") if request.POST.get("kind") in TEMPLATES else DECK
     if len(source) > MAX_SOURCE:
@@ -259,6 +264,7 @@ def preview(request, course_pk):
         return JsonResponse(payload)
     if document is not None and not report.errors and found in (DECK, ACTIVITY, "evaluation"):
         compiled = content_format.compile_content(document)
+        compiled = _preview_images(request, course, compiled, payload["diagnostics"])
         if found == DECK:
             payload["html"] = render_to_string("live/_deck_slides.html", {"slides": compiled["slides"]}, request)
             outline = _class_outline(compiled)
@@ -274,6 +280,30 @@ def preview(request, course_pk):
         payload["outline"] = render_to_string("live/_outline.html", {"entries": outline, "kind": found}, request)
         payload["title"] = compiled["title"]
     return JsonResponse(payload)
+
+
+def _preview_images(request, course, compiled, diagnostics: list) -> dict:
+    """Las imágenes del repositorio en la vista previa: se resuelven desde la ruta del archivo (o la
+    carpeta de la sección, si aún no se guarda) y se avisa de las que no están."""
+    cited = images.relative_images(compiled)
+    if not cited:
+        return compiled
+    link = _course_link(course)
+    if link is None:
+        diagnostics.append({"code": "", "severity": "aviso", "line": None, "where": "", "message": _(
+            "Las imágenes con ruta relativa (%(images)s) solo se muestran en cursos vinculados a GitHub; "
+            "fuera de ellos, use una dirección https://.") % {"images": ", ".join(cited)}})
+        return compiled
+    path = request.POST.get("path", "")
+    if not path.startswith(link.prefix):
+        section = Section.objects.filter(course=course, pk=request.POST.get("section") or 0).first()
+        folder = f"{section.github_folder}/" if section and section.github_folder else ""
+        path = f"{link.prefix}{folder}nuevo.yaml"
+    compiled, missing = images.rewrite(compiled, path, link.prefix, link.images)
+    for target in missing:
+        diagnostics.append({"code": "", "severity": "aviso", "line": None, "where": "", "message": _(
+            "La imagen %(path)s no está en GitHub (o aún no se sincroniza).") % {"path": target}})
+    return compiled
 
 
 def _class_outline(compiled: dict) -> list[dict]:

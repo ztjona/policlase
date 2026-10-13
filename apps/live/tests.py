@@ -264,6 +264,15 @@ class AnswerTests(LiveBase):
 class FragmentTests(LiveBase):
     """Cada fase se renderiza sin errores en ambas vistas."""
 
+    def test_opcion_unica_se_envia_con_doble_toque(self):
+        session = self.goto_first_question(self.start())          # la primera pregunta es de opción única
+        engine.join(session, self.ana)
+        session = engine.apply(session.pk, "open")
+        self.client.force_login(self.ana)
+        page = self.client.get(reverse("student_fragment", args=[session.pk]))
+        self.assertEqual(session.slide["question"]["type"], "choice")
+        self.assertContains(page, "Toca dos veces una opción para enviarla directamente.")
+
     def test_todas_las_fases(self):
         session = self.start()
         seen = set()
