@@ -1,4 +1,4 @@
-from django.urls import path, re_path
+from django.urls import path
 
 from . import views
 
@@ -31,10 +31,6 @@ urlpatterns = [
     path(S + "intento/descartar/", views.attempt_discard, name="attempt_discard"),
     path(S + "intento/presentacion/", views.attempt_pointer, name="attempt_pointer"),
     path(S + "intento/tiempo/<str:key>/<str:action>/", views.attempt_timer, name="attempt_timer"),
-    # Hasta 0.13.0, el autoguardado iba aquí por un error de activity.js. Las páginas que siguen
-    # abiertas con esa versión guardan de nuevo sin recargar. Retirar después del 2026-11-01.
-    re_path(r"^cursos/(?P<course_pk>\d+)/actividades/(?P<pk>\d+)/intento/\[object [A-Za-z]+\]$",
-            views.attempt_form),
     # ambos
     path("entregas/<int:upload_pk>/", views.upload_file, name="upload_file"),
 ]

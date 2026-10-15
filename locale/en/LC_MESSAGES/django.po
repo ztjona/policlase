@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: policlase\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-15 14:02-0500\n"
+"POT-Creation-Date: 2026-10-15 14:29-0500\n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -151,7 +151,9 @@ msgstr "The window for late submissions has closed."
 msgid ""
 "Se ingresó un código incorrecto demasiadas veces. Espere unos minutos e "
 "inténtelo de nuevo."
-msgstr "An incorrect code was entered too many times. Wait a few minutes and try again."
+msgstr ""
+"An incorrect code was entered too many times. Wait a few minutes and try "
+"again."
 
 #: apps/activities/engine.py:153
 msgid "El código de acceso no es correcto. Solicítelo a su docente."
@@ -161,7 +163,8 @@ msgstr "The access code is not correct. Ask your teacher for it."
 msgid ""
 "Se acabó el tiempo de la evaluación; se conserva lo que se guardó hasta ese "
 "momento."
-msgstr "The time for the assessment is over; what was saved until then is kept."
+msgstr ""
+"The time for the assessment is over; what was saved until then is kept."
 
 #: apps/activities/engine.py:280 apps/activities/engine.py:298
 #: apps/activities/engine.py:316 apps/activities/engine.py:359
@@ -485,46 +488,42 @@ msgstr "penalty (%)"
 msgid "intentos"
 msgstr "attempts"
 
-#: apps/activities/models.py:105
-msgid "impedir pegar texto en las respuestas abiertas"
-msgstr "prevent pasting text into open answers"
-
-#: apps/activities/models.py:108
+#: apps/activities/models.py:103
 msgid "enviar automáticamente los borradores al vencer la fecha"
 msgstr "submit drafts automatically at the due date"
 
-#: apps/activities/models.py:127 templates/grades/mine.html:29
+#: apps/activities/models.py:122 templates/grades/mine.html:29
 msgid "actividad"
 msgstr "activity"
 
-#: apps/activities/models.py:166
+#: apps/activities/models.py:161
 #, python-format
 msgid "el mismo día de «%(name)s»"
 msgstr "the same day as “%(name)s”"
 
-#: apps/activities/models.py:168
+#: apps/activities/models.py:163
 #, python-format
 msgid "%(n)d día antes de «%(name)s»"
 msgid_plural "%(n)d días antes de «%(name)s»"
 msgstr[0] "%(n)d day before “%(name)s”"
 msgstr[1] "%(n)d days before “%(name)s”"
 
-#: apps/activities/models.py:169
+#: apps/activities/models.py:164
 #, python-format
 msgid "%(n)d día después de «%(name)s»"
 msgid_plural "%(n)d días después de «%(name)s»"
 msgstr[0] "%(n)d day after “%(name)s”"
 msgstr[1] "%(n)d days after “%(name)s”"
 
-#: apps/activities/models.py:201
+#: apps/activities/models.py:196
 msgid "sin revisión"
 msgstr "no review"
 
-#: apps/activities/models.py:203
+#: apps/activities/models.py:198
 msgid "sin límite"
 msgstr "no limit"
 
-#: apps/activities/models.py:204
+#: apps/activities/models.py:199
 #, python-format
 msgid "hasta el %(when)s"
 msgstr "until %(when)s"
@@ -559,7 +558,9 @@ msgstr "Not deleted: %(error)s"
 msgid ""
 "Evaluación «%(title)s» eliminada, con sus entregas; su archivo se borró de "
 "GitHub."
-msgstr "Assessment “%(title)s” deleted, with its submissions; its file was deleted from GitHub."
+msgstr ""
+"Assessment “%(title)s” deleted, with its submissions; its file was deleted "
+"from GitHub."
 
 #: apps/activities/views.py:60
 #, python-format
@@ -651,19 +652,25 @@ msgstr "Check the marked fields."
 msgid ""
 "Se generó un nuevo código de acceso, %(code)s; el anterior dejó de ser "
 "válido."
-msgstr "A new access code was generated, %(code)s; the previous one is no longer valid."
+msgstr ""
+"A new access code was generated, %(code)s; the previous one is no longer "
+"valid."
 
 #: apps/activities/views.py:239
 msgid ""
 "Se retiró la publicación. Los estudiantes ya no ven sus notas de esta "
 "evaluación."
-msgstr "The publication was withdrawn. Students no longer see their grades for this assessment."
+msgstr ""
+"The publication was withdrawn. Students no longer see their grades for this "
+"assessment."
 
 #: apps/activities/views.py:246
 msgid ""
 "Se publicaron las notas. Cada estudiante ve ahora su nota y, durante la "
 "revisión, su corrección."
-msgstr "The grades were published. Each student now sees their grade and, during the review, their correction."
+msgstr ""
+"The grades were published. Each student now sees their grade and, during the "
+"review, their correction."
 
 #: apps/activities/views.py:262
 #, python-format
@@ -1019,7 +1026,10 @@ msgstr "Connect your GitHub account in the user menu → GitHub."
 msgid ""
 "cambió de actividad a evaluación (o al revés) en GitHub y ya tiene entregas; "
 "no se actualizó. Para usar el otro tipo, cree un archivo nuevo."
-msgstr "changed from activity to assessment (or the other way around) in GitHub and already has submissions; it was not updated. To use the other type, create a new file."
+msgstr ""
+"changed from activity to assessment (or the other way around) in GitHub and "
+"already has submissions; it was not updated. To use the other type, create a "
+"new file."
 
 #: apps/github/sync.py:151
 msgid ""
@@ -1555,7 +1565,10 @@ msgstr "The file is larger than 512 KB."
 msgid ""
 "No se guardó: el documento cambió de actividad a evaluación, o al revés, y "
 "ya tiene entregas. Para usar el otro tipo, cree un documento nuevo."
-msgstr "Not saved: the document changed from activity to assessment, or the other way around, and already has submissions. To use the other type, create a new document."
+msgstr ""
+"Not saved: the document changed from activity to assessment, or the other "
+"way around, and already has submissions. To use the other type, create a new "
+"document."
 
 #: apps/live/studio.py:205
 msgid ""
@@ -1599,7 +1612,8 @@ msgstr ""
 #, python-format
 msgid ""
 "Evaluación «%(title)s» guardada: %(questions)d preguntas, %(points)s puntos."
-msgstr "Assessment “%(title)s” saved: %(questions)d questions, %(points)s points."
+msgstr ""
+"Assessment “%(title)s” saved: %(questions)d questions, %(points)s points."
 
 #: apps/live/studio.py:271
 #, python-format
@@ -2053,7 +2067,9 @@ msgstr "Closed. Grades published on %(when)s."
 msgid ""
 "Cerrada. Las notas todavía no se han publicado, por lo que los estudiantes "
 "no ven su puntaje."
-msgstr "Closed. The grades have not been published yet, so students do not see their score."
+msgstr ""
+"Closed. The grades have not been published yet, so students do not see their "
+"score."
 
 #: templates/activities/_evaluation_settings.html:14
 #, python-format
@@ -2076,7 +2092,9 @@ msgstr "Project the code"
 msgid ""
 "Se generará un código nuevo y el actual dejará de ser válido. Quienes ya "
 "empezaron no lo necesitan. ¿Continuar?"
-msgstr "A new code will be generated and the current one will no longer be valid. Those who have already started do not need it. Continue?"
+msgstr ""
+"A new code will be generated and the current one will no longer be valid. "
+"Those who have already started do not need it. Continue?"
 
 #: templates/activities/_evaluation_settings.html:24
 #: templates/courses/course_settings.html:23
@@ -2087,19 +2105,26 @@ msgstr "Generate a new code"
 msgid ""
 "Proyecte el código al comenzar la evaluación; sin él, no es posible "
 "empezarla. Si el código circula fuera del aula, genere otro."
-msgstr "Project the code when the assessment begins; without it, the assessment cannot be started. If the code circulates outside the classroom, generate another."
+msgstr ""
+"Project the code when the assessment begins; without it, the assessment "
+"cannot be started. If the code circulates outside the classroom, generate "
+"another."
 
 #: templates/activities/_evaluation_settings.html:28
 msgid ""
 "Esta evaluación no pide código de acceso. Pueden rendirla los estudiantes "
 "inscritos, dentro del horario."
-msgstr "This assessment does not require an access code. Enrolled students can take it within the schedule."
+msgstr ""
+"This assessment does not require an access code. Enrolled students can take "
+"it within the schedule."
 
 #: templates/activities/_evaluation_settings.html:34
 msgid ""
 "Los estudiantes dejarán de ver sus notas de esta evaluación hasta que las "
 "publique de nuevo. ¿Retirar la publicación?"
-msgstr "Students will no longer see their grades for this assessment until you publish them again. Withdraw the publication?"
+msgstr ""
+"Students will no longer see their grades for this assessment until you "
+"publish them again. Withdraw the publication?"
 
 #: templates/activities/_evaluation_settings.html:34
 msgid "Retirar la publicación"
@@ -2109,7 +2134,9 @@ msgstr "Withdraw the publication"
 msgid ""
 "Cada estudiante verá su nota y, durante la revisión, su corrección. "
 "¿Publicar las notas?"
-msgstr "Each student will see their grade and, during the review, their correction. Publish the grades?"
+msgstr ""
+"Each student will see their grade and, during the review, their correction. "
+"Publish the grades?"
 
 #: templates/activities/_evaluation_settings.html:37
 msgid "Publicar las notas"
@@ -2122,7 +2149,9 @@ msgstr "There are answers to review"
 #: templates/activities/_evaluation_settings.html:48
 msgid ""
 "Publicada (los estudiantes la ven en su curso; solo se rinde en su horario)"
-msgstr "Published (students see it in their course; it can only be taken within its schedule)"
+msgstr ""
+"Published (students see it in their course; it can only be taken within its "
+"schedule)"
 
 #: templates/activities/_evaluation_settings.html:54
 msgid "El parcial se propone según la fecha de la evaluación."
@@ -2133,7 +2162,9 @@ msgstr "The term is suggested from the date of the assessment."
 msgid ""
 "La evaluación es en «%(p)s», pero cuenta en «%(row)s», y ese parcial no "
 "tiene una fila con el mismo nombre. Elija la fila que corresponde."
-msgstr "The assessment is in “%(p)s” but counts in “%(row)s”, and that term has no row with the same name. Choose the corresponding row."
+msgstr ""
+"The assessment is in “%(p)s” but counts in “%(row)s”, and that term has no "
+"row with the same name. Choose the corresponding row."
 
 #: templates/activities/_evaluation_settings.html:62
 msgid "con un desfase de"
@@ -2157,20 +2188,28 @@ msgid ""
 "Se cuenta desde que cada estudiante empieza, sin pasar de la hora de cierre. "
 "Si se deja vacío, cada estudiante dispone hasta la hora de cierre. Al "
 "acabarse el tiempo, la evaluación se envía con lo que tenga guardado."
-msgstr "It is counted from the moment each student starts, without going past the closing time. If left empty, each student has until the closing time. When time runs out, the assessment is submitted with whatever is saved."
+msgstr ""
+"It is counted from the moment each student starts, without going past the "
+"closing time. If left empty, each student has until the closing time. When "
+"time runs out, the assessment is submitted with whatever is saved."
 
 #: templates/activities/_evaluation_settings.html:81
 msgid ""
 "Cuando usted publique las notas, cada estudiante ve su corrección detallada "
 "y las diapositivas de solución durante el tiempo que se indique. Antes de "
 "publicarlas, no ve ni su puntaje."
-msgstr "When you publish the grades, each student sees their detailed correction and the solution slides for the period indicated. Before publication, they do not even see their score."
+msgstr ""
+"When you publish the grades, each student sees their detailed correction and "
+"the solution slides for the period indicated. Before publication, they do "
+"not even see their score."
 
 #: templates/activities/_evaluation_settings.html:91
 msgid ""
 "Una evaluación se rinde una sola vez y no admite entregas atrasadas. Pegar "
 "texto viene bloqueado salvo que el documento diga otra cosa."
-msgstr "An assessment is taken only once and does not accept late submissions. Pasting text is blocked unless the document says otherwise."
+msgstr ""
+"An assessment is taken only once and does not accept late submissions. "
+"Pasting text is blocked unless the document says otherwise."
 
 #: templates/activities/_grade_form.html:6 templates/activities/detail.html:80
 #: templates/live/results.html:81
@@ -2478,7 +2517,9 @@ msgstr ""
 msgid ""
 "Al acabarse el tiempo, la evaluación se envía automáticamente con lo que "
 "tenga guardado."
-msgstr "When time runs out, the assessment is submitted automatically with whatever is saved."
+msgstr ""
+"When time runs out, the assessment is submitted automatically with whatever "
+"is saved."
 
 #: templates/activities/attempt.html:48
 msgid ""
@@ -2718,7 +2759,9 @@ msgstr "to be published"
 msgid ""
 "Todavía no hay evaluaciones. Cree una con «Nueva evaluación» o súbala a "
 "GitHub con «use: evaluation»."
-msgstr "There are no assessments yet. Create one with “New assessment” or upload it to GitHub with “use: evaluation”."
+msgstr ""
+"There are no assessments yet. Create one with “New assessment” or upload it "
+"to GitHub with “use: evaluation”."
 
 #: templates/activities/dates.html:38
 msgid "Fechas clave"
@@ -3202,8 +3245,12 @@ msgstr "The assessment is taken only once and your time starts now. Begin?"
 msgid "Al comenzar, dispondrá de %(n)s minuto, sin pasar de la hora de cierre."
 msgid_plural ""
 "Al comenzar, dispondrá de %(n)s minutos, sin pasar de la hora de cierre."
-msgstr[0] "Once you begin, you will have %(n)s minute, without going past the closing time."
-msgstr[1] "Once you begin, you will have %(n)s minutes, without going past the closing time."
+msgstr[0] ""
+"Once you begin, you will have %(n)s minute, without going past the closing "
+"time."
+msgstr[1] ""
+"Once you begin, you will have %(n)s minutes, without going past the closing "
+"time."
 
 #: templates/activities/student.html:33
 #, python-format
@@ -3214,7 +3261,9 @@ msgstr "Once you begin, you will have until %(end)s."
 msgid ""
 "Sus respuestas se guardan automáticamente; al acabarse el tiempo, la "
 "evaluación se envía con lo que tenga guardado."
-msgstr "Your answers are saved automatically; when time runs out, the assessment is submitted with whatever is saved."
+msgstr ""
+"Your answers are saved automatically; when time runs out, the assessment is "
+"submitted with whatever is saved."
 
 #: templates/activities/student.html:39
 msgid "Comenzar la evaluación"
@@ -3263,13 +3312,16 @@ msgstr "Your assessment was received on %(when)s."
 #: templates/activities/student.html:60
 msgid ""
 "Se envió automáticamente al acabarse el tiempo, con lo que tenía guardado."
-msgstr "It was submitted automatically when time ran out, with what you had saved."
+msgstr ""
+"It was submitted automatically when time ran out, with what you had saved."
 
 #: templates/activities/student.html:61
 msgid ""
 "Su nota y la corrección se mostrarán cuando su docente termine de calificar "
 "y publique las notas."
-msgstr "Your grade and the correction will be shown when your teacher finishes grading and publishes the grades."
+msgstr ""
+"Your grade and the correction will be shown when your teacher finishes "
+"grading and publishes the grades."
 
 #: templates/activities/student.html:67
 msgid "Se envió automáticamente al vencer la fecha, con lo que tenía guardado."

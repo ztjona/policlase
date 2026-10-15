@@ -194,9 +194,8 @@ Reglas de interacción:
   (`published_at`); la revisión empieza entonces. Una evaluación nunca se proyecta con sus preguntas
   y lo enviado no se reabre al mover la fecha. Las variantes por estudiante (§7 del formato) quedan
   para una segunda etapa.
-- **Pegar:** lo decide el documento (`block_paste` en la raíz o en un segmento). La antigua casilla
-  de la plataforma (`Activity.block_paste`) ya no se usa: bloqueaba también las preguntas que piden
-  pegar código.
+- **Pegar:** lo decide solo el documento (`block_paste` en la raíz o en un segmento). La antigua
+  casilla de la plataforma bloqueaba también las preguntas que piden pegar código; se eliminó en 0.15.1.
 - Cada intento copia la actividad compilada (`Attempt.content`): editarla después no cambia lo que
   ya se respondió. La nota del docente no borra la automática (`auto_points`).
 - Las fechas y la ponderación viven en la plataforma, nunca en el YAML. Un vencimiento relativo a

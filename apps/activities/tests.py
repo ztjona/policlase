@@ -192,17 +192,6 @@ class AttemptTests(ActivityBase):
         self.assertEqual(attempt.pending, 1)
         self.assertEqual(Answer.objects.filter(attempt=attempt).count(), 4)
 
-    def test_paginas_abiertas_con_el_autoguardado_anterior_siguen_guardando(self):
-        # Hasta 0.13.0, activity.js guardaba en «intento/[object RadioNodeList]» (form.action
-        # devolvía los botones llamados «action»).
-        self.client.force_login(self.ana)
-        self.client.post(reverse("attempt_start", args=[self.course.pk, self.activity.pk]))
-        url = reverse("attempt_form", args=[self.course.pk, self.activity.pk])
-        saved = self.client.post(url + "[object RadioNodeList]", {"form": "attempt", "a-D1-a.q1": "1.41"},
-                                 HTTP_X_REQUESTED_WITH="fetch")
-        self.assertEqual(saved.status_code, 200)
-        self.assertEqual(Attempt.objects.get().answers["D1-a.q1"], "1.41")
-
     def test_respuesta_ilegible_no_se_envia(self):
         attempt = engine.start(self.activity, self.ana)
         self.answer_all(attempt, value="uno coma cuatro")
@@ -594,8 +583,7 @@ class PagesRenderTests(ActivityBase):
         self.assertContains(page, 'accept="image/jpeg,image/png,image/webp"')
 
     def test_pegar_lo_decide_el_documento(self):
-        # La antigua casilla de la plataforma ya no bloquea las abiertas («Pegue su código»).
-        Activity.objects.filter(pk=self.activity.pk).update(block_paste=True)
+        # Sin `block_paste` en el documento, se puede pegar en las abiertas («Pegue su código»).
         engine.start(self.activity, self.ana)
         self.client.force_login(self.ana)
         page = self.client.get(reverse("attempt_form", args=[self.course.pk, self.activity.pk]))

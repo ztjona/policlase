@@ -98,11 +98,6 @@ class Activity(models.Model):
                                    default=Late.PENALTY)
     late_penalty = models.PositiveSmallIntegerField(_("penalización (%)"), default=30)
     max_attempts = models.PositiveSmallIntegerField(_("intentos"), default=3)
-    #: Sin uso desde 0.13.1: pegar lo decide el documento (`block_paste` en la raíz o en un
-    #: segmento). Esta casilla bloqueaba además todas las abiertas, también las que piden pegar
-    #: código. La columna se conserva para que `desplegar.sh --volver` siga funcionando; se
-    #: eliminará en una versión posterior.
-    block_paste = models.BooleanField(_("impedir pegar texto en las respuestas abiertas"), default=False)
     #: Al vencer, los borradores empezados a tiempo se envían con lo que tengan: un borrador sin
     #: enviar no cuenta, y nadie pierde lo que respondió por no pulsar «Enviar».
     auto_submit = models.BooleanField(_("enviar automáticamente los borradores al vencer la fecha"),
