@@ -143,14 +143,21 @@ def rebind_all(course) -> int:
 
 def recompute_due_dates(milestone) -> int:
     """Una fecha clave cambió: sus actividades vencen de nuevo en relación con ella (y, si cruzan
-    al otro parcial, cuentan en él)."""
+    al otro parcial, cuentan en él), y las revisiones que terminan en relación con ella se
+    recalculan. Devuelve cuántas actividades vencen en relación con ella."""
+    from apps.activities import engine
+
     count = 0
     periods = list(Period.objects.filter(course_id=milestone.course_id))
-    for activity in milestone.activities.select_related("course__owner", "due_milestone", "category"):
+    for activity in milestone.activities.select_related("course__owner", "due_milestone", "review_milestone", "category"):
         activity.compute_due()
         rebind(activity, periods)
-        activity.save(update_fields=["due_at", "category"])
+        activity.save(update_fields=["due_at", "review_until", "category"])
+        engine.reopen_auto_submitted(activity)
         count += 1
+    for activity in milestone.review_activities.exclude(due_milestone=milestone).select_related("course__owner", "review_milestone"):
+        activity.compute_review()
+        activity.save(update_fields=["review_until"])
     return count
 
 
@@ -267,8 +274,14 @@ def course_grades(course, students, now=None) -> list[StudentGrades]:
     today = timezone.localdate(now)
     finished = bool(periods) and all(p.ends_on and p.ends_on < today for p in periods)
 
-    # Actividades: la fracción de la última entrega de cada estudiante.
-    activities = list(Activity.objects.filter(course=course, published=True, category__isnull=False))
+    # Actividades: la fracción de la última entrega de cada estudiante. Antes, los borradores que
+    # quedaron abiertos al vencer se envían (activities.engine.finalize_overdue).
+    from apps.activities import engine
+
+    activities = list(Activity.objects.filter(course=course, published=True, category__isnull=False)
+                      .select_related("course__owner"))
+    for activity in activities:
+        engine.finalize_overdue(activity, now)
     last: dict[tuple[int, int], Attempt] = {}
     for a in (Attempt.objects.filter(activity__in=activities, student_id__in=student_ids,
                                      submitted_at__isnull=False).order_by("number")):

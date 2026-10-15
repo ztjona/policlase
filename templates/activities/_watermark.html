@@ -1,0 +1,2 @@
+{# Marca de agua con el nombre y la cédula, fija sobre la ventana: aparece en cualquier parte de la página y una captura que circule lleva el nombre de quien la tomó. #}
+<div class="watermark" aria-hidden="true">{% for i in "123456789012345678901234567890123456789012345678901234567890" %}<span>{{ user.display_name }}{% if user.student_id %} · {{ user.student_id }}{% endif %}</span>{% endfor %}</div>

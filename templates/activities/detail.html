@@ -6,10 +6,11 @@
 <div class="course-head">
   <h1>{{ activity.title }}</h1>
   <a class="icon-btn" href="{% url 'activity_edit' course.pk activity.pk %}" title="{% translate 'Editar contenido' %}" aria-label="{% translate 'Editar contenido' %}">{% icon "edit" 20 %}</a>
+  <a class="icon-btn primary" href="{% url 'activity_present' course.pk activity.pk %}" title="{% translate 'Presentar en clase: los estudiantes pueden seguir su avance o continuar a su ritmo' %}" aria-label="{% translate 'Presentar en clase' %}">{% icon "play" 20 %}</a>
   {% if not activity.published %}<span class="chip warn">{% translate "Borrador" %}</span>{% endif %}
   {% if activity.uses_ai %}<span class="chip" title="{% translate 'Tiene preguntas marcadas para calificación con IA (función aún no disponible; las califica usted)' %}">IA</span>{% endif %}
 </div>
-<p class="muted small">{% blocktranslate with n=activity.questions|length p=activity.points|floatformat:"-2" %}{{ n }} preguntas · {{ p }} puntos{% endblocktranslate %}{% if activity.github_path %} · <span class="mono">{{ activity.github_path }}</span>{% endif %}</p>
+<p class="muted small">{% blocktranslate with n=activity.questions|length p=activity.points|floatformat:"-2" %}{{ n }} preguntas · {{ p }} puntos{% endblocktranslate %}{% if ungraded %} ({% blocktranslate with p=full_points|floatformat:"-2" %}de {{ p }}; hay partes que no se califican{% endblocktranslate %}){% endif %}{% if activity.github_path %} · <span class="mono">{{ activity.github_path }}</span>{% endif %}</p>
 
 <div class="grid two">
   <form method="post" class="card stack" id="settings" data-dirty{% if form.errors %}="1"{% endif %}>
@@ -36,7 +37,26 @@
         {{ form.due_milestone.errors }}{{ form.due_offset_days.errors }}{{ form.due_time.errors }}
         <span class="helptext">{% translate "−1 corresponde al día anterior. Si la fecha clave cambia, la fecha de entrega se ajusta con ella." %}</span>
       </div>
+      <div class="due-opening row">
+        {{ form.opening_days }} <span class="small">{% translate "días después de la apertura, a las" %}</span> {{ form.opening_time }}
+        {{ form.opening_days.errors }}{{ form.opening_time.errors }}
+        <span class="helptext">{% translate "Por ejemplo, 7 días después del taller. Si la fecha de apertura cambia, la fecha de entrega se ajusta con ella." %}</span>
+      </div>
       <div class="due-fixed">{{ form.due_at.label_tag }}{{ form.due_at }}{{ form.due_at.errors }}</div>
+    </fieldset>
+
+    <fieldset class="due" id="review">
+      <legend>{% translate "Revisión" %}</legend>
+      <span class="helptext" style="margin:0">{% translate "Al vencer la fecha de entrega, cada estudiante ve su corrección detallada y las diapositivas de solución, durante el tiempo que se indique. Fuera de la revisión, solo ve su puntaje." %}</span>
+      {% for choice in form.review_mode %}<label class="radio-row">{{ choice.tag }} {{ choice.choice_label }}</label>{% endfor %}
+      {{ form.review_mode.errors }}
+      <div class="review-milestone row">
+        {{ form.review_offset_days }} <span class="small">{% translate "días respecto a" %}</span> {{ form.review_milestone }}
+        <span class="small">{% translate "a las" %}</span> {{ form.review_time }}
+        {{ form.review_milestone.errors }}{{ form.review_offset_days.errors }}{{ form.review_time.errors }}
+        <span class="helptext">{% translate "0 días a las 00:00 cierra la revisión al comenzar el día de la fecha clave (por ejemplo, el de la prueba)." %}</span>
+      </div>
+      <div class="review-fixed">{{ form.review_until.label_tag }}{{ form.review_until }}{{ form.review_until.errors }}</div>
     </fieldset>
 
     <div class="row">
@@ -45,8 +65,9 @@
     </div>
     <span class="helptext">{% translate "Las entregas atrasadas se aceptan hasta el cierre del parcial y solo de quienes no entregaron a tiempo." %}</span>
     <div>{{ form.max_attempts.label_tag }}{{ form.max_attempts }}{{ form.max_attempts.errors }}
-      <span class="helptext">{% translate "Se califica el último intento enviado. Entre intentos, el estudiante ve su puntaje; las soluciones se muestran al vencer la fecha de entrega." %}</span></div>
-    <label class="check-toggle">{{ form.block_paste }} {{ form.block_paste.label|capfirst }}</label>
+      <span class="helptext">{% translate "Se califica el último intento enviado. Entre intentos, el estudiante ve su puntaje; las soluciones se muestran en la revisión." %}</span></div>
+    <div><label class="check-toggle">{{ form.auto_submit }} {{ form.auto_submit.label|capfirst }}</label>
+      <span class="helptext">{% translate "Un borrador que no se envía no cuenta para la nota. Con esta opción, al vencer la fecha se envía con lo que el estudiante tenga guardado, como entrega a tiempo; si luego mueve la fecha de entrega hacia adelante, vuelve a quedar abierto." %}</span></div>
     <div class="row"><button type="submit" data-dirty-enable>{% translate "Guardar" %}</button>
       {% if activity.due_at %}<span class="small muted">{% blocktranslate with when=activity.due_at|date:"D d M Y, H:i" %}Vence: {{ when }}{% endblocktranslate %}</span>{% endif %}</div>
   </form>
@@ -78,6 +99,23 @@
         </div>
       </div>
     {% endfor %}
+    {% if parts %}
+      <form method="post" action="{% url 'activity_parts' course.pk activity.pk %}" class="stack parts-form" id="parts" data-dirty>
+        {% csrf_token %}
+        <h3 style="margin:0">{% translate "Partes que se califican" %}</h3>
+        <span class="helptext" style="margin:0">{% translate "Desmarque lo que no se alcanzó a realizar. Esas partes siguen visibles como práctica, pero no suman puntos ni cuentan en el máximo; las entregas ya enviadas se recalculan y ninguna respuesta se borra." %}</span>
+        {% for g in parts %}
+          <fieldset class="part">
+            {% if g.title %}<legend><label class="radio-row"><input type="checkbox" data-part-all> {{ g.title|md_inline }}</label></legend>{% endif %}
+            {% for e in g.items %}
+              <label class="radio-row small"><input type="checkbox" name="graded" value="{{ e.item_id }}"{% if e.item_id not in ungraded %} checked{% endif %}>
+                {{ e.title|md_inline }} <span class="muted">· {% blocktranslate with p=e.points|floatformat:"-2" %}{{ p }} pts{% endblocktranslate %}</span></label>
+            {% endfor %}
+          </fieldset>
+        {% endfor %}
+        <div class="row"><button type="submit" class="small" data-dirty-enable>{% translate "Guardar partes" %}</button></div>
+      </form>
+    {% endif %}
     <details>
       <summary>{% translate "Ver la actividad con sus soluciones" %}</summary>
       <div class="stack" style="margin-top:10px">{% include "activities/_preview.html" with content=activity.compiled %}</div>
@@ -106,7 +144,7 @@
             <td class="center">{{ r.tries|default:"—" }}</td>
             <td class="center">{% if a %}{{ a.points|floatformat:"-2" }} / {{ a.max_points|floatformat:"-2" }}{% if a.pending %} <span class="chip warn" title="{% translate 'preguntas por revisar' %}">{{ a.pending }}</span>{% endif %}{% else %}—{% endif %}</td>
             <td class="small">{% for f in r.flags %}<span class="chip">{{ f }}</span> {% endfor %}</td>
-            <td class="actions-col">{% if a %}<a class="small" href="{% url 'attempt_review' course.pk activity.pk a.pk %}">{% translate "Ver" %}</a>{% endif %}</td>
+            <td class="actions-col">{% if a %}<a class="small" href="{% url 'attempt_review' course.pk activity.pk a.pk %}">{% translate "Ver" %}</a>{% elif r.draft %}<a class="small" href="{% url 'attempt_review' course.pk activity.pk r.draft.pk %}">{% translate "Ver avance" %}</a>{% endif %}</td>
           </tr>
         {% endwith %}{% endfor %}
       </tbody>

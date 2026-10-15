@@ -28,21 +28,33 @@
   <div class="notice">{{ state.reason }}</div>
 {% endif %}
 
+{% if state.reveal or state.solutions %}{% include "activities/_watermark.html" %}{% endif %}
 {% with a=state.counted %}
 {% if a %}
   <h2>{% translate "Su entrega" %}</h2>
   <div class="card stack">
     <div class="spread">
       <span>{% blocktranslate with n=a.number when=a.submitted_at|date:"D d M, H:i" %}Intento {{ n }}, enviado el {{ when }}{% endblocktranslate %}
+        {% if a.auto_submitted %}<span class="chip" title="{% translate 'Se envió automáticamente al vencer la fecha, con lo que tenía guardado.' %}">{% translate "envío automático" %}</span>{% endif %}
         {% if a.late %}<span class="chip warn">{% blocktranslate with p=a.penalty %}atrasado (−{{ p }} %){% endblocktranslate %}</span>{% endif %}</span>
       <strong class="score">{{ a.points|floatformat:"-2" }} / {{ a.max_points|floatformat:"-2" }}</strong>
     </div>
     {% if a.pending %}<p class="small muted" style="margin:0">{% blocktranslate count n=a.pending %}{{ n }} pregunta espera la nota de su docente.{% plural %}{{ n }} preguntas esperan la nota de su docente.{% endblocktranslate %}</p>{% endif %}
-    {% if not state.reveal %}<p class="small muted" style="margin:0">{% translate "Las respuestas correctas y las soluciones se mostrarán cuando venza la fecha de entrega." %}</p>{% endif %}
+    {% if a.feedback %}<p class="small comment"><strong>{% translate "Comentario del docente:" %}</strong> {{ a.feedback|linebreaksbr }}</p>{% endif %}
+    {% if state.reveal %}
+      {% if activity.review_until and activity.is_past_due %}<p class="small muted" style="margin:0">{% blocktranslate with when=activity.review_until|date:"D d M, H:i" %}La revisión está disponible hasta el {{ when }}. Después se mostrará solo el puntaje.{% endblocktranslate %}</p>{% endif %}
+    {% elif state.review_closed %}
+      <p class="small muted" style="margin:0">{% blocktranslate with when=activity.review_until|date:"D d M, H:i" %}La revisión estuvo disponible hasta el {{ when }}; ahora se muestra solo el puntaje.{% endblocktranslate %}</p>
+    {% elif activity.review_mode == "none" %}
+      <p class="small muted" style="margin:0">{% translate "En esta actividad se muestra solo el puntaje." %}</p>
+    {% else %}
+      <p class="small muted" style="margin:0">{% translate "Las respuestas correctas y las soluciones se mostrarán cuando venza la fecha de entrega." %}</p>
+    {% endif %}
   </div>
   {% if state.reveal %}
     {% for item in a.content.items %}
-      {% if item.kind == "content" or item.kind == "segment" %}{% include "activities/_block_head.html" with index=None %}
+      {% if item.kind == "solution" %}{% if state.solutions %}{% include "activities/_block_head.html" with index=None %}{% endif %}
+      {% elif item.kind == "content" or item.kind == "segment" %}{% include "activities/_block_head.html" with index=None %}
       {% else %}
         <section class="card stack">
           {% if item.stem %}<div>{{ item.stem|md }}</div>{% endif %}
@@ -52,6 +64,19 @@
     {% endfor %}
   {% endif %}
   {% if not state.can_start and not state.draft and state.reason %}<p class="small muted">{{ state.reason }}</p>{% endif %}
+{% elif state.solutions %}
+  {# Sin entrega y sin posibilidad de entregar: la revisión muestra las preguntas con su solución. #}
+  <h2>{% translate "Revisión" %}</h2>
+  <p class="small muted">{% if activity.review_until %}{% blocktranslate with when=activity.review_until|date:"D d M, H:i" %}No entregó esta actividad. Puede revisar sus preguntas con las soluciones hasta el {{ when }}.{% endblocktranslate %}{% else %}{% translate "No entregó esta actividad. Puede revisar sus preguntas con las soluciones." %}{% endif %}</p>
+  {% for item in activity.compiled.items %}
+    {% if item.kind == "content" or item.kind == "segment" or item.kind == "solution" %}{% include "activities/_block_head.html" with index=None %}
+    {% else %}
+      <section class="card stack">
+        {% if item.stem %}<div>{{ item.stem|md }}</div>{% endif %}
+        {% for q in item.questions %}{% with record=item.solutions|get_item:q.id %}{% include "activities/_question_static.html" with q=q record=record reveal=True show_reference=False %}{% endwith %}{% endfor %}
+      </section>
+    {% endif %}
+  {% endfor %}
 {% endif %}
 {% endwith %}
 {% endblock %}

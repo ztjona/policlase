@@ -4,15 +4,21 @@
    solo se lee lo respondido. Los botones usan formaction: sin JavaScript también funcionan. {% endcomment %}
 {% with q=row.question value=row.draft key=row.key timer=row.timer %}
 <fieldset class="q-block{% if q.follow_up %} follow-up{% endif %}{% if error %} has-error{% endif %}{% if timer %} timed timed-{{ timer.state }}{% endif %}" id="q-{{ key }}"
+          data-q="{{ key }}"{% if row.ungraded %} data-ungraded{% endif %}{% if timer.state == "closed" %} data-done="{% if row.blank %}0{% else %}1{% endif %}"{% endif %}
           {% if timer %}data-timed="{{ key }}"{% if timer.state == "open" %} data-remaining-ms="{{ timer.remaining_ms }}"{% endif %}{% endif %}>
   <legend class="q-head">
     <span class="chip">{% if q.survey %}{% translate "Encuesta" %}{% else %}{{ q.points|floatformat:"-2" }} {% translate "pts" %}{% endif %}</span>
     <span class="small muted">{% include "activities/_type_label.html" %}</span>
     {% if timer %}<span class="chip warn">{% blocktranslate with s=q.time_limit_s %}{{ s }} s{% endblocktranslate %}</span>{% endif %}
+    {% if timer.state != "closed" %}<label class="mark-toggle small"><input type="checkbox" name="mark" value="{{ key }}"{% if row.marked %} checked{% endif %}> {% translate "Revisar después" %}</label>{% endif %}
   </legend>
 {% if timer.state == "locked" %}
-  <p class="small">{% blocktranslate with s=q.time_limit_s %}Pregunta con límite de tiempo: una vez abierta, dispone de {{ s }} segundos para responder. El tiempo sigue corriendo aunque salga de la página, y solo puede responderse una vez.{% endblocktranslate %}</p>
-  <div><button type="submit" class="secondary" formaction="{% url 'attempt_timer' course.pk activity.pk key 'abrir' %}" data-timer-open>{% translate "Abrir la pregunta" %}</button></div>
+  {# La regla completa está al comienzo de la parte (_block_head.html); aquí, solo un recordatorio. #}
+  <div class="row timed-lock">
+    <button type="submit" class="secondary" formaction="{% url 'attempt_timer' course.pk activity.pk key 'abrir' %}" data-timer-open>{% blocktranslate with s=q.time_limit_s %}Abrir la pregunta ({{ s }} s){% endblocktranslate %}</button>
+    <span class="tip muted" tabindex="0" role="note" aria-label="{% blocktranslate with s=q.time_limit_s %}Al abrirla dispone de {{ s }} segundos para responder. El tiempo sigue corriendo aunque salga de la página, y solo puede responderse una vez.{% endblocktranslate %}"
+          data-tip="{% blocktranslate with s=q.time_limit_s %}Al abrirla dispone de {{ s }} segundos para responder. El tiempo sigue corriendo aunque salga de la página, y solo puede responderse una vez.{% endblocktranslate %}">{% icon "info" 18 %}</span>
+  </div>
 {% elif timer.state == "closed" %}
   {% if q.prompt %}<div class="prompt">{{ q.prompt|md }}</div>{% endif %}
   <p class="small">{% if row.blank %}<span class="muted">{% translate "Se cerró sin respuesta." %}</span>{% else %}<strong>{% translate "Respondió:" %}</strong> <span class="mono">{% if q.type == "choice" %}{% for o in q.options %}{% if o.key == value %}{{ o.text|md_inline }}{% endif %}{% endfor %}{% elif q.type == "multi_choice" %}{% for o in q.options %}{% if o.key in value %}{{ o.text|md_inline }} {% endif %}{% endfor %}{% elif q.type == "numeric_list" %}{{ value|join:" · " }}{% elif q.type == "true_false" %}{% translate "registrado" %}{% else %}{{ value }}{% endif %}</span>{% endif %}</p>
@@ -57,10 +63,9 @@
 
   {% elif q.type == "open" %}
     <label for="a-{{ key }}" class="sr-only">{% translate "Respuesta" %}</label>
-    <textarea id="a-{{ key }}" name="a-{{ key }}" rows="6" maxlength="10000" data-open {% if q.block_paste or activity.block_paste %}data-no-paste{% endif %}>{{ value|default:"" }}</textarea>
+    <textarea id="a-{{ key }}" name="a-{{ key }}" rows="6" maxlength="10000" data-open {% if q.block_paste %}data-no-paste{% endif %}>{{ value|default:"" }}</textarea>
     <div class="open-preview" data-math-preview="a-{{ key }}" aria-live="polite" hidden></div>
     <p class="small muted">{% translate "Escriba las fórmulas en LaTeX entre signos de dólar ($x^2$, $$\int_0^1 x\,dx$$); debajo se muestran tal como las verá el docente." %}</p>
-    {% if q.block_paste or activity.block_paste %}<p class="small muted">{% translate "En esta respuesta no está permitido pegar texto." %}</p>{% endif %}
     {% if q.rubric %}{% include "activities/_rubric.html" with rubric=q.rubric %}{% endif %}
 
   {% elif q.type == "image" %}
@@ -75,7 +80,7 @@
     {% if q.grading.units %}<p class="small muted">{% blocktranslate with u=q.grading.units %}Incluya la unidad: {{ u }}{% endblocktranslate %}</p>{% endif %}
   {% endif %}
 
-  {% if q.block_paste and q.type != "open" %}<p class="small muted">{% translate "En esta pregunta no se puede pegar texto." %}</p>{% endif %}
+  {% if q.block_paste %}<p class="small muted">{% translate "En esta pregunta no se puede pegar texto." %}</p>{% endif %}
   {% if timer.state == "open" %}
     <div class="timer-bar row">
       <span class="timer-count" data-timer-count role="timer" aria-live="off">{% blocktranslate with s=timer.remaining_s %}{{ s }} s{% endblocktranslate %}</span>

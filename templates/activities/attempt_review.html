@@ -2,29 +2,55 @@
 {% load static i18n policlase %}
 {% block title %}{{ attempt.student.display_name }} · {{ activity.title }}{% endblock %}
 {% block main %}
-<div class="muted small"><a href="{% url 'activity_detail' course.pk activity.pk %}">← {{ activity.title }}</a></div>
+<div class="spread small">
+  <a class="muted" href="{% url 'activity_detail' course.pk activity.pk %}">← {{ activity.title }}</a>
+  {% if position %}
+    <nav class="row" aria-label="{% translate 'Entregas' %}">
+      {% if previous %}<a href="{% url 'attempt_review' course.pk activity.pk previous %}">← {% translate "Anterior" %}</a>{% endif %}
+      <span class="muted">{% blocktranslate with n=position total=total %}Entrega {{ n }} de {{ total }}{% endblocktranslate %}</span>
+      {% if next %}<a href="{% url 'attempt_review' course.pk activity.pk next %}">{% translate "Siguiente" %} →</a>{% endif %}
+    </nav>
+  {% endif %}
+</div>
 <div class="spread">
   <h1>{{ attempt.student.display_name }}</h1>
-  <strong class="score">{{ attempt.points|floatformat:"-2" }} / {{ attempt.max_points|floatformat:"-2" }}</strong>
+  {% if attempt.submitted_at %}<strong class="score">{{ attempt.points|floatformat:"-2" }} / {{ attempt.max_points|floatformat:"-2" }}</strong>
+  {% else %}<span class="chip warn">{% translate "Borrador en curso" %}</span>{% endif %}
 </div>
 <p class="small muted">
-  {% blocktranslate with n=attempt.number when=attempt.submitted_at|date:"D d M Y, H:i" %}Intento {{ n }}, enviado el {{ when }}{% endblocktranslate %}
-  {% if attempt.late %}<span class="chip warn">{% blocktranslate with p=attempt.penalty %}atrasado (−{{ p }} %){% endblocktranslate %}</span>{% endif %}
+  {% if attempt.submitted_at %}
+    {% blocktranslate with n=attempt.number when=attempt.submitted_at|date:"D d M Y, H:i" %}Intento {{ n }}, enviado el {{ when }}{% endblocktranslate %}
+    {% if attempt.auto_submitted %}<span class="chip">{% translate "envío automático" %}</span>{% endif %}
+    {% if attempt.late %}<span class="chip warn">{% blocktranslate with p=attempt.penalty %}atrasado (−{{ p }} %){% endblocktranslate %}</span>{% endif %}
+  {% else %}
+    {% blocktranslate with n=attempt.number when=attempt.started_at|date:"D d M, H:i" %}Intento {{ n }}, empezado el {{ when }}. Se muestra lo guardado hasta ahora; se califica cuando se envía.{% endblocktranslate %}
+    {% if attempt.saved_at %}{% blocktranslate with t=attempt.saved_at|date:"H:i" %}Último guardado: {{ t }}.{% endblocktranslate %}{% endif %}
+  {% endif %}
   {% for f in flags %}<span class="chip">{{ f }}</span> {% endfor %}
 </p>
 {% if others|length > 1 %}
-  <p class="small">{% translate "Intentos:" %} {% for o in others %}{% if o.pk == attempt.pk %}<strong>{{ o.number }}</strong>{% else %}<a href="{% url 'attempt_review' course.pk activity.pk o.pk %}">{{ o.number }}</a>{% endif %} ({{ o.points|floatformat:"-2" }}){% if not forloop.last %} · {% endif %}{% endfor %}
-    <span class="muted">— {% translate "cuenta el último" %}</span></p>
+  <p class="small">{% translate "Intentos:" %} {% for o in others %}{% if o.pk == attempt.pk %}<strong>{{ o.number }}</strong>{% else %}<a href="{% url 'attempt_review' course.pk activity.pk o.pk %}">{{ o.number }}</a>{% endif %} ({% if o.submitted_at %}{{ o.points|floatformat:"-2" }}{% else %}{% translate "en curso" %}{% endif %}){% if not forloop.last %} · {% endif %}{% endfor %}
+    <span class="muted">— {% translate "cuenta el último enviado" %}</span></p>
+{% endif %}
+
+{% if attempt.submitted_at %}
+  <form method="post" action="{% url 'attempt_feedback' course.pk activity.pk attempt.pk %}" class="card stack" data-dirty>
+    {% csrf_token %}
+    <label for="feedback">{% translate "Comentario general para el estudiante" %}</label>
+    <textarea id="feedback" name="feedback" rows="3" maxlength="4000" placeholder="{% translate 'Opcional. El estudiante lo ve junto con su nota.' %}">{{ attempt.feedback }}</textarea>
+    <div class="row"><button type="submit" class="small" data-dirty-enable>{% translate "Guardar comentario" %}</button>
+      <span class="small muted">{% translate "Los comentarios de cada pregunta se escriben junto a su nota." %}</span></div>
+  </form>
 {% endif %}
 
 {% for item in attempt.content.items %}
-  {% if item.kind == "content" or item.kind == "segment" %}{% include "activities/_block_head.html" with index=None %}
+  {% if item.kind == "content" or item.kind == "segment" or item.kind == "solution" %}{% include "activities/_block_head.html" with index=None %}
   {% else %}
     <section class="card stack">
       {% if item.stem %}<div>{{ item.stem|md }}</div>{% endif %}
       {% for row in rows %}{% if row.item.item_id == item.item_id %}
         {% include "activities/_answer.html" with row=row reveal=True %}
-        {% if row.answer and not row.question.survey %}{% include "activities/_grade_form.html" with a=row.answer q=row.question %}{% endif %}
+        {% if row.answer and not row.question.survey and not row.ungraded %}{% include "activities/_grade_form.html" with a=row.answer q=row.question %}{% endif %}
       {% endif %}{% endfor %}
     </section>
   {% endif %}

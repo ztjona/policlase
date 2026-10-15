@@ -373,6 +373,10 @@
     return "  - segment:\n      title: " + q(gettext("Con tiempo")) + "\n      time_limit_s: 30\n" +
       (activity() ? "      block_paste: true\n" : "");
   };
+  // Solución: el estudiante la ve en la revisión, al vencer la fecha de entrega.
+  SNIPPETS.solution = function () {
+    return "  - solution: |\n      ## " + gettext("Solución") + "\n      " + gettext("Explique aquí el desarrollo o el código de la solución.") + "\n";
+  };
   SNIPPETS.image = function () {
     return head("image") + "          prompt: " + q(gettext("Suba la foto de su desarrollo a mano.")) + "\n          max_files: 3\n";
   };
@@ -385,6 +389,10 @@
     var next = index >= 0 && lines[index + 1] ? lines[index + 1] - 1 : parts.length;
     var before = parts.slice(0, next).join("\n").replace(/\n*$/, "\n");
     var after = parts.slice(next).join("\n");
+    if (name === "solution" && legacyActivity()) {
+      setStatus(gettext("Las diapositivas de solución requieren el formato policlase/v1."), "bad");
+      return;
+    }
     // Solo el formato anterior de actividad tiene los ítems directo en `items`.
     var snippet = legacyActivity() && name !== "segment" ? asItem(SNIPPETS[name]()) : SNIPPETS[name]();
     ed.set(before + snippet + after);
@@ -460,6 +468,7 @@
     else Object.assign(out.root, { feedback: KEYS.root.feedback, speed_bonus: KEYS.root.speed_bonus });
     out.slides = { markdown: KEYS.slides.markdown, item: "Un ítem", notes: KEYS.slides.notes, hidden: KEYS.slides.hidden,
                    segment: "Cambia el comportamiento desde aquí (time_limit_s, block_paste)" };
+    if (isActivity) out.slides.solution = "Solución (markdown): se muestra en la revisión, al vencer la fecha";
     out.segment = Object.assign({ title: "Título del segmento (opcional)", instructions: "Indicaciones del segmento" }, BEHAVIOR);
     out.grading.mode = isActivity ? "open/image: manual o ai · choice/multi_choice: survey (encuesta)"
                                   : "choice/multi_choice: survey (encuesta, sin correcta ni puntos)";

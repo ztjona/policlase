@@ -16,6 +16,7 @@
     </div>
     <div class="row-actions">
       <a class="icon-btn" href="{% url 'activity_edit' course.pk a.pk %}" title="{% translate 'Editar contenido' %}" aria-label="{% translate 'Editar contenido' %}">{% icon "edit" %}</a>
+      <a class="icon-btn" href="{% url 'activity_present' course.pk a.pk %}" title="{% translate 'Presentar en clase: los estudiantes pueden seguir su avance o continuar a su ritmo' %}" aria-label="{% translate 'Presentar en clase' %}">{% icon "play" %}</a>
       <a class="icon-btn primary" href="{% url 'activity_detail' course.pk a.pk %}" title="{% translate 'Configuración y entregas' %}" aria-label="{% translate 'Configuración y entregas' %}">{% icon "results" %}</a>
     </div>
   </div>

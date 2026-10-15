@@ -1,6 +1,7 @@
-// Intento de una actividad: autoguardado, imágenes que se suben al elegirlas y señales para el
-// docente (pegar texto, salir de la página). Sin JavaScript, el formulario se guarda y se envía
-// con sus botones, imágenes incluidas.
+// Intento de una actividad: autoguardado, imágenes que se suben al elegirlas, señales para el
+// docente (pegar texto, salir de la página), los paneles de índice y pendientes, y seguir al docente
+// cuando presenta la actividad. Sin JavaScript, el formulario se guarda y se envía con sus botones,
+// imágenes incluidas.
 (function () {
   "use strict";
   var form = document.getElementById("attempt-form");
@@ -8,7 +9,10 @@
   var status = form.querySelector("[data-save-status]");
   var telemetryField = form.querySelector("input[name=telemetry]");
   var delta = { pastes: 0, pasted_chars: 0, blurs: 0, blocked_pastes: 0 };
-  var timer = null, dirty = false, saving = false, away = false;
+  var timer = null, dirty = false, saving = false, away = false, failures = 0;
+  // No `form.action`: los botones se llaman «action», y el navegador devuelve esos botones en vez de
+  // la dirección del formulario (el autoguardado iba a «…/intento/[object RadioNodeList]»).
+  var saveUrl = form.getAttribute("action") || location.pathname;
 
   function csrf() { return form.querySelector("input[name=csrfmiddlewaretoken]").value; }
   function say(text) { if (status) status.textContent = text; }
@@ -28,7 +32,7 @@
     delta.pasted_chars += text.length;
   });
   // Salir de la página: cambiar de pestaña o de ventana. Se cuenta una vez por salida.
-  function leave() { if (!away) { away = true; delta.blurs += 1; flush(); } }
+  function leave() { if (!away) { away = true; delta.blurs += 1; flush(document.hidden); } }
   function back() { away = false; }
   document.addEventListener("visibilitychange", function () { if (document.hidden) leave(); else back(); });
   window.addEventListener("blur", leave);
@@ -48,32 +52,55 @@
     Object.keys(delta).forEach(function (k) { delta[k] = Math.max(0, delta[k] - (sent[k] || 0)); });
   }
 
+  // Qué decirle al estudiante cuando un guardado falla: sin conexión no es lo mismo que una sesión
+  // cerrada o un borrador que ya no existe, y en esos casos reintentar no sirve.
+  function failure(code, message) {
+    if (message) return message;
+    if (code === 403) return gettext("Su sesión se cerró y los últimos cambios no se guardaron. Copie sus respuestas recientes, recargue la página e ingrese de nuevo.");
+    if (code === 404) return gettext("Este borrador ya no está abierto; es posible que se haya enviado desde otra pestaña. Recargue la página.");
+    if (code) return gettext("El servidor no pudo guardar los cambios. Puede seguir escribiendo; se volverá a intentar automáticamente.");
+    return gettext("Sin conexión: no se guardó. Puede seguir escribiendo; se volverá a intentar automáticamente.");
+  }
+
   function save(keepalive) {
     if (saving) { dirty = true; return; }
     saving = true;
     dirty = false;
-    var sent = JSON.parse(JSON.stringify(delta));
+    var sent = JSON.parse(JSON.stringify(delta)), code = 0, message = "";
     say(gettext("Guardando…"));
-    return fetch(form.action || location.href, {
+    return fetch(saveUrl, {
       method: "POST", credentials: "same-origin", body: payload(), keepalive: !!keepalive,
       headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" },
     }).then(function (r) {
-      if (!r.ok) throw new Error(r.status);
-      return r.json();
+      if (r.ok) return r.json();
+      code = r.status;
+      // 409: el intento ya no está abierto (se envió, también automáticamente al vencer).
+      return r.json().catch(function () { return {}; }).then(function (res) {
+        message = res.error || "";
+        throw new Error(code);
+      });
     }).then(function (data) {
+      failures = 0;
       resetDelta(sent);
-      say(interpolate(gettext("Guardado a las %s"), [data.saved_at]));
+      say(interpolate(gettext("Guardado automáticamente a las %s"), [data.saved_at]));
     }).catch(function () {
-      dirty = true;
-      say(gettext("Sin conexión: no se guardó. Puede seguir escribiendo; se volverá a intentar automáticamente."));
+      failures += 1;
+      if (code !== 403 && code !== 404 && code !== 409) dirty = true;
+      say(failure(code, message));
     }).then(function () {
       saving = false;
       if (dirty) schedule();
     });
   }
 
-  function schedule() { clearTimeout(timer); timer = setTimeout(save, 2500); }
-  function flush() { clearTimeout(timer); save(true); }
+  // Tras un fallo, se espera cada vez más (hasta 30 s) para no insistir sin pausa.
+  function schedule() {
+    clearTimeout(timer);
+    timer = setTimeout(save, failures ? Math.min(30000, 2500 * Math.pow(2, failures - 1)) : 2500);
+  }
+  // `keepalive` solo al ocultarse la página: deja terminar el guardado si se cierra, pero limita el
+  // cuerpo a 64 KB.
+  function flush(keepalive) { clearTimeout(timer); save(keepalive); }
 
   // Respuestas abiertas: las fórmulas $…$ y $$…$$ se ven renderizadas debajo, como las verá el docente.
   var MATH = /\$\$([\s\S]+?)\$\$|\$([^$\n]+?)\$/g;
@@ -141,6 +168,7 @@
       .then(function () {
         showError(container, error);
         say(error ? "" : gettext("Imagen guardada."));
+        if (window.policlaseAttemptRefresh) window.policlaseAttemptRefresh();
       });
   }
 
@@ -160,6 +188,7 @@
         headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" },
       }).then(function (r) { return r.json(); }).then(function (res) {
         if (container && res.html !== undefined) container.innerHTML = res.html;
+        if (window.policlaseAttemptRefresh) window.policlaseAttemptRefresh();
       });
       return;
     }
@@ -178,18 +207,21 @@
     block.replaceWith(fresh);
     if (window.policlaseMath) window.policlaseMath(fresh);
     startTimer(fresh);
+    if (window.policlaseAttemptRefresh) window.policlaseAttemptRefresh();
     return fresh;
   }
 
   function timerAction(block, url) {
     if (block.dataset.busy) return;
     block.dataset.busy = "1";
+    var sent = JSON.parse(JSON.stringify(delta));
     var data = payload();
     return fetch(url, {
       method: "POST", credentials: "same-origin", body: data,
       headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" },
     }).then(function (r) { return r.json(); }).then(function (res) {
-      if (res.html) replaceTimed(block, res.html);
+      // El servidor ya sumó estas señales: no se vuelven a enviar en el próximo guardado.
+      if (res.html) { resetDelta(sent); replaceTimed(block, res.html); }
       else { delete block.dataset.busy; if (res.error) say(res.error); }
     }).catch(function () {
       delete block.dataset.busy;
@@ -234,4 +266,186 @@
     clearTimeout(timer);
     telemetryField.value = JSON.stringify(delta);
   });
+
+  // Con el autoguardado, «Guardar borrador» sobra: queda para cuando no hay JavaScript. Ctrl+S
+  // (o Cmd+S) guarda al instante, como en un editor.
+  var saveButton = form.querySelector("[data-save-button]");
+  if (saveButton) saveButton.hidden = true;
+  document.addEventListener("keydown", function (e) {
+    if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S")) { e.preventDefault(); flush(false); }
+  });
+
+  // ------------------------------------------------------------------ pendientes e índice
+  // Lo mismo que el servidor considera «en blanco» (engine.blank): sin texto, sin marca, sin imagen.
+
+  var pendingList = document.querySelector("[data-pending-list]");
+  var markedList = document.querySelector("[data-marked-list]");
+  var submitButton = form.querySelector("[data-submit]");
+  var baseConfirm = submitButton ? submitButton.dataset.confirm : "";
+
+  function answered(block) {
+    if (block.dataset.done !== undefined) return block.dataset.done === "1";        // con tiempo, cerrada
+    if (block.classList.contains("timed-locked")) return false;
+    if (block.querySelector(".upload")) return true;
+    return Array.from(block.querySelectorAll("input, textarea")).some(function (el) {
+      if (el.name === "mark" || el.type === "file" || el.type === "hidden") return false;
+      if (el.type === "radio" || el.type === "checkbox") return el.checked;
+      return el.value.trim() !== "";
+    });
+  }
+
+  function refresh() {
+    var pending = 0, marked = 0, perItem = {};
+    form.querySelectorAll("[data-q]").forEach(function (block) {
+      var key = block.dataset.q, done = answered(block);
+      var mark = block.querySelector("input[name=mark]");
+      var li = pendingList && pendingList.querySelector('[data-pending="' + CSS.escape(key) + '"]');
+      if (li) { li.hidden = done; if (!done) pending += 1; }
+      var mli = markedList && markedList.querySelector('[data-marked="' + CSS.escape(key) + '"]');
+      var isMarked = !!(mark && mark.checked);
+      if (mli) mli.hidden = !isMarked;
+      if (isMarked) marked += 1;
+      var item = block.closest("[data-item]");
+      if (item) {
+        var c = perItem[item.dataset.item] || (perItem[item.dataset.item] = { done: 0, total: 0 });
+        c.total += 1;
+        if (done) c.done += 1;
+      }
+    });
+    if (pendingList) pendingList.querySelectorAll("[data-pending-item]").forEach(function (item) {
+      item.hidden = !item.querySelector("[data-pending]:not([hidden])");
+    });
+    document.querySelectorAll("[data-pending-count]").forEach(function (el) { el.textContent = pending; });
+    var none = document.querySelector("[data-pending-none]");
+    if (none) none.hidden = pending > 0;
+    var noneMarked = document.querySelector("[data-marked-none]");
+    if (noneMarked) noneMarked.hidden = marked > 0;
+    Object.keys(perItem).forEach(function (id) {
+      var el = document.querySelector('[data-toc-count="' + CSS.escape(id) + '"]');
+      if (!el) return;
+      el.textContent = perItem[id].done + "/" + perItem[id].total;
+      el.classList.toggle("done", perItem[id].done === perItem[id].total);
+    });
+    // Enviar con preguntas en blanco es posible (valen cero), pero se avisa cuántas son.
+    if (submitButton) {
+      var parts = [];
+      if (pending) parts.push(interpolate(ngettext("Queda %s pregunta sin responder, que vale cero.",
+                                                   "Quedan %s preguntas sin responder, que valen cero.", pending), [pending]));
+      if (marked) parts.push(interpolate(ngettext("%s pregunta está marcada para revisar.",
+                                                  "%s preguntas están marcadas para revisar.", marked), [marked]));
+      parts.push(baseConfirm);
+      submitButton.dataset.confirm = parts.join(" ");
+    }
+  }
+  form.addEventListener("input", refresh);
+  form.addEventListener("change", refresh);
+  window.policlaseAttemptRefresh = refresh;     // tras subir o quitar una imagen, o abrir una pregunta con tiempo
+  refresh();
+
+  // Paneles laterales: en pantallas angostas se abren sobre la página con los botones de abajo.
+  function closeSides() { document.querySelectorAll(".attempt-side.open").forEach(function (a) { a.classList.remove("open"); }); }
+  document.addEventListener("click", function (e) {
+    var open = e.target.closest("[data-side-open]");
+    if (open) {
+      var side = document.getElementById(open.dataset.sideOpen);
+      var wasOpen = side.classList.contains("open");
+      closeSides();
+      if (!wasOpen) side.classList.add("open");
+      return;
+    }
+    if (e.target.closest("[data-side-close]") || e.target.closest(".attempt-side.open a")) { closeSides(); return; }
+    if (!e.target.closest(".attempt-side")) closeSides();          // tocar fuera del panel lo cierra
+  });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeSides(); });
+
+  // El índice resalta la parte que se está leyendo.
+  var tocLinks = Array.from(document.querySelectorAll("[data-toc]"));
+  var blocks = Array.from(form.querySelectorAll("[data-block]"));
+  var ticking = false;
+  function highlight() {
+    ticking = false;
+    var here = null;
+    blocks.forEach(function (b) { if (b.getBoundingClientRect().top < 140) here = b; });
+    var at = here ? Number(here.dataset.block) : -1, best = null;
+    tocLinks.forEach(function (a) { if (Number(a.dataset.toc) <= at) best = a; });
+    tocLinks.forEach(function (a) { if (a === best) a.setAttribute("aria-current", "true"); else a.removeAttribute("aria-current"); });
+  }
+  window.addEventListener("scroll", function () { if (!ticking) { ticking = true; requestAnimationFrame(highlight); } }, { passive: true });
+  highlight();
+
+  // ------------------------------------------------------------------ seguir al docente
+  // Si el docente presenta la actividad, se ofrece ir a la diapositiva donde está, volver a donde se
+  // estaba o seguirlo automáticamente. Se consulta cada 5 s mientras presenta y cada 20 s si no.
+
+  var bar = document.querySelector("[data-pointer]");
+  var pointerUrl = form.dataset.pointerUrl;
+  if (bar && pointerUrl) {
+    var titleBox = bar.querySelector("[data-pointer-title]");
+    var go = bar.querySelector("[data-pointer-go]"), backButton = bar.querySelector("[data-pointer-back]");
+    var follow = bar.querySelector("[data-pointer-follow]");
+    var last = null, saved = null, poll = null;
+    try { follow.checked = sessionStorage.getItem("policlase.follow") === "1"; } catch (e) {}
+
+    // El intento puede ser de una versión anterior de la actividad: se busca primero el ítem o el
+    // título de la diapositiva del docente, y solo si no está, la misma posición.
+    var plain = function (t) { return (t || "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ""); };
+    var byHeading = function (text) {
+      var wanted = plain(text);
+      return wanted ? tocLinks.find(function (a) { return plain(a.textContent) === wanted; }) : null;
+    };
+    var target = function (state) {
+      if (state.item) {
+        var byItem = form.querySelector('[data-item="' + CSS.escape(state.item) + '"]');
+        if (byItem) return byItem;
+      }
+      var link = byHeading(state.heading);
+      if (link) return form.querySelector('[data-block="' + link.dataset.toc + '"]');
+      var best = null;                                   // el bloque más cercano antes de esa posición
+      blocks.forEach(function (b) { if (Number(b.dataset.block) <= state.at) best = b; });
+      return best;
+    };
+    var titleOf = function (state) {
+      if (state.heading) return state.heading;
+      var el = target(state), best = null;
+      var at = el ? Number(el.dataset.block) : state.at;
+      tocLinks.forEach(function (a) { if (Number(a.dataset.toc) <= at) best = a; });
+      return best ? best.textContent.trim() : gettext("el comienzo de la actividad");
+    };
+    var jump = function (state) {
+      var el = target(state);
+      if (!el) return;
+      if (saved === null) saved = window.scrollY;
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      backButton.hidden = false;
+    };
+    var check = function () {
+      if (document.hidden) { schedulePoll(20000); return; }
+      fetch(pointerUrl, { credentials: "same-origin", headers: { "X-Requested-With": "fetch" } })
+        .then(function (r) { return r.ok ? r.json() : { presenting: false }; })
+        .then(function (state) {
+          bar.hidden = !state.presenting;
+          if (!state.presenting) { last = null; schedulePoll(20000); return; }
+          titleBox.textContent = titleOf(state);
+          var changed = !last || last.at !== state.at;
+          last = state;
+          if (changed && follow.checked) jump(state);
+          schedulePoll(5000);
+        })
+        .catch(function () { schedulePoll(20000); });
+    };
+    var schedulePoll = function (ms) { clearTimeout(poll); poll = setTimeout(check, ms); };
+    go.addEventListener("click", function () { if (last) jump(last); });
+    backButton.addEventListener("click", function () {
+      if (saved !== null) window.scrollTo({ top: saved, behavior: "smooth" });
+      saved = null;
+      backButton.hidden = true;
+      if (follow.checked) { follow.checked = false; follow.dispatchEvent(new Event("change")); }
+    });
+    follow.addEventListener("change", function () {
+      try { sessionStorage.setItem("policlase.follow", follow.checked ? "1" : "0"); } catch (e) {}
+      if (follow.checked && last) jump(last);
+    });
+    document.addEventListener("visibilitychange", function () { if (!document.hidden) schedulePoll(300); });
+    check();
+  }
 })();

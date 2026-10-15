@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% load static i18n policlase %}
+{% block title %}{{ activity.title }} · {% translate "proyector" %}{% endblock %}
+{# Como en las clases en vivo: los proyectores lavan los fondos oscuros, así que claro salvo que el docente elija oscuro. #}
+{% block html_theme %} data-theme="{{ theme|default:'light' }}"{% endblock %}
+{% block color_scheme %}{{ theme|default:'light' }}{% endblock %}
+{% block chrome %}
+{% comment %} La actividad en el proyector mientras los estudiantes la resuelven. Cada cambio de diapositiva se avisa al
+   servidor (static/js/activity-present.js), y la página del intento ofrece ir a donde está el docente, volver o seguirlo.
+   Nada aquí revela una respuesta correcta; las soluciones aparecen solo cuando la revisión ya está abierta. {% endcomment %}
+<div class="live-shell projector-shell show-outline" id="shell"
+     data-action-url="{% url 'activity_present_action' course.pk activity.pk %}">
+  <div class="live-bar">
+    <button type="button" class="secondary small" id="toggle-outline" aria-pressed="true" title="{% translate 'Índice' %}">☰ <span class="sr-only">{% translate "Índice" %}</span></button>
+    <a class="brand" href="{% url 'activity_detail' course.pk activity.pk %}"><img src="{% static 'img/icon.svg' %}" alt="" width="22" height="22">poli<span>clase</span></a>
+    <strong>{{ activity.title }}</strong>
+    <span class="muted">{{ course.code }}</span>
+    <span class="spacer"></span>
+    <span class="small muted" data-progress role="status"></span>
+    <span class="conn" id="conn">{% translate "conectando…" %}</span>
+    <button type="button" class="secondary small" id="toggle-fullscreen" title="{% translate 'Pantalla completa (F5)' %}">{% icon "fullscreen" 18 %}<span class="sr-only">{% translate "Pantalla completa" %}</span></button>
+    <a class="btn secondary small" href="{% url 'activity_detail' course.pk activity.pk %}" data-stop>{% translate "Terminar presentación" %}</a>
+  </div>
+  {% csrf_token %}
+  <div class="projector-wrap">
+    <aside class="live-outline" aria-label="{% translate 'Índice' %}">
+      <ol class="outline present-toc">
+        {% for e in entries %}
+          <li class="thumb lvl-{{ e.level }}"><button type="button" class="thumb-go" data-go="{{ e.at }}"><span class="num"></span><span class="body"><span class="title">{{ e.title|md_inline }}</span></span></button></li>
+        {% endfor %}
+      </ol>
+    </aside>
+    <div class="projector">
+      <div class="slide-scroll" id="slide-scroll">
+        {% for b in slides %}
+          <div class="slide present-slide" data-at="{{ b.at }}" data-item="{{ b.item_id }}"{% if not forloop.first %} hidden{% endif %}>
+            {% if b.kind == "content" %}{{ b.markdown|md }}
+            {% elif b.kind == "solution" %}<span class="chip ok">{% translate "Solución" %}</span>{{ b.markdown|md }}
+            {% elif b.kind == "segment" %}
+              {% if b.title %}<h1>{{ b.title|md_inline }}</h1>{% endif %}
+              {% if b.instructions %}<div>{{ b.instructions|md }}</div>{% endif %}
+              {% if b.time_limit_s %}<p class="meter">{% blocktranslate with s=b.time_limit_s %}Cada pregunta dispone de {{ s }} segundos desde que se abre.{% endblocktranslate %}</p>{% endif %}
+            {% else %}
+              {% if b.title %}<h2>{{ b.title|md_inline }}</h2>{% endif %}
+              {% if b.stem %}<div>{{ b.stem|md }}</div>{% endif %}
+              {% for q in b.questions %}{% include "activities/_question_static.html" with q=q record=None reveal=False %}{% endfor %}
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+      <div class="controls">
+        <button type="button" class="secondary" data-prev>← {% translate "Anterior" %}</button>
+        <span class="progress" data-position></span>
+        <button type="button" data-next>{% translate "Siguiente" %} →</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script defer src="{% static 'js/activity-present.js' %}"></script>
+{% endblock %}

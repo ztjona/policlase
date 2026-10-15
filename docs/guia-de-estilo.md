@@ -65,7 +65,7 @@ oscuro: los proyectores lavan los fondos oscuros.
 
 - Íconos tradicionales en SVG con `{% icon "nombre" tamaño %}` (`apps/core/templatetags/policlase.py`):
   `gear`, `edit`, `trash`, `play`, `close`, `check`, `grip`, `folder_add`, `file_add`, `results`,
-  `fullscreen`, `github`, `calendar`, `image`, `task` (actividad), `record` (registro manual), `eye` / `eye_off` (mostrar u ocultar). Para uno nuevo, agregar su trazo a `ICONS`.
+  `fullscreen`, `github`, `calendar`, `image`, `task` (actividad), `record` (registro manual), `eye` / `eye_off` (mostrar u ocultar), `info` (explicación en un tooltip). Para uno nuevo, agregar su trazo a `ICONS`.
 - **Nada de emojis ni de caracteres poco comunes como ícono** (⛶, 🔒, 🙂…): no todos los sistemas los
   tienen y aparecen como cajas vacías. Si hace falta un dibujo, SVG (`_face.html`, `_lock.html`).
 - Todo botón de solo ícono lleva `title` (tooltip) y `aria-label`.
@@ -160,9 +160,27 @@ Reglas de interacción:
 ### Actividades y notas
 
 - `activities/engine.py` es la única puerta para responder: cuándo se puede empezar o enviar, la
-  calificación y la nota del docente. Cuenta el **último intento enviado**; la corrección detallada
-  se muestra al vencer la fecha (antes, solo el puntaje); lo atrasado se acepta, si se acepta, hasta
-  el cierre del parcial y solo de quien no entregó a tiempo.
+  calificación y la nota del docente. Cuenta el **último intento enviado**; lo atrasado se acepta, si
+  se acepta, hasta el cierre del parcial y solo de quien no entregó a tiempo.
+- **Revisión:** la corrección detallada y las diapositivas `solution` se muestran desde que vence la
+  fecha hasta el cierre de la revisión (`Activity.review_until`: sin límite, relativo a una fecha
+  clave o fijo); fuera de ella, solo el puntaje. Quien no entregó ve las soluciones solo cuando ya no
+  puede entregar. Las soluciones nunca aparecen en el intento ni en el proyector antes de la revisión.
+- **Envío automático:** al vencer, el borrador empezado a tiempo se envía solo (`finalize_overdue`).
+  No hay tareas programadas: se aplica al consultar la actividad, la página del estudiante o la
+  planilla, con el vencimiento como hora de envío, así que el resultado no depende de cuándo se mire.
+  Mover la fecha hacia adelante lo reabre (`reopen_auto_submitted`), salvo lo calificado a mano.
+- **Partes que no se califican** (`Activity.ungraded_items`): para la parte de un taller a la que
+  no se llegó. Se decide en la plataforma, no en el YAML, porque los intentos ya empezados conservan
+  su copia: así vale también para ellos. Siguen visibles como práctica y nada se borra.
+- **Presentar una actividad en clase:** el proyector (`activities/present.html`) avisa en qué bloque
+  está el docente (`Activity.pointer_*`, con una señal cada 20 s; sin señal en 90 s, se da por
+  terminada). El estudiante decide si va a esa diapositiva, vuelve a donde estaba o sigue al docente.
+  La posición viaja con el `item_id` o el título del bloque, porque el intento puede ser de una
+  versión anterior de la actividad. Muestra cuántos respondieron, nunca qué.
+- **Pegar:** lo decide el documento (`block_paste` en la raíz o en un segmento). La antigua casilla
+  de la plataforma (`Activity.block_paste`) ya no se usa: bloqueaba también las preguntas que piden
+  pegar código.
 - Cada intento copia la actividad compilada (`Attempt.content`): editarla después no cambia lo que
   ya se respondió. La nota del docente no borra la automática (`auto_points`).
 - Las fechas y la ponderación viven en la plataforma, nunca en el YAML. Un vencimiento relativo a
@@ -197,7 +215,14 @@ Reglas de interacción:
   EXIF ni GPS); se sirven solo por `upload_file`, con permisos y `nosniff`, nunca desde `/media/`.
 - **Señales, no sanciones:** pegar texto y salir de la página se registran y se muestran al
   docente, y el estudiante lo sabe. No se bloquean capturas (en la web no se puede) ni se castiga
-  automáticamente. La marca de agua (nombre y cédula) va encima del intento, tenue.
+  automáticamente. La marca de agua (nombre y cédula) es fija sobre la ventana, muy tenue, en el
+  intento y en la revisión (`activities/_watermark.html`).
+- **El intento:** índice a la izquierda (partes, títulos del contenido e ítems, con cuántas
+  preguntas tienen respuesta), pendientes y marcadas «Revisar después» a la derecha, y el
+  autoguardado como única forma de guardar (con JavaScript, «Guardar borrador» se oculta; Ctrl+S
+  guarda al instante). Enviar con preguntas en blanco es posible y la confirmación dice cuántas son.
+  Las preguntas con tiempo explican su regla una vez, al comienzo del segmento; en cada una, solo el
+  botón y un tooltip. Ningún índice ni panel muestra el enunciado de una pregunta con tiempo.
 
 ### Datos
 
@@ -219,6 +244,14 @@ Reglas de interacción:
 
 - JavaScript sin dependencias ni paso de compilación: un archivo por página (`static/js/`), en
   `(function () { … })()`, con atributos `data-*` como contrato con la plantilla.
+- **No usar `form.action` ni `form.method` en JavaScript:** si el formulario tiene un control con ese
+  nombre (los botones `name="action"`), el navegador devuelve el control. Use
+  `form.getAttribute("action")`. Por eso el autoguardado de los intentos no funcionó hasta 0.13.1.
+- `[hidden]` oculta siempre (regla global en `app.css`), aunque la clase del elemento le dé otro
+  `display`.
+- Un panel con desplazamiento propio (`overflow: auto`) lleva `position: relative`: lo que va con
+  posición absoluta dentro (el MathML oculto de KaTeX, `.sr-only`) se ubica respecto de la página y
+  la alarga si no.
 - **Un solo formato y un solo editor** (`studio.html` + `studio.js`): clases, actividades y
   evaluaciones se escriben en `policlase/v1` (schema.md §9), con `use` y **segmentos** que cambian el
   comportamiento de lo que les sigue (tiempo por pregunta, pegar). El tipo lo dice el texto (`use:`;

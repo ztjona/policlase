@@ -37,6 +37,13 @@
         d.setDate(d.getDate() + Number(offset && offset.value || 0));
         return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
       }
+      if (mode && mode.value === "opening") {
+        var opens = form.querySelector("[name=opens_at]"), days = form.querySelector("[name=opening_days]");
+        if (!opens || !opens.value) return "";
+        var o = new Date(opens.value.slice(0, 10) + "T12:00:00");
+        o.setDate(o.getDate() + Number(days && days.value || 0));
+        return o.getFullYear() + "-" + String(o.getMonth() + 1).padStart(2, "0") + "-" + String(o.getDate()).padStart(2, "0");
+      }
       var input = form.querySelector("[name=due_at]") || form.querySelector("[name=on]");
       return input && input.value ? input.value.slice(0, 10) : "";
     }
@@ -50,7 +57,7 @@
 
     period.addEventListener("change", fill);
     form.addEventListener("change", function (e) { if (e.target !== period && e.target !== rows) follow(); });
-    form.addEventListener("input", function (e) { if (e.target.name === "due_offset_days") follow(); });
+    form.addEventListener("input", function (e) { if (e.target.name === "due_offset_days" || e.target.name === "opening_days") follow(); });
     fill();
   });
 

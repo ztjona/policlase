@@ -84,6 +84,8 @@
 }
 
 * { box-sizing: border-box; }
+/* `hidden` oculta siempre, aunque la clase del elemento le dé otro `display` (.row, button, .slide…). */
+[hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
@@ -161,7 +163,9 @@ select.compact { width: auto; padding: 4px 8px; font-size: .88rem; }
 .studio-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 250px minmax(0, 1.1fr) minmax(0, 1fr); }
 .studio-body.no-preview { grid-template-columns: 250px minmax(0, 1fr); }
 .studio-body.no-preview .studio-preview { display: none; }
-.studio-outline, .studio-preview { overflow: auto; padding: 10px; }
+/* `position: relative`: lo que va con posición absoluta dentro (el MathML oculto de KaTeX, `.sr-only`) se
+   recorta con el panel; sin él, se ubica respecto de la página y la alarga miles de píxeles. */
+.studio-outline, .studio-preview { overflow: auto; padding: 10px; position: relative; }
 .studio-outline { border-right: 1px solid var(--rule); background: var(--surface-alt); }
 .studio-preview { border-left: 1px solid var(--rule); }
 .studio-editor { display: flex; flex-direction: column; min-height: 0; padding: 10px; gap: 8px; }
@@ -637,14 +641,64 @@ table.rubric td { padding: 3px 12px 3px 0; color: var(--ink-soft); }
   border-radius: var(--radius); color: var(--accent); cursor: pointer; font-weight: 600; width: fit-content; }
 .upload-pick input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 .upload-pick:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
-.attempt-wrap { position: relative; isolation: isolate; overflow: clip; }
-/* Marca de agua: nombre y cédula repetidos, tenues y por encima de las preguntas (una captura la
-   lleva siempre); no recibe clics ni se selecciona. */
-.watermark { position: absolute; inset: 0; z-index: 5; overflow: hidden; pointer-events: none; user-select: none;
-  display: flex; flex-wrap: wrap; align-content: flex-start; justify-content: space-around; gap: 90px 60px;
-  padding: 60px 0; opacity: .06; color: var(--ink); font-weight: 700; font-size: 1.05rem; white-space: nowrap; }
+/* Marca de agua: nombre y cédula repetidos, tenues y por encima de todo (una captura la lleva siempre,
+   en cualquier parte de la página); fija sobre la ventana, no recibe clics ni se selecciona. */
+.watermark { position: fixed; inset: 0; z-index: 40; overflow: hidden; pointer-events: none; user-select: none;
+  display: flex; flex-wrap: wrap; align-content: flex-start; justify-content: space-around; gap: 110px 70px;
+  padding: 40px 0; opacity: .035; color: var(--ink); font-weight: 700; font-size: 1rem; white-space: nowrap; }
 .watermark span { transform: rotate(-18deg); }
 .sticky-actions { position: sticky; bottom: 0; background: var(--ground); padding: 10px 0; border-top: 1px solid var(--rule); z-index: 2; }
+
+/* Intento: índice | preguntas | pendientes. Los paneles quedan a la vista al desplazarse; en pantallas
+   angostas se abren sobre la página con los botones de la barra de abajo. */
+.page.wide { max-width: 1440px; }
+.attempt-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr) 230px; gap: 22px; align-items: start; }
+.attempt-main { min-width: 0; }
+.attempt-side { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; font-size: .88rem;
+  padding: 12px; background: var(--surface-alt); border: 1px solid var(--rule); border-radius: var(--radius); }
+.attempt-side h2 { font-size: .95rem; margin: 0 0 6px; display: flex; align-items: center; gap: 6px; }
+.attempt-side h2:not(:first-child) { margin-top: 14px; }
+.side-head { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.side-head h2 { margin: 0 0 6px; }
+.side-close, .side-toggle { display: none; }
+.toc { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+.toc li { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+.toc a { color: var(--ink-soft); text-decoration: none; padding: 3px 6px; border-radius: 6px; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.toc a:hover { background: var(--accent-soft); color: var(--accent); }
+.toc a[aria-current] { color: var(--accent); font-weight: 600; background: var(--accent-soft); }
+.toc .lvl-1 > a { font-weight: 700; color: var(--ink); margin-top: 6px; }
+.toc .lvl-2 > a { font-weight: 600; color: var(--ink); }
+.toc .lvl-3 > a { padding-left: 16px; }
+.toc li.ungraded > a { color: var(--muted); text-decoration: line-through; }
+.toc-count { font-size: .75rem; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.toc-count.done { color: var(--ok); font-weight: 700; }
+.pending-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.pending-list a { display: block; padding: 3px 6px; border-radius: 6px; color: var(--ink-soft); text-decoration: none; }
+.pending-list a:hover { background: var(--accent-soft); color: var(--accent); }
+.pending-nums { display: flex; flex-wrap: wrap; gap: 3px; padding: 0 6px 4px; }
+.pending-nums a { padding: 0 7px; border: 1px solid var(--rule); border-radius: 999px; background: var(--surface);
+  font-size: .78rem; font-variant-numeric: tabular-nums; }
+.mark-toggle { display: inline-flex; align-items: center; gap: 4px; margin: 0 0 0 auto; font-weight: 400; color: var(--muted); cursor: pointer; }
+.mark-toggle input { width: 15px; height: 15px; margin: 0; accent-color: var(--warn); }
+.mark-toggle:has(input:checked) { color: var(--warn); font-weight: 600; }
+.block { scroll-margin-top: 12px; }
+.q-block { scroll-margin-top: 12px; }
+section.ungraded { opacity: .8; border-style: dashed; }
+.ungraded-note { margin: 0; padding: 6px 10px; border-radius: var(--radius); background: var(--surface-alt); color: var(--ink-soft); }
+.pointer-bar { position: fixed; right: 16px; bottom: 76px; z-index: 30; max-width: min(420px, calc(100% - 32px));
+  display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; box-shadow: var(--shadow); border-color: var(--accent); }
+.pointer-follow { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-weight: 400; }
+.pointer-follow input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+/* En pantallas angostas los paneles se abren con JavaScript; sin él, se omiten (el formulario sigue igual). */
+@media (max-width: 1180px) {
+  .attempt-layout { grid-template-columns: minmax(0, 1fr); }
+  .attempt-side { display: none; }
+  .attempt-side.open { display: block; position: fixed; top: 0; bottom: 0; max-height: none; z-index: 50; width: min(320px, 86vw);
+    border-radius: 0; box-shadow: var(--shadow); background: var(--surface); }
+  #side-outline.open { left: 0; }
+  #side-pending.open { right: 0; }
+  .side-close, .side-toggle { display: inline-flex; }
+}
 .answer-text { background: var(--surface-alt); border-radius: var(--radius); padding: 10px 12px; white-space: normal; overflow-wrap: anywhere; }
 .comment { background: var(--accent-soft); border-radius: var(--radius); padding: 8px 12px; margin: 0; }
 .score { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
@@ -718,6 +772,20 @@ textarea.code.pasted { min-height: 0; }
 .thumb.segment { background: var(--accent-soft); border-style: dashed; }
 .thumb.segment .num { color: var(--accent); }
 .q-block.timed-locked { border: 1px dashed var(--warn); border-radius: var(--radius); padding: 10px 12px; background: var(--warn-soft); }
+.timed-lock { gap: 8px; }
+.timed-lock .tip { display: inline-flex; cursor: help; }
+.timed-rule { margin: 6px 0; padding: 8px 12px; border-radius: var(--radius); background: var(--warn-soft); border-left: 4px solid var(--warn); }
+.block-content.solution { border-left: 4px solid var(--ok); }
+.block-content.solution > .chip { margin-bottom: 4px; }
+.thumb.solution { border-left: 3px solid var(--ok); }
+.present-toc .lvl-1 .title { font-weight: 700; }
+.present-toc .lvl-3 .thumb-go { padding-left: 18px; }
+.present-toc .thumb.current .thumb-go { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.present-toc .thumb-go { grid-template-columns: 0 1fr; }
+.present-slide .q-block { font-size: .8em; }
+fieldset.part { border: 1px solid var(--rule); border-radius: var(--radius); padding: 6px 10px 8px; margin: 0; display: flex; flex-direction: column; gap: 2px; }
+fieldset.part legend { padding: 0 4px; font-weight: 600; font-size: .9rem; }
+fieldset.part .radio-row input { accent-color: var(--accent); }
 .q-block.timed-open { border: 2px solid var(--warn); border-radius: var(--radius); padding: 10px 12px; }
 .q-block.timed-closed { opacity: .85; }
 .timer-bar { align-items: center; gap: 12px; }

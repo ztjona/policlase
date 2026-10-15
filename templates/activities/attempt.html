@@ -1,52 +1,109 @@
 {% extends "base.html" %}
 {% load static i18n policlase %}
 {% block title %}{{ activity.title }}{% endblock %}
+{% block page_class %}wide{% endblock %}
 {% block main %}
+{% include "activities/_watermark.html" %}
 <div class="muted small"><a href="{% url 'activity_student' course.pk activity.pk %}">← {{ activity.title }}</a></div>
-<div class="attempt-wrap">
-  {# Marca de agua con el nombre y la cédula: una captura que circule lleva el nombre de quien la tomó. #}
-  <div class="watermark" aria-hidden="true">{% for i in "123456789012345678901234567890" %}<span>{{ user.display_name }}{% if user.student_id %} · {{ user.student_id }}{% endif %}</span>{% endfor %}</div>
+<div class="attempt-layout">
+  {# Índice: las partes, los títulos del contenido y los ítems, con cuántas preguntas tienen respuesta. #}
+  <nav class="attempt-side" id="side-outline" aria-label="{% translate 'Índice de la actividad' %}">
+    <div class="side-head"><h2>{% translate "Índice" %}</h2>
+      <button type="button" class="icon-btn side-close" data-side-close title="{% translate 'Cerrar' %}" aria-label="{% translate 'Cerrar' %}">{% icon "close" 16 %}</button></div>
+    <ol class="toc">
+      {% for e in entries %}
+        <li class="lvl-{{ e.level }} toc-{{ e.kind }}{% if e.item_id in ungraded %} ungraded{% endif %}">
+          <a href="#b-{{ e.at }}" data-toc="{{ e.at }}">{{ e.title|md_inline }}</a>
+          {% if e.kind == "item" and e.total %}<span class="toc-count{% if e.done == e.total %} done{% endif %}" data-toc-count="{{ e.item_id }}">{{ e.done }}/{{ e.total }}</span>{% endif %}
+        </li>
+      {% endfor %}
+    </ol>
+  </nav>
 
-  <div class="spread">
-    <h1>{{ activity.title }}</h1>
-    <span class="small muted">{% blocktranslate with n=attempt.number max=activity.max_attempts %}Intento {{ n }} de {{ max }}{% endblocktranslate %}</span>
-  </div>
-  <p class="small">
-    {% if activity.due_at %}{% blocktranslate with when=activity.due_at|date:"D d M Y, H:i" %}Entrega: {{ when }}{% endblocktranslate %}{% else %}{% translate "Sin fecha de entrega" %}{% endif %}
-    · {% blocktranslate with n=activity.points|floatformat:"-2" %}{{ n }} puntos{% endblocktranslate %}
-  </p>
-  {% if late %}<div class="notice">{% blocktranslate with p=activity.late_penalty %}La fecha de entrega ya pasó: si envía ahora, su nota tendrá un {{ p }} % de penalización.{% endblocktranslate %}</div>{% endif %}
-  {% if blocked %}<div class="notice">{{ blocked }} {% translate "Este borrador ya no se puede enviar." %}
-    <form method="post" action="{% url 'attempt_discard' course.pk activity.pk %}">{% csrf_token %}<button class="secondary small">{% translate "Descartar borrador" %}</button></form></div>{% endif %}
-
-  {% if activity.compiled.instructions %}<div class="card">{{ activity.compiled.instructions|md }}</div>{% endif %}
-  <p class="small muted anon-note">{% translate "Sus respuestas se guardan automáticamente mientras escribe. Se registra si pega texto o sale de esta página, y su docente lo verá junto con su entrega." %}</p>
-
-  <form method="post" enctype="multipart/form-data" class="stack" id="attempt-form"
-        data-upload-url="{% url 'attempt_upload' course.pk activity.pk %}" data-autosave>
-    {% csrf_token %}
-    <input type="hidden" name="form" value="attempt">
-    <input type="hidden" name="telemetry" value="">
-    {% for item in attempt.content.items %}
-      {% if item.kind == "content" or item.kind == "segment" %}{% include "activities/_block_head.html" with index=None %}
-      {% else %}
-        <section class="card stack">
-          {% if item.stem %}<div>{{ item.stem|md }}</div>{% endif %}
-          {% for row in rows %}{% if row.item.item_id == item.item_id %}
-            {% include "activities/_question_input.html" with row=row error=errors|get_item:row.key %}
-          {% endif %}{% endfor %}
-        </section>
-      {% endif %}
-    {% endfor %}
-    <div class="row sticky-actions">
-      <button type="submit" name="action" value="save" class="secondary">{% translate "Guardar borrador" %}</button>
-      {% if not blocked %}
-        <button type="submit" name="action" value="submit"
-                data-confirm="{% translate 'Después de enviar no podrá cambiar este intento. ¿Enviar?' %}">{% translate "Enviar" %}</button>
-      {% endif %}
-      <span class="small muted" data-save-status role="status">{% if attempt.saved_at %}{% blocktranslate with t=attempt.saved_at|time:"H:i" %}Guardado a las {{ t }}{% endblocktranslate %}{% endif %}</span>
+  <div class="attempt-main">
+    <div class="spread">
+      <h1>{{ activity.title }}</h1>
+      <span class="small muted">{% blocktranslate with n=attempt.number max=activity.max_attempts %}Intento {{ n }} de {{ max }}{% endblocktranslate %}</span>
     </div>
-  </form>
+    <p class="small">
+      {% if activity.due_at %}{% blocktranslate with when=activity.due_at|date:"D d M Y, H:i" %}Entrega: {{ when }}{% endblocktranslate %}{% else %}{% translate "Sin fecha de entrega" %}{% endif %}
+      · {% blocktranslate with n=activity.points|floatformat:"-2" %}{{ n }} puntos{% endblocktranslate %}
+    </p>
+    {% if late %}<div class="notice">{% blocktranslate with p=activity.late_penalty %}La fecha de entrega ya pasó: si envía ahora, su nota tendrá un {{ p }} % de penalización.{% endblocktranslate %}</div>{% endif %}
+    {% if blocked %}<div class="notice">{{ blocked }} {% translate "Este borrador ya no se puede enviar." %}
+      <form method="post" action="{% url 'attempt_discard' course.pk activity.pk %}">{% csrf_token %}<button class="secondary small">{% translate "Descartar borrador" %}</button></form></div>{% endif %}
+
+    {% if activity.compiled.instructions %}<div class="card">{{ activity.compiled.instructions|md }}</div>{% endif %}
+    <p class="small muted anon-note">
+      {% translate "Sus respuestas se guardan automáticamente mientras escribe. Se registra si pega texto o sale de esta página, y su docente lo verá junto con su entrega." %}
+      {% if activity.auto_submit and activity.due_at %}{% translate "Si no envía el intento antes de la fecha de entrega, se enviará automáticamente con lo que tenga guardado en ese momento." %}{% endif %}
+    </p>
+
+    <form method="post" enctype="multipart/form-data" class="stack" id="attempt-form"
+          data-upload-url="{% url 'attempt_upload' course.pk activity.pk %}"
+          data-pointer-url="{% url 'attempt_pointer' course.pk activity.pk %}" data-autosave>
+      {% csrf_token %}
+      <input type="hidden" name="form" value="attempt">
+      <input type="hidden" name="telemetry" value="">
+      {% for item in attempt.content.items %}
+        {% if item.kind == "solution" %}{# las soluciones se muestran en la revisión #}
+        {% elif item.kind == "content" or item.kind == "segment" %}
+          <div class="block" id="b-{{ item.at }}" data-block="{{ item.at }}">{% include "activities/_block_head.html" with index=None %}</div>
+        {% else %}
+          <section class="card stack block{% if item.item_id in ungraded %} ungraded{% endif %}" id="b-{{ item.at }}" data-block="{{ item.at }}" data-item="{{ item.item_id }}">
+            {% if item.item_id in ungraded %}<p class="small ungraded-note">{% translate "Esta parte no se califica: puede resolverla como práctica, pero no suma puntos." %}</p>{% endif %}
+            {% if item.stem %}<div>{{ item.stem|md }}</div>{% endif %}
+            {% for row in rows %}{% if row.item.item_id == item.item_id %}
+              {% include "activities/_question_input.html" with row=row error=errors|get_item:row.key %}
+            {% endif %}{% endfor %}
+          </section>
+        {% endif %}
+      {% endfor %}
+      <div class="row sticky-actions">
+        <button type="button" class="secondary small side-toggle" data-side-open="side-outline">{% translate "Índice" %}</button>
+        <button type="button" class="secondary small side-toggle" data-side-open="side-pending">{% translate "Pendientes" %} <span class="chip" data-pending-count></span></button>
+        <button type="submit" name="action" value="save" class="secondary" data-save-button>{% translate "Guardar borrador" %}</button>
+        {% if not blocked %}
+          <button type="submit" name="action" value="submit" data-submit
+                  data-confirm="{% translate 'Después de enviar no podrá cambiar este intento. ¿Enviar?' %}">{% translate "Enviar" %}</button>
+        {% endif %}
+        <span class="small muted" data-save-status role="status">{% if attempt.saved_at %}{% blocktranslate with t=attempt.saved_at|time:"H:i" %}Guardado a las {{ t }}{% endblocktranslate %}{% endif %}</span>
+      </div>
+    </form>
+  </div>
+
+  {# Pendientes: lo que no tiene respuesta y lo que el estudiante marcó para revisar; JavaScript los actualiza al responder. #}
+  <aside class="attempt-side" id="side-pending" aria-label="{% translate 'Preguntas pendientes' %}">
+    <div class="side-head"><h2>{% translate "Sin responder" %} <span class="chip" data-pending-count></span></h2>
+      <button type="button" class="icon-btn side-close" data-side-close title="{% translate 'Cerrar' %}" aria-label="{% translate 'Cerrar' %}">{% icon "close" 16 %}</button></div>
+    {# Un renglón por ítem; si tiene varias preguntas, los números de las que faltan. #}
+    <ul class="pending-list" data-pending-list>
+      {% regroup rows by item.item_id as groups %}
+      {% for g in groups %}{% with first=g.list.0 %}{% if not first.ungraded %}
+        <li data-pending-item>
+          {% if first.single %}<a href="#q-{{ first.key }}" data-pending="{{ first.key }}"{% if not first.blank %} hidden{% endif %}>{{ first.item_title|md_inline }}</a>
+          {% else %}<a href="#b-{{ first.item.at }}">{{ first.item_title|md_inline }}</a>
+            <span class="pending-nums">{% for row in g.list %}<a href="#q-{{ row.key }}" data-pending="{{ row.key }}" title="{{ row.label }}"{% if not row.blank %} hidden{% endif %}>{{ row.number }}</a>{% endfor %}</span>{% endif %}
+        </li>
+      {% endif %}{% endwith %}{% endfor %}
+    </ul>
+    <p class="small muted" data-pending-none hidden>{% translate "Todas las preguntas tienen respuesta." %}</p>
+    <h2>{% translate "Para revisar" %}</h2>
+    <ul class="pending-list" data-marked-list>
+      {% for row in rows %}<li data-marked="{{ row.key }}"{% if not row.marked %} hidden{% endif %}><a href="#q-{{ row.key }}">{{ row.label|md_inline }}</a></li>{% endfor %}
+    </ul>
+    <p class="small muted" data-marked-none{% if attempt.marked %} hidden{% endif %}>{% translate "Marque «Revisar después» en una pregunta para encontrarla aquí antes de enviar." %}</p>
+  </aside>
+</div>
+
+{# Cuando el docente presenta la actividad en clase: ir a donde está, volver a donde se estaba o seguirlo (static/js/activity.js). #}
+<div class="pointer-bar card" data-pointer hidden role="status">
+  <span class="small">{% translate "Su docente está presentando:" %} <strong data-pointer-title></strong></span>
+  <div class="row">
+    <button type="button" class="small" data-pointer-go>{% translate "Ir a la diapositiva" %}</button>
+    <button type="button" class="secondary small" data-pointer-back hidden>{% translate "Volver a donde estaba" %}</button>
+    <label class="small pointer-follow"><input type="checkbox" data-pointer-follow> {% translate "Seguir al docente" %}</label>
+  </div>
 </div>
 {% endblock %}
 {% block scripts %}

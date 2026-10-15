@@ -1,7 +1,7 @@
 import io
 import shutil
 import tempfile
-from datetime import date, time, timedelta
+from datetime import date, datetime, time, timedelta
 from unittest import mock
 
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -191,6 +191,17 @@ class AttemptTests(ActivityBase):
         self.assertEqual(attempt.points, 3)               # 2 + 1; la abierta espera al docente
         self.assertEqual(attempt.pending, 1)
         self.assertEqual(Answer.objects.filter(attempt=attempt).count(), 4)
+
+    def test_paginas_abiertas_con_el_autoguardado_anterior_siguen_guardando(self):
+        # Hasta 0.13.0, activity.js guardaba en «intento/[object RadioNodeList]» (form.action
+        # devolvía los botones llamados «action»).
+        self.client.force_login(self.ana)
+        self.client.post(reverse("attempt_start", args=[self.course.pk, self.activity.pk]))
+        url = reverse("attempt_form", args=[self.course.pk, self.activity.pk])
+        saved = self.client.post(url + "[object RadioNodeList]", {"form": "attempt", "a-D1-a.q1": "1.41"},
+                                 HTTP_X_REQUESTED_WITH="fetch")
+        self.assertEqual(saved.status_code, 200)
+        self.assertEqual(Attempt.objects.get().answers["D1-a.q1"], "1.41")
 
     def test_respuesta_ilegible_no_se_envia(self):
         attempt = engine.start(self.activity, self.ana)
@@ -579,13 +590,13 @@ class PagesRenderTests(ActivityBase):
         self.assertContains(page, 'name="f-D1-foto.q1"')
         self.assertContains(page, 'accept="image/jpeg,image/png,image/webp"')
 
-    def test_bloquear_pegar_marca_las_abiertas(self):
+    def test_pegar_lo_decide_el_documento(self):
+        # La antigua casilla de la plataforma ya no bloquea las abiertas («Pegue su código»).
         Activity.objects.filter(pk=self.activity.pk).update(block_paste=True)
         engine.start(self.activity, self.ana)
         self.client.force_login(self.ana)
         page = self.client.get(reverse("attempt_form", args=[self.course.pk, self.activity.pk]))
-        self.assertContains(page, "data-no-paste")
-        self.assertNotContains(page, 'name="a-D1-a.q1" value="" autocomplete="off" data-no-paste')
+        self.assertNotContains(page, "data-no-paste")
 
 
 class RedirectSafetyTests(ActivityBase):
@@ -704,6 +715,15 @@ class TimedAndSurveyTests(ActivityBase):
         self.client.force_login(self.outsider)
         self.assertEqual(self.client.post(open_url).status_code, 404)
 
+    def test_la_encuesta_no_se_marca_como_incorrecta_en_la_revision(self):
+        attempt = engine.start(self.timed, self.ana)
+        engine.save_draft(attempt, {self.survey_key: self.latina})
+        attempt = engine.submit(attempt)
+        self.client.force_login(self.teacher)
+        page = self.client.get(reverse("attempt_review", args=[self.course.pk, self.timed.pk, attempt.pk]))
+        self.assertContains(page, 'class="picked"')
+        self.assertNotContains(page, "picked wrong")
+
     def test_el_docente_ve_la_distribucion_de_la_encuesta(self):
         for student in (self.ana, self.bruno):
             attempt = engine.start(self.timed, student)
@@ -717,3 +737,329 @@ class TimedAndSurveyTests(ActivityBase):
         self.assertEqual(preview["kind"], "activity")
         self.assertIn("15 s", preview["html"])
         self.assertIn("segment", preview["outline"])
+
+
+WORKSHOP = TIMED.replace("  - segment: {}\n", """  - solution: |
+      ## Solución de la parte rápida
+      La barra invertida se escribe con AltGr.
+  - segment: {}
+""")
+
+
+class WorkshopBase(ActivityBase):
+    """Un taller en el formato único, con una diapositiva de solución."""
+
+    def setUp(self):
+        super().setUp()
+        from policlase_gen import document as content_format
+
+        document, report, _use = content_format.load_text(WORKSHOP)
+        self.assertEqual(report.errors, [])
+        self.workshop = Activity.objects.create(
+            course=self.course, title="Taller", source=WORKSHOP, compiled=content_format.compile_content(document),
+            category=self.deberes, published=True, opens_at=timezone.now() - timedelta(hours=2),
+            due_at=timezone.now() + timedelta(days=2))
+
+    def overdue(self, activity, hours=1):
+        """La fecha de entrega ya pasó (y la gracia del envío automático también)."""
+        Activity.objects.filter(pk=activity.pk).update(due_at=timezone.now() - timedelta(hours=hours))
+        activity.refresh_from_db()
+        Attempt.objects.filter(activity=activity).update(started_at=activity.due_at - timedelta(hours=1))
+
+
+class AutoSubmitTests(WorkshopBase):
+    def test_el_borrador_se_envia_solo_al_vencer(self):
+        attempt = engine.start(self.activity, self.ana)
+        engine.save_draft(attempt, {"D1-a.q1": "1.4142", "D1-a.q2": "dos coma cinco"})
+        self.overdue(self.activity)
+        state = engine.state(self.activity, self.ana)
+        counted = state.counted
+        self.assertTrue(counted.auto_submitted)
+        self.assertEqual(counted.submitted_at, self.activity.due_at)       # a tiempo, sin penalización
+        self.assertFalse(counted.late)
+        self.assertEqual(counted.points, 2)                                # lo ilegible vale cero
+        self.assertEqual(counted.answers["D1-a.q2"], "dos coma cinco")      # nada se pierde
+
+    def test_dentro_de_la_gracia_todavia_se_guarda(self):
+        attempt = engine.start(self.activity, self.ana)
+        Activity.objects.filter(pk=self.activity.pk).update(due_at=timezone.now() - timedelta(seconds=30))
+        self.activity.refresh_from_db()
+        self.assertEqual(engine.finalize_overdue(self.activity), 0)
+        attempt.refresh_from_db()
+        self.assertIsNone(attempt.submitted_at)
+
+    def test_sin_envio_automatico_o_intento_atrasado_no_se_envia(self):
+        Activity.objects.filter(pk=self.activity.pk).update(auto_submit=False)
+        self.activity.refresh_from_db()
+        engine.start(self.activity, self.ana)
+        self.overdue(self.activity)
+        self.assertEqual(engine.finalize_overdue(self.activity), 0)
+        # Empezado después del vencimiento (entrega atrasada): lo envía el estudiante.
+        Activity.objects.filter(pk=self.activity.pk).update(auto_submit=True)
+        self.activity.refresh_from_db()
+        Attempt.objects.filter(activity=self.activity).update(started_at=timezone.now())
+        self.assertEqual(engine.finalize_overdue(self.activity), 0)
+
+    def test_el_autoguardado_de_una_pagina_abierta_recibe_el_motivo(self):
+        engine.start(self.activity, self.ana)
+        self.overdue(self.activity)
+        self.client.force_login(self.ana)
+        response = self.client.post(reverse("attempt_form", args=[self.course.pk, self.activity.pk]),
+                                    {"form": "attempt", "a-D1-a.q1": "1"}, HTTP_X_REQUESTED_WITH="fetch")
+        self.assertEqual(response.status_code, 409)
+        self.assertIn("se envió automáticamente", response.json()["error"])
+
+    def test_mover_la_fecha_hacia_adelante_reabre_lo_enviado_solo(self):
+        attempt = engine.start(self.activity, self.ana)
+        engine.save_draft(attempt, {"D1-a.q1": "1.4142"})
+        other = engine.start(self.activity, self.bruno)
+        engine.save_draft(other, {"D1-a.q3": "Porque sí"})
+        self.overdue(self.activity)
+        engine.finalize_overdue(self.activity)
+        graded = Answer.objects.get(attempt__student=self.bruno, key="D1-a.q3")
+        engine.set_grade(graded, 1, self.teacher)                         # el docente ya la calificó
+        Activity.objects.filter(pk=self.activity.pk).update(due_at=timezone.now() + timedelta(days=1))
+        self.activity.refresh_from_db()
+        self.assertEqual(engine.reopen_auto_submitted(self.activity), 1)
+        attempt.refresh_from_db()
+        self.assertIsNone(attempt.submitted_at)
+        self.assertEqual(attempt.answers["D1-a.q1"], "1.4142")
+        self.assertFalse(attempt.answer_rows.exists())
+        self.assertIsNotNone(Attempt.objects.get(student=self.bruno).submitted_at)
+
+    def test_la_planilla_cuenta_lo_enviado_al_vencer(self):
+        attempt = engine.start(self.activity, self.ana)
+        engine.save_draft(attempt, {"D1-a.q1": "1.4142"})
+        self.overdue(self.activity)
+        grades = gradebook.course_grades(self.course, [self.ana])
+        attempt.refresh_from_db()
+        self.assertTrue(attempt.auto_submitted)
+        self.assertTrue(grades)
+
+
+class ReviewWindowTests(WorkshopBase):
+    def submit_workshop(self, student=None):
+        attempt = engine.start(self.workshop, student or self.ana)
+        engine.save_draft(attempt, {"T-suma.q1": "4"})
+        return engine.submit(attempt)
+
+    def test_la_solucion_no_se_ve_durante_el_intento(self):
+        engine.start(self.workshop, self.ana)
+        self.client.force_login(self.ana)
+        page = self.client.get(reverse("attempt_form", args=[self.course.pk, self.workshop.pk]))
+        self.assertNotContains(page, "AltGr")
+        self.assertNotContains(page, "Solución de la parte rápida")       # tampoco en el índice
+
+    def test_revision_con_soluciones_hasta_su_cierre(self):
+        self.submit_workshop()
+        self.client.force_login(self.ana)
+        url = reverse("activity_student", args=[self.course.pk, self.workshop.pk])
+        self.assertNotContains(self.client.get(url), "AltGr")              # antes del vencimiento
+        self.overdue(self.workshop)
+        Activity.objects.filter(pk=self.workshop.pk).update(review_mode=Activity.Review.FIXED,
+                                                            review_until=timezone.now() + timedelta(days=1))
+        page = self.client.get(url)
+        self.assertContains(page, "AltGr")
+        self.assertContains(page, "La revisión está disponible hasta")
+        self.assertContains(page, 'class="watermark"')
+        Activity.objects.filter(pk=self.workshop.pk).update(review_until=timezone.now() - timedelta(minutes=1))
+        page = self.client.get(url)
+        self.assertNotContains(page, "AltGr")
+        self.assertContains(page, "ahora se muestra solo el puntaje")
+
+    def test_sin_revision_solo_el_puntaje(self):
+        self.submit_workshop()
+        self.overdue(self.workshop)
+        Activity.objects.filter(pk=self.workshop.pk).update(review_mode=Activity.Review.NONE)
+        self.workshop.refresh_from_db()
+        state = engine.state(self.workshop, self.ana)
+        self.assertFalse(state.reveal or state.solutions)
+
+    def test_quien_no_entrego_ve_las_soluciones_solo_si_ya_no_puede_entregar(self):
+        self.overdue(self.workshop)
+        self.assertFalse(engine.state(self.workshop, self.bruno).solutions)   # aún puede entregar atrasado
+        Activity.objects.filter(pk=self.workshop.pk).update(late_policy=Activity.Late.BLOCK)
+        self.workshop.refresh_from_db()
+        self.assertTrue(engine.state(self.workshop, self.bruno).solutions)
+        self.client.force_login(self.bruno)
+        page = self.client.get(reverse("activity_student", args=[self.course.pk, self.workshop.pk]))
+        self.assertContains(page, "No entregó esta actividad")
+        self.assertContains(page, "AltGr")
+
+
+    def test_revision_hasta_una_fecha_clave_que_se_mueve(self):
+        prueba = Milestone.objects.create(course=self.course, name="Prueba 1", on=date(2026, 11, 12))
+        self.client.force_login(self.teacher)
+        self.client.post(reverse("activity_dates", args=[self.course.pk]), {
+            "action": "link", "activity": [self.workshop.pk], "milestone": prueba.pk, "offset": "-3",
+            "review_offset": "0"})
+        self.workshop.refresh_from_db()
+        tz = timezone.get_default_timezone()
+        self.assertEqual(timezone.localtime(self.workshop.due_at, tz).date(), date(2026, 11, 9))
+        self.assertEqual(self.workshop.review_mode, Activity.Review.MILESTONE)
+        self.assertEqual(timezone.localtime(self.workshop.review_until, tz).replace(tzinfo=None),
+                         datetime(2026, 11, 12, 0, 0))
+        prueba.on = date(2026, 11, 19)
+        prueba.save()
+        gradebook.recompute_due_dates(prueba)
+        self.workshop.refresh_from_db()
+        self.assertEqual(timezone.localtime(self.workshop.review_until, tz).date(), date(2026, 11, 19))
+        self.assertEqual(timezone.localtime(self.workshop.due_at, tz).date(), date(2026, 11, 16))
+
+    def test_configurar_la_revision_en_la_pagina(self):
+        prueba = Milestone.objects.create(course=self.course, name="Prueba 1", on=date(2026, 11, 12))
+        self.client.force_login(self.teacher)
+        self.client.post(reverse("activity_detail", args=[self.course.pk, self.workshop.pk]), {
+            "category": self.deberes.pk, "published": "on", "due_mode": "milestone",
+            "due_milestone": prueba.pk, "due_offset_days": "-3", "due_time": "21:59",
+            "review_mode": "milestone", "review_milestone": prueba.pk, "review_offset_days": "0",
+            "review_time": "07:00", "late_policy": "penalty", "late_penalty": "30", "max_attempts": "3",
+            "auto_submit": "on"})
+        self.workshop.refresh_from_db()
+        local = timezone.localtime(self.workshop.review_until, timezone.get_default_timezone())
+        self.assertEqual((local.date(), local.time()), (date(2026, 11, 12), time(7, 0)))
+
+
+class DueFromOpeningTests(WorkshopBase):
+    def test_siete_dias_despues_de_la_apertura(self):
+        self.client.force_login(self.teacher)
+        self.client.post(reverse("activity_detail", args=[self.course.pk, self.workshop.pk]), {
+            "category": self.deberes.pk, "published": "on", "opens_at": "2026-10-13T16:05",
+            "due_mode": "opening", "opening_days": "7", "opening_time": "21:59", "review_mode": "always",
+            "late_policy": "penalty", "late_penalty": "30", "max_attempts": "3"})
+        self.workshop.refresh_from_db()
+        self.assertTrue(self.workshop.due_from_opening)
+        local = timezone.localtime(self.workshop.due_at, timezone.get_default_timezone())
+        self.assertEqual((local.date(), local.time()), (date(2026, 10, 20), time(21, 59)))
+
+    def test_sin_apertura_no_se_puede(self):
+        self.client.force_login(self.teacher)
+        page = self.client.post(reverse("activity_detail", args=[self.course.pk, self.workshop.pk]), {
+            "category": self.deberes.pk, "published": "on", "opens_at": "", "due_mode": "opening",
+            "opening_days": "7", "opening_time": "21:59", "review_mode": "always",
+            "late_policy": "penalty", "late_penalty": "30", "max_attempts": "3"})
+        self.assertContains(page, "Indique la fecha de apertura")
+
+
+class UngradedPartsTests(WorkshopBase):
+    def test_una_parte_sin_calificar_no_suma_ni_cuenta_en_el_maximo(self):
+        attempt = engine.start(self.activity, self.ana)
+        self.answer_all(attempt)
+        attempt = engine.submit(attempt)
+        self.assertEqual((attempt.points, attempt.max_points), (3, 6))
+        self.client.force_login(self.teacher)
+        self.client.post(reverse("activity_parts", args=[self.course.pk, self.activity.pk]), {"graded": ["D1-a"]})
+        attempt.refresh_from_db()
+        self.activity.refresh_from_db()
+        self.assertEqual(self.activity.ungraded_items, ["D1-foto"])
+        self.assertEqual(self.activity.points, 5)
+        self.assertEqual((attempt.points, attempt.max_points), (3, 5))
+        self.assertEqual(attempt.answer_rows.count(), 4)                  # ninguna respuesta se borra
+        # Vuelve a calificarse todo.
+        self.client.post(reverse("activity_parts", args=[self.course.pk, self.activity.pk]), {"graded": ["D1-a", "D1-foto"]})
+        attempt.refresh_from_db()
+        self.assertEqual(attempt.max_points, 6)
+
+    def test_el_borrador_en_curso_lo_muestra_como_practica(self):
+        engine.set_ungraded(self.activity, ["D1-foto"])
+        engine.start(self.activity, self.ana)
+        self.client.force_login(self.ana)
+        page = self.client.get(reverse("attempt_form", args=[self.course.pk, self.activity.pk]))
+        self.assertContains(page, "Esta parte no se califica")
+
+    def test_otro_docente_no_cambia_las_partes(self):
+        other = make_user("otra", User.Role.TEACHER)
+        self.client.force_login(other)
+        response = self.client.post(reverse("activity_parts", args=[self.course.pk, self.activity.pk]), {"graded": []})
+        self.assertEqual(response.status_code, 404)
+        self.activity.refresh_from_db()
+        self.assertEqual(self.activity.ungraded_items, [])
+
+
+class PresentTests(WorkshopBase):
+    def test_presentar_y_seguir_al_docente(self):
+        engine.start(self.workshop, self.ana)
+        self.client.force_login(self.teacher)
+        page = self.client.get(reverse("activity_present", args=[self.course.pk, self.workshop.pk]))
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "Escriba la barra invertida")
+        segment = next(b for b in self.workshop.compiled["items"] if b["kind"] == "segment" and b["title"])
+        moved = self.client.post(reverse("activity_present_action", args=[self.course.pk, self.workshop.pk]),
+                                 {"action": "move", "at": segment["at"]}, HTTP_X_REQUESTED_WITH="fetch").json()
+        self.assertEqual(moved["working"], 1)
+        self.client.force_login(self.ana)
+        pointer = self.client.get(reverse("attempt_pointer", args=[self.course.pk, self.workshop.pk])).json()
+        self.assertEqual(pointer, {"presenting": True, "at": segment["at"], "item": "", "heading": "Rápidas"})
+        # Sin señal del proyector, se da por terminada.
+        Activity.objects.filter(pk=self.workshop.pk).update(presenting_at=timezone.now() - timedelta(minutes=5))
+        pointer = self.client.get(reverse("attempt_pointer", args=[self.course.pk, self.workshop.pk])).json()
+        self.assertEqual(pointer, {"presenting": False})
+
+    def test_el_proyector_no_revela_respuestas(self):
+        self.client.force_login(self.teacher)
+        page = self.client.get(reverse("activity_present", args=[self.course.pk, self.workshop.pk]))
+        self.assertNotContains(page, "AltGr")                              # la solución, antes de la revisión
+        self.assertNotContains(page, "Se acepta")
+        self.assertNotContains(page, 'class="right"')
+        self.overdue(self.workshop)
+        page = self.client.get(reverse("activity_present", args=[self.course.pk, self.workshop.pk]))
+        self.assertContains(page, "AltGr")                                 # con la revisión abierta, sí
+
+    def test_terminar_y_aislamiento(self):
+        self.client.force_login(self.teacher)
+        url = reverse("activity_present_action", args=[self.course.pk, self.workshop.pk])
+        self.client.post(url, {"action": "move", "at": 0})
+        self.client.post(url, {"action": "stop"})
+        self.workshop.refresh_from_db()
+        self.assertFalse(self.workshop.is_presenting())
+        other = make_user("otra", User.Role.TEACHER)
+        self.client.force_login(other)
+        self.assertEqual(self.client.get(reverse("activity_present", args=[self.course.pk, self.workshop.pk])).status_code, 404)
+        self.assertEqual(self.client.post(url, {"action": "move", "at": 0}).status_code, 404)
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(reverse("attempt_pointer", args=[self.course.pk, self.workshop.pk])).status_code, 404)
+
+
+class PanelsAndReviewTests(WorkshopBase):
+    def test_marcar_para_revisar_se_guarda(self):
+        engine.start(self.activity, self.ana)
+        self.client.force_login(self.ana)
+        url = reverse("attempt_form", args=[self.course.pk, self.activity.pk])
+        self.client.post(url, {"form": "attempt", "mark": ["D1-a.q3", "inventada"]}, HTTP_X_REQUESTED_WITH="fetch")
+        self.assertEqual(Attempt.objects.get().marked, ["D1-a.q3"])
+        page = self.client.get(url)
+        self.assertContains(page, 'name="mark" value="D1-a.q3" checked')
+        self.assertContains(page, 'data-pending="D1-a.q1"')                # el panel de pendientes
+
+    def test_el_docente_ve_el_avance_y_deja_un_comentario(self):
+        attempt = engine.start(self.activity, self.ana)
+        engine.save_draft(attempt, {"D1-a.q3": "Avance del estudiante"})
+        self.client.force_login(self.teacher)
+        page = self.client.get(reverse("attempt_review", args=[self.course.pk, self.activity.pk, attempt.pk]))
+        self.assertContains(page, "Borrador en curso")
+        self.assertContains(page, "Avance del estudiante")
+        self.assertNotContains(page, "data-grade-form")                    # un borrador no se califica
+        attempt = engine.submit(attempt)
+        self.client.post(reverse("attempt_feedback", args=[self.course.pk, self.activity.pk, attempt.pk]),
+                         {"feedback": "Buen trabajo en la parte A."})
+        self.client.force_login(self.ana)
+        page = self.client.get(reverse("activity_student", args=[self.course.pk, self.activity.pk]))
+        self.assertContains(page, "Buen trabajo en la parte A.")
+        other = make_user("otra", User.Role.TEACHER)
+        self.client.force_login(other)
+        response = self.client.post(reverse("attempt_feedback", args=[self.course.pk, self.activity.pk, attempt.pk]),
+                                    {"feedback": "x"})
+        self.assertEqual(response.status_code, 404)
+        attempt.refresh_from_db()
+        self.assertEqual(attempt.feedback, "Buen trabajo en la parte A.")
+
+    def test_indice_del_taller(self):
+        from . import outline
+
+        entries = outline.build(self.workshop.compiled)
+        self.assertEqual([e["kind"] for e in entries], ["content", "item", "segment", "item", "item"])
+        self.assertEqual(entries[2]["title"], "Rápidas")
+        self.assertNotIn("Escriba la barra invertida", [e["title"] for e in entries])   # ítem con tiempo
+        groups = outline.parts(self.workshop.compiled)
+        self.assertEqual([g["title"] for g in groups], ["Antes de empezar", "Rápidas"])
+        self.assertTrue(any(e["kind"] == "solution" for e in outline.build(self.workshop.compiled, solutions=True)))

@@ -9,11 +9,33 @@
     var syncDue = function () {
       var mode = (settings.querySelector("input[name=due_mode]:checked") || {}).value;
       settings.querySelector(".due-milestone").hidden = mode !== "milestone";
+      settings.querySelector(".due-opening").hidden = mode !== "opening";
       settings.querySelector(".due-fixed").hidden = mode !== "fixed";
+      var review = (settings.querySelector("input[name=review_mode]:checked") || {}).value;
+      settings.querySelector(".review-milestone").hidden = review !== "milestone";
+      settings.querySelector(".review-fixed").hidden = review !== "fixed";
     };
     settings.addEventListener("change", syncDue);
     syncDue();
   }
+
+  // Partes que se califican: la casilla del título marca o desmarca todos sus ítems.
+  document.querySelectorAll("fieldset.part").forEach(function (part) {
+    var all = part.querySelector("[data-part-all]");
+    if (!all) return;
+    var boxes = Array.from(part.querySelectorAll("input[name=graded]"));
+    var sync = function () {
+      var on = boxes.filter(function (b) { return b.checked; }).length;
+      all.checked = on === boxes.length;
+      all.indeterminate = on > 0 && on < boxes.length;
+    };
+    all.addEventListener("change", function () {
+      boxes.forEach(function (b) { b.checked = all.checked; });
+      all.form.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    boxes.forEach(function (b) { b.addEventListener("change", sync); });
+    sync();
+  });
 
   document.querySelectorAll("[data-check-all]").forEach(function (box) {
     box.addEventListener("change", function () {
