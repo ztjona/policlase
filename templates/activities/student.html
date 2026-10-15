@@ -52,9 +52,8 @@
     {% endif %}
   </div>
   {% if state.reveal %}
-    {% for item in a.content.items %}
-      {% if item.kind == "solution" %}{% if state.solutions %}{% include "activities/_block_head.html" with index=None %}{% endif %}
-      {% elif item.kind == "content" or item.kind == "segment" %}{% include "activities/_block_head.html" with index=None %}
+    {% for item in blocks %}
+      {% if item.kind == "content" or item.kind == "segment" or item.kind == "solution" %}{% include "activities/_block_head.html" with index=None %}
       {% else %}
         <section class="card stack">
           {% if item.stem %}<div>{{ item.stem|md }}</div>{% endif %}
@@ -68,7 +67,7 @@
   {# Sin entrega y sin posibilidad de entregar: la revisión muestra las preguntas con su solución. #}
   <h2>{% translate "Revisión" %}</h2>
   <p class="small muted">{% if activity.review_until %}{% blocktranslate with when=activity.review_until|date:"D d M, H:i" %}No entregó esta actividad. Puede revisar sus preguntas con las soluciones hasta el {{ when }}.{% endblocktranslate %}{% else %}{% translate "No entregó esta actividad. Puede revisar sus preguntas con las soluciones." %}{% endif %}</p>
-  {% for item in activity.compiled.items %}
+  {% for item in blocks %}
     {% if item.kind == "content" or item.kind == "segment" or item.kind == "solution" %}{% include "activities/_block_head.html" with index=None %}
     {% else %}
       <section class="card stack">

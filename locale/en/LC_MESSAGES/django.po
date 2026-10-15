@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: policlase\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-14 20:03-0500\n"
+"POT-Creation-Date: 2026-10-15 11:46-0500\n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -127,7 +127,7 @@ msgstr "The window for late submissions has closed."
 
 #: apps/activities/engine.py:209 apps/activities/engine.py:226
 #: apps/activities/engine.py:243 apps/activities/engine.py:285
-#: apps/activities/engine.py:309 apps/activities/engine.py:348
+#: apps/activities/engine.py:309 apps/activities/engine.py:349
 msgid "Este intento ya se envió."
 msgstr "This attempt was already submitted."
 
@@ -158,11 +158,11 @@ msgid ""
 msgstr ""
 "This question takes up to %(n)d images; remove one before uploading another."
 
-#: apps/activities/engine.py:356
+#: apps/activities/engine.py:357
 msgid "Revise las respuestas marcadas: no se pudieron leer."
 msgstr "Check the marked answers: they could not be read."
 
-#: apps/activities/engine.py:446
+#: apps/activities/engine.py:456
 msgid "Esta pregunta no tiene calificación automática; ingrese una nota."
 msgstr "This question has no automatic grade; enter a grade."
 
@@ -182,7 +182,7 @@ msgstr "Relative to the opening"
 msgid "Fecha fija"
 msgstr "Fixed date"
 
-#: apps/activities/forms.py:24 templates/activities/attempt.html:29
+#: apps/activities/forms.py:24 templates/activities/attempt.html:36
 msgid "Sin fecha de entrega"
 msgstr "No due date"
 
@@ -236,8 +236,9 @@ msgid "Indique la hora."
 msgstr "Enter the time."
 
 #: apps/activities/forms.py:118
-msgid "Indique la fecha de apertura: la entrega se cuenta desde ella."
-msgstr "Enter the opening date: the due date is counted from it."
+msgid ""
+"Indique la fecha de apertura, desde la cual se cuenta la fecha de entrega."
+msgstr "Enter the opening date, from which the due date is counted."
 
 #: apps/activities/forms.py:120
 msgid "Indique cuántos días después de la apertura."
@@ -257,9 +258,9 @@ msgstr "Enter when the review ends."
 
 #: apps/activities/forms.py:156
 msgid ""
-"La revisión empieza al vencer la fecha de entrega; sin fecha de entrega, "
-"elija «Sin límite» o «Sin revisión»."
-msgstr "The review starts at the due date; without a due date, choose “No limit” or “No review”."
+"La revisión comienza al vencer la fecha de entrega. Si la actividad no tiene "
+"fecha de entrega, elija «Sin límite» o «Sin revisión»."
+msgstr "The review begins at the due date. If the activity has no due date, choose “No limit” or “No review”."
 
 #: apps/activities/images.py:35
 msgid "La imagen supera 15 MB."
@@ -304,8 +305,8 @@ msgid "Hasta una fecha fija"
 msgstr "Until a fixed date"
 
 #: apps/activities/models.py:45
-msgid "Sin revisión: solo se muestra el puntaje"
-msgstr "No review: only the score is shown"
+msgid "Sin revisión (solo se muestra el puntaje)"
+msgstr "No review (only the score is shown)"
 
 #: apps/activities/models.py:50
 msgid "sección"
@@ -380,38 +381,38 @@ msgstr "prevent pasting text into open answers"
 msgid "enviar automáticamente los borradores al vencer la fecha"
 msgstr "submit drafts automatically at the due date"
 
-#: apps/activities/models.py:109 templates/grades/mine.html:29
+#: apps/activities/models.py:110 templates/grades/mine.html:29
 msgid "actividad"
 msgstr "activity"
 
-#: apps/activities/models.py:147
+#: apps/activities/models.py:149
 #, python-format
 msgid "el mismo día de «%(name)s»"
 msgstr "the same day as “%(name)s”"
 
-#: apps/activities/models.py:149
+#: apps/activities/models.py:151
 #, python-format
 msgid "%(n)d día antes de «%(name)s»"
 msgid_plural "%(n)d días antes de «%(name)s»"
 msgstr[0] "%(n)d day before “%(name)s”"
 msgstr[1] "%(n)d days before “%(name)s”"
 
-#: apps/activities/models.py:150
+#: apps/activities/models.py:152
 #, python-format
 msgid "%(n)d día después de «%(name)s»"
 msgid_plural "%(n)d días después de «%(name)s»"
 msgstr[0] "%(n)d day after “%(name)s”"
 msgstr[1] "%(n)d days after “%(name)s”"
 
-#: apps/activities/models.py:179
+#: apps/activities/models.py:181
 msgid "sin revisión"
 msgstr "no review"
 
-#: apps/activities/models.py:181
+#: apps/activities/models.py:183
 msgid "sin límite"
 msgstr "no limit"
 
-#: apps/activities/models.py:182
+#: apps/activities/models.py:184
 #, python-format
 msgid "hasta el %(when)s"
 msgstr "until %(when)s"
@@ -497,18 +498,20 @@ msgstr ""
 msgid ""
 "La revisión termina antes de la fecha de entrega, así que los estudiantes no "
 "la verán. Elija un cierre posterior al vencimiento o «Sin revisión»."
-msgstr "The review ends before the due date, so students will not see it. Choose a closing time after the due date, or “No review”."
+msgstr ""
+"The review ends before the due date, so students will not see it. Choose a "
+"closing time after the due date, or “No review”."
 
 #: apps/activities/views.py:152
 #, python-format
 msgid ""
-"La nueva fecha de entrega es posterior: %(n)d intento enviado "
+"Como la nueva fecha de entrega es posterior, %(n)d intento enviado "
 "automáticamente volvió a quedar abierto."
 msgid_plural ""
-"La nueva fecha de entrega es posterior: %(n)d intentos enviados "
+"Como la nueva fecha de entrega es posterior, %(n)d intentos enviados "
 "automáticamente volvieron a quedar abiertos."
-msgstr[0] "The new due date is later: %(n)d automatically submitted attempt was reopened."
-msgstr[1] "The new due date is later: %(n)d automatically submitted attempts were reopened."
+msgstr[0] "Since the new due date is later, %(n)d automatically submitted attempt was reopened."
+msgstr[1] "Since the new due date is later, %(n)d automatically submitted attempts were reopened."
 
 #: apps/activities/views.py:156 apps/grades/views.py:79
 #: apps/grades/views.py:271
@@ -518,36 +521,36 @@ msgstr "Check the marked fields."
 #: apps/activities/views.py:187
 #, python-format
 msgid ""
-"Partes guardadas: la actividad vale ahora %(p)s puntos; %(n)d entrega se "
-"recalculó."
+"Se guardaron las secciones. La actividad vale ahora %(p)s puntos y se "
+"recalculó %(n)d entrega."
 msgid_plural ""
-"Partes guardadas: la actividad vale ahora %(p)s puntos; %(n)d entregas se "
-"recalcularon."
-msgstr[0] "Parts saved: the activity is now worth %(p)s points; %(n)d submission was recalculated."
-msgstr[1] "Parts saved: the activity is now worth %(p)s points; %(n)d submissions were recalculated."
+"Se guardaron las secciones. La actividad vale ahora %(p)s puntos y se "
+"recalcularon %(n)d entregas."
+msgstr[0] "The sections were saved. The activity is now worth %(p)s points and %(n)d submission was recalculated."
+msgstr[1] "The sections were saved. The activity is now worth %(p)s points and %(n)d submissions were recalculated."
 
 #: apps/activities/views.py:191
-msgid "Se califican todas las partes."
-msgstr "All parts are graded."
+msgid "Todas las secciones están habilitadas."
+msgstr "All sections are enabled."
 
-#: apps/activities/views.py:254
+#: apps/activities/views.py:255
 msgid "Comentario guardado."
 msgstr "Comment saved."
 
-#: apps/activities/views.py:304 apps/activities/views.py:307
+#: apps/activities/views.py:306 apps/activities/views.py:309
 msgid "Diapositiva desconocida."
 msgstr "Unknown slide."
 
-#: apps/activities/views.py:356 apps/live/views.py:278 apps/live/views.py:318
+#: apps/activities/views.py:358 apps/live/views.py:278 apps/live/views.py:318
 msgid "Escriba un número."
 msgstr "Enter a number."
 
-#: apps/activities/views.py:396
+#: apps/activities/views.py:398
 #, python-format
 msgid "Fecha clave «%(name)s» agregada."
 msgstr "Key date “%(name)s” added."
 
-#: apps/activities/views.py:406
+#: apps/activities/views.py:408
 #, python-format
 msgid "«%(name)s» guardada; %(n)d actividad vence en relación con ella."
 msgid_plural ""
@@ -555,41 +558,41 @@ msgid_plural ""
 msgstr[0] "“%(name)s” saved; %(n)d activity is due relative to it."
 msgstr[1] "“%(name)s” saved; %(n)d activities are due relative to it."
 
-#: apps/activities/views.py:410
+#: apps/activities/views.py:412
 #, python-format
 msgid "Revise la fecha clave: %(errors)s"
 msgstr "Check the key date: %(errors)s"
 
-#: apps/activities/views.py:418
+#: apps/activities/views.py:420
 #, python-format
 msgid ""
 "Fecha clave «%(name)s» eliminada; %(n)d actividades quedaron con fecha fija."
 msgstr "Key date “%(name)s” deleted; %(n)d activities now have a fixed date."
 
-#: apps/activities/views.py:425
+#: apps/activities/views.py:427
 msgid "No había actividades seleccionadas."
 msgstr "No activities were selected."
 
-#: apps/activities/views.py:432
+#: apps/activities/views.py:434
 msgid "Indique cuántos días mover (positivo: más tarde)."
 msgstr "Enter how many days to move (positive: later)."
 
-#: apps/activities/views.py:435
+#: apps/activities/views.py:437
 #, python-format
 msgid "Se movió %(n)d actividad %(days)+d días."
 msgid_plural "Se movieron %(n)d actividades %(days)+d días."
 msgstr[0] "Moved %(n)d activity %(days)+d days."
 msgstr[1] "Moved %(n)d activities %(days)+d days."
 
-#: apps/activities/views.py:447
+#: apps/activities/views.py:449
 msgid "Elija la fecha clave y un desfase entre -60 y 60 días."
 msgstr "Choose the key date and an offset between -60 and 60 days."
 
-#: apps/activities/views.py:449
+#: apps/activities/views.py:451
 msgid "La revisión debe terminar después de la fecha de entrega."
 msgstr "The review must end after the due date."
 
-#: apps/activities/views.py:467
+#: apps/activities/views.py:469
 #, python-format
 msgid ""
 "%(n)d actividad vence ahora en relación con «%(name)s», con revisión hasta "
@@ -597,40 +600,46 @@ msgid ""
 msgid_plural ""
 "%(n)d actividades vencen ahora en relación con «%(name)s», con revisión "
 "hasta esa fecha clave."
-msgstr[0] "%(n)d activity is now due relative to “%(name)s”, with review until that key date."
-msgstr[1] "%(n)d activities are now due relative to “%(name)s”, with review until that key date."
+msgstr[0] ""
+"%(n)d activity is now due relative to “%(name)s”, with review until that key "
+"date."
+msgstr[1] ""
+"%(n)d activities are now due relative to “%(name)s”, with review until that "
+"key date."
 
-#: apps/activities/views.py:472
+#: apps/activities/views.py:474
 #, python-format
 msgid "%(n)d actividad vence ahora en relación con «%(name)s»."
 msgid_plural "%(n)d actividades vencen ahora en relación con «%(name)s»."
 msgstr[0] "%(n)d activity is now due relative to “%(name)s”."
 msgstr[1] "%(n)d activities are now due relative to “%(name)s”."
 
-#: apps/activities/views.py:589
+#: apps/activities/views.py:595
 msgid ""
 "La fecha de entrega venció y su intento se envió automáticamente con lo que "
 "tenía guardado."
-msgstr "The due date has passed and your attempt was submitted automatically with what you had saved."
+msgstr ""
+"The due date has passed and your attempt was submitted automatically with "
+"what you had saved."
 
-#: apps/activities/views.py:590
+#: apps/activities/views.py:596
 msgid "Este intento ya se envió. Recargue la página."
 msgstr "This attempt has already been submitted. Reload the page."
 
-#: apps/activities/views.py:622
+#: apps/activities/views.py:628
 msgid "Entrega recibida."
 msgstr "Submission received."
 
-#: apps/activities/views.py:625
+#: apps/activities/views.py:631
 msgid "Borrador guardado."
 msgstr "Draft saved."
 
-#: apps/activities/views.py:652
+#: apps/activities/views.py:669
 #, python-format
-msgid "%(title)s · %(n)d"
-msgstr "%(title)s · %(n)d"
+msgid "%(title)s · %(n)s"
+msgstr "%(title)s · %(n)s"
 
-#: apps/activities/views.py:765
+#: apps/activities/views.py:782
 msgid "Se descartó el borrador."
 msgstr "The draft was discarded."
 
@@ -1641,12 +1650,12 @@ msgid "Encuesta"
 msgstr "Survey"
 
 #: templates/activities/_answer.html:7
-msgid "Esta parte no se califica: no suma puntos."
-msgstr "This part is not graded: it adds no points."
+msgid "Sección deshabilitada. El estudiante no la ve y no cuenta para la nota."
+msgstr "Disabled section. The student does not see it and it does not count toward the grade."
 
 #: templates/activities/_answer.html:7
-msgid "no se califica"
-msgstr "not graded"
+msgid "deshabilitada"
+msgstr "disabled"
 
 #: templates/activities/_answer.html:8
 #: templates/activities/attempt_review.html:32
@@ -1664,7 +1673,7 @@ msgid "Sin respuesta."
 msgstr "No answer."
 
 #: templates/activities/_answer.html:34
-#: templates/activities/_question_input.html:25
+#: templates/activities/_question_input.html:28
 msgid "Respondió:"
 msgstr "Answered:"
 
@@ -1686,18 +1695,19 @@ msgstr "Solution:"
 msgid "Comentario del docente:"
 msgstr "Teacher's comment:"
 
-#: templates/activities/_block_head.html:10
-msgid "Solución · se muestra en la revisión"
-msgstr "Solution · shown in the review"
+#: templates/activities/_block_head.html:10 templates/live/_outline.html:24
+#: templates/live/studio.html:59
+msgid "Solución (se muestra en la revisión)"
+msgstr "Solution (shown in the review)"
 
 #: templates/activities/_block_head.html:18
 #, python-format
 msgid ""
-"Preguntas con límite de tiempo: cada una se abre cuando usted lo decide y, "
-"desde ese momento, dispone de %(s)s segundos para responderla. El tiempo "
-"sigue corriendo aunque salga de la página, y cada pregunta solo puede "
+"Estas preguntas tienen límite de tiempo. Cada una se abre cuando usted lo "
+"decide y, desde ese momento, dispone de %(s)s segundos para responderla. El "
+"tiempo sigue corriendo aunque salga de la página, y cada pregunta solo puede "
 "responderse una vez."
-msgstr "Timed questions: each one opens when you decide and, from that moment, you have %(s)s seconds to answer it. The time keeps running even if you leave the page, and each question can only be answered once."
+msgstr "These questions have a time limit. Each one opens when you decide and, from that moment, you have %(s)s seconds to answer it. The time keeps running even if you leave the page, and each question can only be answered once."
 
 #: templates/activities/_block_head.html:18
 #: templates/activities/_block_head.html:19
@@ -1725,7 +1735,7 @@ msgstr "Restore the automatic grade"
 msgid "calificada"
 msgstr "graded"
 
-#: templates/activities/_preview.html:6 templates/activities/attempt.html:30
+#: templates/activities/_preview.html:6 templates/activities/attempt.html:37
 #, python-format
 msgid "%(n)s puntos"
 msgstr "%(n)s points"
@@ -1745,71 +1755,77 @@ msgid "pts"
 msgstr "pts"
 
 #: templates/activities/_question_input.html:13
-#: templates/activities/_question_input.html:87
+#: templates/activities/_question_input.html:90
 #: templates/activities/_question_static.html:7
 #, python-format
 msgid "%(s)s s"
 msgstr "%(s)s s"
 
-#: templates/activities/_question_input.html:14
+#: templates/activities/_question_input.html:16
 msgid "Revisar después"
 msgstr "Review later"
 
-#: templates/activities/_question_input.html:19
+#: templates/activities/_question_input.html:17
+msgid "Marcar para revisar después"
+msgstr "Mark to review later"
+
+#: templates/activities/_question_input.html:22
 #, python-format
 msgid "Abrir la pregunta (%(s)s s)"
 msgstr "Open the question (%(s)s s)"
 
-#: templates/activities/_question_input.html:20
-#: templates/activities/_question_input.html:21
+#: templates/activities/_question_input.html:23
+#: templates/activities/_question_input.html:24
 #, python-format
 msgid ""
 "Al abrirla dispone de %(s)s segundos para responder. El tiempo sigue "
 "corriendo aunque salga de la página, y solo puede responderse una vez."
-msgstr "Once opened, you have %(s)s seconds to answer. The time keeps running even if you leave the page, and it can only be answered once."
+msgstr ""
+"Once opened, you have %(s)s seconds to answer. The time keeps running even "
+"if you leave the page, and it can only be answered once."
 
-#: templates/activities/_question_input.html:25
+#: templates/activities/_question_input.html:28
 msgid "Se cerró sin respuesta."
 msgstr "It closed without an answer."
 
-#: templates/activities/_question_input.html:25
+#: templates/activities/_question_input.html:28
 msgid "registrado"
 msgstr "recorded"
 
-#: templates/activities/_question_input.html:39
+#: templates/activities/_question_input.html:42
 msgid "Marque todas las correctas. Cada marca incorrecta resta."
 msgstr "Mark all correct options. Each wrong mark subtracts."
 
-#: templates/activities/_question_input.html:46
+#: templates/activities/_question_input.html:49
 #: templates/live/_student_stage.html:65
 #, python-format
 msgid "Afirmación %(n)s"
 msgstr "Statement %(n)s"
 
-#: templates/activities/_question_input.html:49
+#: templates/activities/_question_input.html:52
 #: templates/live/_student_stage.html:68
 msgid "Verdadero"
 msgstr "True"
 
-#: templates/activities/_question_input.html:50
+#: templates/activities/_question_input.html:53
 #: templates/live/_student_stage.html:69
 msgid "Falso"
 msgstr "False"
 
-#: templates/activities/_question_input.html:61
+#: templates/activities/_question_input.html:64
 #, python-format
 msgid "Casilla %(n)s"
 msgstr "Cell %(n)s"
 
-#: templates/activities/_question_input.html:66
-#: templates/activities/_question_input.html:77
-#: templates/activities/_question_input.html:79
+#: templates/activities/_question_input.html:69
+#: templates/activities/_question_input.html:80
+#: templates/activities/_question_input.html:82
 #: templates/live/_student_stage.html:75 templates/live/_student_stage.html:77
 #: templates/live/results.html:81
 msgid "Respuesta"
 msgstr "Answer"
 
-#: templates/activities/_question_input.html:69
+#: templates/activities/_question_input.html:72
 msgid ""
 "Escriba las fórmulas en LaTeX entre signos de dólar ($x^2$, $$\\int_0^1 x\\,"
 "dx$$); debajo se muestran tal como las verá el docente."
@@ -1817,29 +1833,29 @@ msgstr ""
 "Write formulas in LaTeX between dollar signs ($x^2$, $$\\int_0^1 x\\,dx$$); "
 "below they are shown as the teacher will see them."
 
-#: templates/activities/_question_input.html:79
+#: templates/activities/_question_input.html:82
 #: templates/live/_student_stage.html:77
 msgid "Número"
 msgstr "Number"
 
-#: templates/activities/_question_input.html:79
+#: templates/activities/_question_input.html:82
 msgid "p. ej. 3*x**2 + sin(x)"
 msgstr "e.g. 3*x**2 + sin(x)"
 
-#: templates/activities/_question_input.html:80
+#: templates/activities/_question_input.html:83
 msgid "Multiplicación explícita (2*x, no 2x); potencias con ** o ^."
 msgstr "Explicit multiplication (2*x, not 2x); powers with ** or ^."
 
-#: templates/activities/_question_input.html:81
+#: templates/activities/_question_input.html:84
 #, python-format
 msgid "Incluya la unidad: %(u)s"
 msgstr "Include the unit: %(u)s"
 
-#: templates/activities/_question_input.html:84
+#: templates/activities/_question_input.html:87
 msgid "En esta pregunta no se puede pegar texto."
 msgstr "Pasting text is not allowed in this question."
 
-#: templates/activities/_question_input.html:88
+#: templates/activities/_question_input.html:91
 msgid "Responder"
 msgstr "Answer"
 
@@ -1943,30 +1959,38 @@ msgstr ""
 "The maximum number of images for this question has been reached; remove one "
 "to replace it."
 
-#: templates/activities/attempt.html:10
+#: templates/activities/attempt.html:12
 msgid "Índice de la actividad"
 msgstr "Activity outline"
 
-#: templates/activities/attempt.html:11 templates/activities/attempt.html:63
+#: templates/activities/attempt.html:13
+msgid "Mostrar el índice"
+msgstr "Show the outline"
+
+#: templates/activities/attempt.html:15 templates/activities/attempt.html:69
 #: templates/activities/present.html:15 templates/activities/present.html:27
 msgid "Índice"
 msgstr "Outline"
 
-#: templates/activities/attempt.html:12 templates/activities/attempt.html:78
+#: templates/activities/attempt.html:16
+msgid "Ocultar el índice"
+msgstr "Hide the outline"
+
+#: templates/activities/attempt.html:17 templates/activities/attempt.html:88
 msgid "Cerrar"
 msgstr "Close"
 
-#: templates/activities/attempt.html:26
+#: templates/activities/attempt.html:33
 #, python-format
 msgid "Intento %(n)s de %(max)s"
 msgstr "Attempt %(n)s of %(max)s"
 
-#: templates/activities/attempt.html:29
+#: templates/activities/attempt.html:36
 #, python-format
 msgid "Entrega: %(when)s"
 msgstr "Due: %(when)s"
 
-#: templates/activities/attempt.html:32
+#: templates/activities/attempt.html:39
 #, python-format
 msgid ""
 "La fecha de entrega ya pasó: si envía ahora, su nota tendrá un %(p)s %% de "
@@ -1975,15 +1999,15 @@ msgstr ""
 "The due date has passed: if you submit now, your grade will have a %(p)s %% "
 "penalty."
 
-#: templates/activities/attempt.html:33
+#: templates/activities/attempt.html:40
 msgid "Este borrador ya no se puede enviar."
 msgstr "This draft can no longer be submitted."
 
-#: templates/activities/attempt.html:34
+#: templates/activities/attempt.html:41
 msgid "Descartar borrador"
 msgstr "Discard draft"
 
-#: templates/activities/attempt.html:38
+#: templates/activities/attempt.html:45
 msgid ""
 "Sus respuestas se guardan automáticamente mientras escribe. Se registra si "
 "pega texto o sale de esta página, y su docente lo verá junto con su entrega."
@@ -1991,74 +2015,94 @@ msgstr ""
 "Your answers are saved automatically as you type. Pasting text or leaving "
 "this page is recorded, and your teacher will see it with your submission."
 
-#: templates/activities/attempt.html:39
+#: templates/activities/attempt.html:46
 msgid ""
 "Si no envía el intento antes de la fecha de entrega, se enviará "
 "automáticamente con lo que tenga guardado en ese momento."
-msgstr "If you do not submit the attempt before the due date, it will be submitted automatically with whatever you have saved at that moment."
+msgstr ""
+"If you do not submit the attempt before the due date, it will be submitted "
+"automatically with whatever you have saved at that moment."
 
-#: templates/activities/attempt.html:54
-msgid ""
-"Esta parte no se califica: puede resolverla como práctica, pero no suma "
-"puntos."
-msgstr "This part is not graded: you may solve it as practice, but it adds no points."
+#: templates/activities/attempt.html:71
+msgid "Preguntas sin responder"
+msgstr "Unanswered questions"
 
-#: templates/activities/attempt.html:64
-msgid "Pendientes"
-msgstr "Pending"
+#: templates/activities/attempt.html:71 templates/activities/attempt.html:86
+msgid "Preguntas"
+msgstr "Questions"
 
-#: templates/activities/attempt.html:65
+#: templates/activities/attempt.html:72
 msgid "Guardar borrador"
 msgstr "Save draft"
 
-#: templates/activities/attempt.html:68
+#: templates/activities/attempt.html:75
 msgid "Después de enviar no podrá cambiar este intento. ¿Enviar?"
 msgstr "After submitting you cannot change this attempt. Submit?"
 
-#: templates/activities/attempt.html:68
+#: templates/activities/attempt.html:75
 msgid "Enviar"
 msgstr "Submit"
 
-#: templates/activities/attempt.html:70
+#: templates/activities/attempt.html:77
 #, python-format
 msgid "Guardado a las %(t)s"
 msgstr "Saved at %(t)s"
 
-#: templates/activities/attempt.html:76
-msgid "Preguntas pendientes"
-msgstr "Pending questions"
+#: templates/activities/attempt.html:83
+msgid "Estado de las preguntas"
+msgstr "Question status"
 
-#: templates/activities/attempt.html:77
-msgid "Sin responder"
-msgstr "Unanswered"
+#: templates/activities/attempt.html:84
+msgid "Mostrar las preguntas"
+msgstr "Show the questions"
+
+#: templates/activities/attempt.html:87
+msgid "Ocultar las preguntas"
+msgstr "Hide the questions"
+
+#: templates/activities/attempt.html:89
+#, python-format
+msgid "<span data-answered-count>%(done)s</span> de %(total)s respondidas"
+msgstr "<span data-answered-count>%(done)s</span> of %(total)s answered"
 
 #: templates/activities/attempt.html:90
-msgid "Todas las preguntas tienen respuesta."
-msgstr "All questions have an answer."
+#, python-format
+msgid "<span data-marked-count>%(n)s</span> para revisar"
+msgstr "<span data-marked-count>%(n)s</span> to review"
 
-#: templates/activities/attempt.html:91
-msgid "Para revisar"
-msgstr "To review"
+#: templates/activities/attempt.html:103
+msgid "respondida"
+msgstr "answered"
 
-#: templates/activities/attempt.html:95
+#: templates/activities/attempt.html:104
+msgid "sin responder"
+msgstr "unanswered"
+
+#: templates/activities/attempt.html:105
+msgid "para revisar"
+msgstr "to review"
+
+#: templates/activities/attempt.html:106
 msgid ""
-"Marque «Revisar después» en una pregunta para encontrarla aquí antes de "
-"enviar."
-msgstr "Check “Review later” on a question to find it here before submitting."
+"Para marcar una pregunta, use la bandera que aparece en su esquina al pasar "
+"el puntero o al responderla."
+msgstr ""
+"To mark a question, use the flag that appears in its corner when you hover "
+"over it or answer it."
 
-#: templates/activities/attempt.html:101
+#: templates/activities/attempt.html:113
 msgid "Su docente está presentando:"
 msgstr "Your teacher is presenting:"
 
-#: templates/activities/attempt.html:103
+#: templates/activities/attempt.html:115
 msgid "Ir a la diapositiva"
 msgstr "Go to the slide"
 
-#: templates/activities/attempt.html:104
+#: templates/activities/attempt.html:116
 msgid "Volver a donde estaba"
 msgstr "Return to where I was"
 
-#: templates/activities/attempt.html:105
+#: templates/activities/attempt.html:117
 msgid "Seguir al docente"
 msgstr "Follow the teacher"
 
@@ -2106,9 +2150,9 @@ msgstr "late (−%(p)s %%)"
 #: templates/activities/attempt_review.html:26
 #, python-format
 msgid ""
-"Intento %(n)s, empezado el %(when)s. Se muestra lo guardado hasta ahora; se "
-"califica cuando se envía."
-msgstr "Attempt %(n)s, started on %(when)s. What has been saved so far is shown; it is graded when submitted."
+"Intento %(n)s, iniciado el %(when)s. Se muestran las respuestas guardadas "
+"hasta el momento; el intento se califica cuando se envía."
+msgstr "Attempt %(n)s, started on %(when)s. The answers saved so far are shown; the attempt is graded when it is submitted."
 
 #: templates/activities/attempt_review.html:27
 #, python-format
@@ -2128,8 +2172,8 @@ msgid "Comentario general para el estudiante"
 msgstr "General comment for the student"
 
 #: templates/activities/attempt_review.html:40
-msgid "Opcional. El estudiante lo ve junto con su nota."
-msgstr "Optional. The student sees it with their grade."
+msgid "Es opcional; el estudiante lo verá junto con su nota."
+msgstr "Optional; the student will see it together with their grade."
 
 #: templates/activities/attempt_review.html:41
 msgid "Guardar comentario"
@@ -2150,7 +2194,11 @@ msgid ""
 "con una de ellas (p. ej., entrega 3 días antes de la prueba y revisión hasta "
 "el día de la prueba); si la prueba se reprograma, basta con cambiar aquí su "
 "fecha para que esos deberes se actualicen automáticamente."
-msgstr "Key dates are the course's tests and exams. A homework's due date and the end of its review can be defined relative to one of them (e.g., due 3 days before the test and review until the day of the test); if the test is rescheduled, changing its date here updates those homeworks automatically."
+msgstr ""
+"Key dates are the course's tests and exams. A homework's due date and the "
+"end of its review can be defined relative to one of them (e.g., due 3 days "
+"before the test and review until the day of the test); if the test is "
+"rescheduled, changing its date here updates those homeworks automatically."
 
 #: templates/activities/dates.html:7
 msgid ""
@@ -2224,7 +2272,7 @@ msgid "Vence"
 msgstr "Due"
 
 #: templates/activities/dates.html:54 templates/activities/detail.html:49
-#: templates/activities/student.html:69
+#: templates/activities/student.html:68
 msgid "Revisión"
 msgstr "Review"
 
@@ -2287,21 +2335,22 @@ msgid "Vincular las seleccionadas a"
 msgstr "Link the selected ones to"
 
 #: templates/activities/dates.html:80
-msgid "vencen"
+msgid "con entrega"
 msgstr "due"
 
 #: templates/activities/dates.html:80
-msgid "días (−3 = tres días antes)"
-msgstr "days (−3 = three days before)"
+msgid "días respecto a ella (−3 indica tres días antes)"
+msgstr "days relative to it (−3 means three days before)"
 
 #: templates/activities/dates.html:81
-msgid "y la revisión dura hasta"
-msgstr "and the review lasts until"
+msgid "y revisión hasta"
+msgstr "and review until"
 
 #: templates/activities/dates.html:81
 msgid ""
-"días (0 = hasta el día de la fecha clave; vacío = no cambiar la revisión)"
-msgstr "days (0 = until the day of the key date; empty = do not change the review)"
+"días respecto a ella (0 indica el mismo día; si se deja vacío, la revisión "
+"no cambia)"
+msgstr "days relative to it (0 means the same day; if left empty, the review does not change)"
 
 #: templates/activities/dates.html:82 templates/courses/course_settings.html:81
 msgid "Vincular"
@@ -2329,9 +2378,9 @@ msgstr "Edit content"
 #: templates/activities/detail.html:9
 #: templates/courses/_unit_activity_rows.html:19
 msgid ""
-"Presentar en clase: los estudiantes pueden seguir su avance o continuar a su "
-"ritmo"
-msgstr "Present in class: students can follow you or continue at their own pace"
+"Presentar en clase. Los estudiantes pueden seguir su avance o continuar a su "
+"propio ritmo."
+msgstr "Present in class. Students can follow you or continue at their own pace."
 
 #: templates/activities/detail.html:9
 #: templates/courses/_unit_activity_rows.html:19
@@ -2353,8 +2402,8 @@ msgstr "%(n)s questions · %(p)s points"
 
 #: templates/activities/detail.html:13
 #, python-format
-msgid "de %(p)s; hay partes que no se califican"
-msgstr "of %(p)s; some parts are not graded"
+msgid "de un total de %(p)s, porque hay secciones deshabilitadas"
+msgstr "out of a total of %(p)s, because some sections are disabled"
 
 #: templates/activities/detail.html:18 templates/courses/course_settings.html:3
 msgid "Configuración"
@@ -2419,20 +2468,25 @@ msgstr "days after the opening, at"
 msgid ""
 "Por ejemplo, 7 días después del taller. Si la fecha de apertura cambia, la "
 "fecha de entrega se ajusta con ella."
-msgstr "For example, 7 days after the workshop. If the opening date changes, the due date follows it."
+msgstr ""
+"For example, 7 days after the workshop. If the opening date changes, the due "
+"date follows it."
 
 #: templates/activities/detail.html:50
 msgid ""
 "Al vencer la fecha de entrega, cada estudiante ve su corrección detallada y "
 "las diapositivas de solución, durante el tiempo que se indique. Fuera de la "
 "revisión, solo ve su puntaje."
-msgstr "Once the due date passes, each student sees their detailed correction and the solution slides, for the period indicated. Outside the review, they only see their score."
+msgstr ""
+"Once the due date passes, each student sees their detailed correction and "
+"the solution slides, for the period indicated. Outside the review, they only "
+"see their score."
 
 #: templates/activities/detail.html:57
 msgid ""
-"0 días a las 00:00 cierra la revisión al comenzar el día de la fecha clave "
-"(por ejemplo, el de la prueba)."
-msgstr "0 days at 00:00 closes the review at the start of the key date's day (for example, the test day)."
+"Con 0 días y las 00:00, la revisión se cierra al comenzar el día de la fecha "
+"clave (por ejemplo, el de la prueba)."
+msgstr "With 0 days and 00:00, the review closes at the start of the key date's day (for example, the test day)."
 
 #: templates/activities/detail.html:66
 msgid ""
@@ -2446,7 +2500,9 @@ msgstr ""
 msgid ""
 "Se califica el último intento enviado. Entre intentos, el estudiante ve su "
 "puntaje; las soluciones se muestran en la revisión."
-msgstr "The last submitted attempt is graded. Between attempts the student sees their score; the solutions are shown in the review."
+msgstr ""
+"The last submitted attempt is graded. Between attempts the student sees "
+"their score; the solutions are shown in the review."
 
 #: templates/activities/detail.html:70
 msgid ""
@@ -2454,7 +2510,11 @@ msgid ""
 "vencer la fecha se envía con lo que el estudiante tenga guardado, como "
 "entrega a tiempo; si luego mueve la fecha de entrega hacia adelante, vuelve "
 "a quedar abierto."
-msgstr "A draft that is not submitted does not count toward the grade. With this option, at the due date it is submitted with whatever the student has saved, as an on-time submission; if you later move the due date forward, it is reopened."
+msgstr ""
+"A draft that is not submitted does not count toward the grade. With this "
+"option, at the due date it is submitted with whatever the student has saved, "
+"as an on-time submission; if you later move the due date forward, it is "
+"reopened."
 
 #: templates/activities/detail.html:72
 #, python-format
@@ -2484,15 +2544,20 @@ msgstr[0] "%(n)s response"
 msgstr[1] "%(n)s responses"
 
 #: templates/activities/detail.html:105
-msgid "Partes que se califican"
-msgstr "Graded parts"
+msgid "Secciones de la actividad"
+msgstr "Activity sections"
 
 #: templates/activities/detail.html:106
 msgid ""
-"Desmarque lo que no se alcanzó a realizar. Esas partes siguen visibles como "
-"práctica, pero no suman puntos ni cuentan en el máximo; las entregas ya "
-"enviadas se recalculan y ninguna respuesta se borra."
-msgstr "Uncheck what could not be covered. Those parts remain visible as practice but add no points and do not count toward the maximum; submissions already sent are recalculated and no answer is deleted."
+"Desmarque las secciones que no se realizaron. Una sección deshabilitada no "
+"se muestra a los estudiantes ni cuenta para la nota. Las respuestas que los "
+"estudiantes ya hubieran registrado en ella se conservan y vuelven a aparecer "
+"si la habilita de nuevo; las entregas ya enviadas se recalculan."
+msgstr ""
+"Uncheck the sections that were not covered. A disabled section is not shown "
+"to students and does not count toward the grade. Any answers students had "
+"already recorded in it are kept and reappear if you enable it again; "
+"submissions already sent are recalculated."
 
 #: templates/activities/detail.html:112
 #, python-format
@@ -2500,8 +2565,8 @@ msgid "%(p)s pts"
 msgstr "%(p)s pts"
 
 #: templates/activities/detail.html:116
-msgid "Guardar partes"
-msgstr "Save parts"
+msgid "Guardar secciones"
+msgstr "Save sections"
 
 #: templates/activities/detail.html:120
 msgid "Ver la actividad con sus soluciones"
@@ -2702,7 +2767,8 @@ msgstr "Your submission"
 
 #: templates/activities/student.html:38
 msgid "Se envió automáticamente al vencer la fecha, con lo que tenía guardado."
-msgstr "It was submitted automatically at the due date, with what you had saved."
+msgstr ""
+"It was submitted automatically at the due date, with what you had saved."
 
 #: templates/activities/student.html:42
 #, python-format
@@ -2716,7 +2782,9 @@ msgstr[1] "%(n)s questions are waiting for your teacher's grade."
 msgid ""
 "La revisión está disponible hasta el %(when)s. Después se mostrará solo el "
 "puntaje."
-msgstr "The review is available until %(when)s. After that, only the score will be shown."
+msgstr ""
+"The review is available until %(when)s. After that, only the score will be "
+"shown."
 
 #: templates/activities/student.html:47
 #, python-format
@@ -2735,17 +2803,21 @@ msgid ""
 "de entrega."
 msgstr "Correct answers and solutions will be shown when the due date passes."
 
-#: templates/activities/student.html:70
+#: templates/activities/student.html:69
 #, python-format
 msgid ""
 "No entregó esta actividad. Puede revisar sus preguntas con las soluciones "
 "hasta el %(when)s."
-msgstr "You did not submit this activity. You can review its questions with the solutions until %(when)s."
+msgstr ""
+"You did not submit this activity. You can review its questions with the "
+"solutions until %(when)s."
 
-#: templates/activities/student.html:70
+#: templates/activities/student.html:69
 msgid ""
 "No entregó esta actividad. Puede revisar sus preguntas con las soluciones."
-msgstr "You did not submit this activity. You can review its questions with the solutions."
+msgstr ""
+"You did not submit this activity. You can review its questions with the "
+"solutions."
 
 #: templates/base.html:31
 msgid "principal"
@@ -4090,10 +4162,6 @@ msgstr "Hide in class"
 #: templates/live/_outline.html:22
 msgid "Segmento"
 msgstr "Segment"
-
-#: templates/live/_outline.html:24 templates/live/studio.html:59
-msgid "Solución (en la revisión)"
-msgstr "Solution (in the review)"
 
 #: templates/live/_outline.html:26 templates/live/results.html:12
 msgid "encuesta"

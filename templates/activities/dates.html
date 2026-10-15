@@ -77,8 +77,8 @@
       <div class="row">
         <label class="small" style="margin:0">{% translate "Vincular las seleccionadas a" %}
           <select name="milestone" class="compact">{% for m in milestone_choices %}<option value="{{ m.pk }}">{{ m.name }} ({{ m.on|date:"d M" }})</option>{% endfor %}</select></label>
-        <label class="small" style="margin:0">{% translate "vencen" %} <input type="number" name="offset" value="-3" min="-60" max="60" class="narrow"> {% translate "días (−3 = tres días antes)" %}</label>
-        <label class="small" style="margin:0">{% translate "y la revisión dura hasta" %} <input type="number" name="review_offset" value="0" min="-60" max="60" class="narrow" placeholder="—"> {% translate "días (0 = hasta el día de la fecha clave; vacío = no cambiar la revisión)" %}</label>
+        <label class="small" style="margin:0">{% translate "con entrega" %} <input type="number" name="offset" value="-3" min="-60" max="60" class="narrow"> {% translate "días respecto a ella (−3 indica tres días antes)" %}</label>
+        <label class="small" style="margin:0">{% translate "y revisión hasta" %} <input type="number" name="review_offset" value="0" min="-60" max="60" class="narrow" placeholder="—"> {% translate "días respecto a ella (0 indica el mismo día; si se deja vacío, la revisión no cambia)" %}</label>
         <button name="action" value="link" class="secondary">{% translate "Vincular" %}</button>
       </div>
     {% endif %}

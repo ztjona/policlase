@@ -941,36 +941,68 @@ class DueFromOpeningTests(WorkshopBase):
         self.assertContains(page, "Indique la fecha de apertura")
 
 
-class UngradedPartsTests(WorkshopBase):
-    def test_una_parte_sin_calificar_no_suma_ni_cuenta_en_el_maximo(self):
+class DisabledSectionsTests(WorkshopBase):
+    def test_una_seccion_deshabilitada_no_suma_ni_cuenta_en_el_maximo(self):
         attempt = engine.start(self.activity, self.ana)
         self.answer_all(attempt)
         attempt = engine.submit(attempt)
         self.assertEqual((attempt.points, attempt.max_points), (3, 6))
         self.client.force_login(self.teacher)
-        self.client.post(reverse("activity_parts", args=[self.course.pk, self.activity.pk]), {"graded": ["D1-a"]})
+        self.client.post(reverse("activity_parts", args=[self.course.pk, self.activity.pk]), {"enabled": ["D1-a"]})
         attempt.refresh_from_db()
         self.activity.refresh_from_db()
         self.assertEqual(self.activity.ungraded_items, ["D1-foto"])
         self.assertEqual(self.activity.points, 5)
         self.assertEqual((attempt.points, attempt.max_points), (3, 5))
         self.assertEqual(attempt.answer_rows.count(), 4)                  # ninguna respuesta se borra
-        # Vuelve a calificarse todo.
-        self.client.post(reverse("activity_parts", args=[self.course.pk, self.activity.pk]), {"graded": ["D1-a", "D1-foto"]})
+        self.client.post(reverse("activity_parts", args=[self.course.pk, self.activity.pk]),
+                         {"enabled": ["D1-a", "D1-foto"]})
         attempt.refresh_from_db()
         self.assertEqual(attempt.max_points, 6)
 
-    def test_el_borrador_en_curso_lo_muestra_como_practica(self):
-        engine.set_ungraded(self.activity, ["D1-foto"])
-        engine.start(self.activity, self.ana)
+    def test_el_estudiante_no_la_ve_y_su_respuesta_se_conserva(self):
+        attempt = engine.start(self.workshop, self.ana)
+        engine.save_draft(attempt, {"T-suma.q1": "4"})
+        engine.set_disabled(self.workshop, ["T-suma"])
         self.client.force_login(self.ana)
-        page = self.client.get(reverse("attempt_form", args=[self.course.pk, self.activity.pk]))
-        self.assertContains(page, "Esta parte no se califica")
+        url = reverse("attempt_form", args=[self.course.pk, self.workshop.pk])
+        page = self.client.get(url)
+        self.assertNotContains(page, 'name="a-T-suma.q1"')
+        self.assertNotContains(page, 'data-qchip="T-suma.q1"')
+        # El autoguardado de la página (sin esa pregunta) no la deja en blanco.
+        self.client.post(url, {"form": "attempt", "a-T-barra.q1": ""}, HTTP_X_REQUESTED_WITH="fetch")
+        attempt.refresh_from_db()
+        self.assertEqual(attempt.answers["T-suma.q1"], "4")
+        engine.set_disabled(self.workshop, [])
+        self.assertContains(self.client.get(url), 'name="a-T-suma.q1" value="4"')
 
-    def test_otro_docente_no_cambia_las_partes(self):
+    def test_toda_la_seccion_se_oculta_con_su_enunciado(self):
+        from . import outline
+
+        content = {"items": [
+            {"kind": "content", "markdown": "## Ejercicio 1", "at": 0},
+            {"kind": "item", "item_id": "E1", "questions": [], "at": 1},
+            {"kind": "content", "markdown": "## Ejercicio 2\nEnunciado largo.", "at": 2},
+            {"kind": "item", "item_id": "E2a", "questions": [], "at": 3},
+            {"kind": "solution", "markdown": "Solución 2", "at": 4},
+            {"kind": "item", "item_id": "E2b", "questions": [], "at": 5},
+        ]}
+        self.assertEqual(outline.hidden_blocks(content, ["E2a", "E2b"]), {2, 3, 4, 5})
+        self.assertEqual(outline.hidden_blocks(content, ["E2a"]), {3})       # la sección sigue: su enunciado también
+        self.assertEqual([g["title"] for g in outline.parts(content)], ["Ejercicio 1", "Ejercicio 2"])
+
+    def test_una_respuesta_ilegible_en_lo_deshabilitado_no_impide_enviar(self):
+        attempt = engine.start(self.workshop, self.ana)
+        engine.save_draft(attempt, {"T-suma.q1": "cuatro"})
+        engine.set_disabled(self.workshop, ["T-suma"])
+        attempt.refresh_from_db()
+        self.assertEqual(engine.format_errors(attempt), {})
+        engine.submit(attempt)
+
+    def test_otro_docente_no_cambia_las_secciones(self):
         other = make_user("otra", User.Role.TEACHER)
         self.client.force_login(other)
-        response = self.client.post(reverse("activity_parts", args=[self.course.pk, self.activity.pk]), {"graded": []})
+        response = self.client.post(reverse("activity_parts", args=[self.course.pk, self.activity.pk]), {"enabled": []})
         self.assertEqual(response.status_code, 404)
         self.activity.refresh_from_db()
         self.assertEqual(self.activity.ungraded_items, [])
@@ -1029,7 +1061,8 @@ class PanelsAndReviewTests(WorkshopBase):
         self.assertEqual(Attempt.objects.get().marked, ["D1-a.q3"])
         page = self.client.get(url)
         self.assertContains(page, 'name="mark" value="D1-a.q3" checked')
-        self.assertContains(page, 'data-pending="D1-a.q1"')                # el panel de pendientes
+        self.assertContains(page, 'data-qchip="D1-a.q3"')                  # el panel de preguntas
+        self.assertContains(page, "qchip marked")
 
     def test_el_docente_ve_el_avance_y_deja_un_comentario(self):
         attempt = engine.start(self.activity, self.ana)
@@ -1052,6 +1085,30 @@ class PanelsAndReviewTests(WorkshopBase):
         self.assertEqual(response.status_code, 404)
         attempt.refresh_from_db()
         self.assertEqual(attempt.feedback, "Buen trabajo en la parte A.")
+
+    def test_la_revision_usa_las_soluciones_de_la_version_actual(self):
+        # El intento empezó antes de que se escribiera la solución: la revisión la muestra igual.
+        from policlase_gen import document as content_format
+
+        old = TIMED.replace("use: activity", "use: activity")
+        document, _report, _use = content_format.load_text(old)
+        Activity.objects.filter(pk=self.workshop.pk).update(compiled=content_format.compile_content(document))
+        self.workshop.refresh_from_db()
+        attempt = engine.start(self.workshop, self.ana)
+        engine.submit(attempt)
+        document, _report, _use = content_format.load_text(WORKSHOP)
+        Activity.objects.filter(pk=self.workshop.pk).update(compiled=content_format.compile_content(document))
+        self.overdue(self.workshop)
+        self.client.force_login(self.ana)
+        page = self.client.get(reverse("activity_student", args=[self.course.pk, self.workshop.pk]))
+        self.assertContains(page, "AltGr")
+
+    def test_las_preguntas_de_seguimiento_se_numeran_con_letra(self):
+        from .views import _labeled
+
+        item = {"item_id": "I", "title": "Ítem", "questions": []}
+        rows = [{"item": item, "question": {"follow_up": f}} for f in (False, False, True, True, False)]
+        self.assertEqual([r["number"] for r in _labeled(rows, {})], ["1", "2", "2a", "2b", "3"])
 
     def test_indice_del_taller(self):
         from . import outline

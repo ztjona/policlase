@@ -65,7 +65,7 @@ oscuro: los proyectores lavan los fondos oscuros.
 
 - Íconos tradicionales en SVG con `{% icon "nombre" tamaño %}` (`apps/core/templatetags/policlase.py`):
   `gear`, `edit`, `trash`, `play`, `close`, `check`, `grip`, `folder_add`, `file_add`, `results`,
-  `fullscreen`, `github`, `calendar`, `image`, `task` (actividad), `record` (registro manual), `eye` / `eye_off` (mostrar u ocultar), `info` (explicación en un tooltip). Para uno nuevo, agregar su trazo a `ICONS`.
+  `fullscreen`, `github`, `calendar`, `image`, `task` (actividad), `record` (registro manual), `eye` / `eye_off` (mostrar u ocultar), `info` (explicación en un tooltip), `flag` / `flag_outline` (revisar después), `chevron_left` / `chevron_right` (plegar un panel). Para uno nuevo, agregar su trazo a `ICONS`.
 - **Nada de emojis ni de caracteres poco comunes como ícono** (⛶, 🔒, 🙂…): no todos los sistemas los
   tienen y aparecen como cajas vacías. Si hace falta un dibujo, SVG (`_face.html`, `_lock.html`).
 - Todo botón de solo ícono lleva `title` (tooltip) y `aria-label`.
@@ -170,9 +170,15 @@ Reglas de interacción:
   No hay tareas programadas: se aplica al consultar la actividad, la página del estudiante o la
   planilla, con el vencimiento como hora de envío, así que el resultado no depende de cuándo se mire.
   Mover la fecha hacia adelante lo reabre (`reopen_auto_submitted`), salvo lo calificado a mano.
-- **Partes que no se califican** (`Activity.ungraded_items`): para la parte de un taller a la que
-  no se llegó. Se decide en la plataforma, no en el YAML, porque los intentos ya empezados conservan
-  su copia: así vale también para ellos. Siguen visibles como práctica y nada se borra.
+- **Secciones deshabilitadas** (`Activity.ungraded_items`): para la sección de un taller a la que no
+  se llegó. Se decide en la plataforma, no en el YAML, porque los intentos ya empezados conservan su
+  copia: así vale también para ellos. El estudiante no las ve (si toda una sección queda
+  deshabilitada, tampoco su enunciado: `outline.hidden_blocks`) y no cuentan para la nota ni para el
+  máximo. Sus respuestas se conservan: el formulario solo lee las preguntas visibles
+  (`engine.visible_questions`), para que el autoguardado no las deje en blanco.
+- **Soluciones de la versión vigente:** la revisión usa las diapositivas `solution` de la actividad
+  actual, ubicadas tras el ítem que las precede (`outline.for_review`), porque las soluciones suelen
+  escribirse después de que los estudiantes empezaron.
 - **Presentar una actividad en clase:** el proyector (`activities/present.html`) avisa en qué bloque
   está el docente (`Activity.pointer_*`, con una señal cada 20 s; sin señal en 90 s, se da por
   terminada). El estudiante decide si va a esa diapositiva, vuelve a donde estaba o sigue al docente.
@@ -217,10 +223,14 @@ Reglas de interacción:
   docente, y el estudiante lo sabe. No se bloquean capturas (en la web no se puede) ni se castiga
   automáticamente. La marca de agua (nombre y cédula) es fija sobre la ventana, muy tenue, en el
   intento y en la revisión (`activities/_watermark.html`).
-- **El intento:** índice a la izquierda (partes, títulos del contenido e ítems, con cuántas
-  preguntas tienen respuesta), pendientes y marcadas «Revisar después» a la derecha, y el
-  autoguardado como única forma de guardar (con JavaScript, «Guardar borrador» se oculta; Ctrl+S
-  guarda al instante). Enviar con preguntas en blanco es posible y la confirmación dice cuántas son.
+- **El intento:** el índice (partes, títulos del contenido e ítems, con cuántas preguntas tienen
+  respuesta) en el borde izquierdo de la pantalla y el estado de cada pregunta en el derecho (un
+  recuadro por ítem, un número por pregunta, las de seguimiento con letra: respondida, sin responder
+  o para revisar), con el contenido al centro. Los dos paneles se pliegan y el navegador lo recuerda.
+  «Revisar después» es una bandera discreta en la esquina de cada pregunta, visible al pasar el
+  puntero o al responder (en pantallas táctiles, tenue). El autoguardado es la única forma de guardar
+  (con JavaScript, «Guardar borrador» se oculta; Ctrl+S guarda al instante). Enviar con preguntas en
+  blanco es posible y la confirmación dice cuántas son.
   Las preguntas con tiempo explican su regla una vez, al comienzo del segmento; en cada una, solo el
   botón y un tooltip. Ningún índice ni panel muestra el enunciado de una pregunta con tiempo.
 

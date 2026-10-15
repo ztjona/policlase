@@ -115,7 +115,7 @@ class ActivitySettingsForm(PeriodRowMixin, forms.ModelForm):
         elif mode == self.DUE_OPENING:
             data["due_milestone"] = None
             if not data.get("opens_at"):
-                self.add_error("opens_at", _("Indique la fecha de apertura: la entrega se cuenta desde ella."))
+                self.add_error("opens_at", _("Indique la fecha de apertura, desde la cual se cuenta la fecha de entrega."))
             if data.get("opening_days") is None:
                 self.add_error("opening_days", _("Indique cuántos días después de la apertura."))
             if not data.get("opening_time"):
@@ -153,8 +153,8 @@ class ActivitySettingsForm(PeriodRowMixin, forms.ModelForm):
         else:
             data["review_milestone"], data["review_until"] = None, None
         if mode == self.DUE_NONE and review in (Activity.Review.MILESTONE, Activity.Review.FIXED):
-            self.add_error("review_mode", _("La revisión empieza al vencer la fecha de entrega; sin fecha de entrega, "
-                                            "elija «Sin límite» o «Sin revisión»."))
+            self.add_error("review_mode", _("La revisión comienza al vencer la fecha de entrega. Si la actividad no "
+                                            "tiene fecha de entrega, elija «Sin límite» o «Sin revisión»."))
         return self.clean_period_row(data)
 
     def save(self, commit=True):

@@ -42,7 +42,7 @@ class Activity(models.Model):
         ALWAYS = "always", _("Sin límite")
         MILESTONE = "milestone", _("Hasta una fecha relativa a una fecha clave")
         FIXED = "fixed", _("Hasta una fecha fija")
-        NONE = "none", _("Sin revisión: solo se muestra el puntaje")
+        NONE = "none", _("Sin revisión (solo se muestra el puntaje)")
 
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="activities")
     #: La unidad a la que pertenece (pestaña Clases); con GitHub, la carpeta donde está su archivo.
@@ -90,9 +90,10 @@ class Activity(models.Model):
     #: enviar no cuenta, y nadie pierde lo que respondió por no pulsar «Enviar».
     auto_submit = models.BooleanField(_("enviar automáticamente los borradores al vencer la fecha"),
                                       default=True, db_default=True)
-    #: Ítems (por `item_id`) que no se califican: siguen visibles como práctica, pero no suman
-    #: puntos. Para la parte de un taller a la que no se llegó en clase. Se aplica a todos los
-    #: intentos, también a los ya enviados.
+    #: Ítems deshabilitados (por `item_id`): para la sección de un taller a la que no se llegó en
+    #: clase. El estudiante no los ve y no cuentan para la nota ni para el máximo; sus respuestas,
+    #: si las había, se conservan y reaparecen al habilitarlos. Vale para todos los intentos, también
+    #: los ya enviados. (El nombre de la columna es de cuando solo dejaban de calificarse.)
     ungraded_items = models.JSONField(default=list, db_default=[], blank=True)
     #: Dónde está el docente al presentar la actividad en clase: el bloque (`at` del contenido) y,
     #: si es un ítem, su `item_id`. `presenting_at` es la última señal de la página del proyector:
@@ -113,11 +114,12 @@ class Activity(models.Model):
 
     @property
     def points(self) -> float:
-        """Lo que vale la actividad: sin los ítems que no se califican."""
+        """Lo que vale la actividad: sin los ítems deshabilitados."""
         return graded_points(self.compiled, self.ungraded_items)
 
     @property
-    def ungraded(self) -> set[str]:
+    def disabled(self) -> set[str]:
+        """Los `item_id` deshabilitados."""
         return set(self.ungraded_items or [])
 
     @property
@@ -214,9 +216,9 @@ class Activity(models.Model):
 PRESENTING_TTL = timedelta(seconds=90)
 
 
-def graded_points(content: dict, ungraded) -> float:
-    """Los puntos de un contenido compilado sin los ítems que no se califican."""
-    skip = set(ungraded or [])
+def graded_points(content: dict, disabled) -> float:
+    """Los puntos de un contenido compilado sin los ítems deshabilitados."""
+    skip = set(disabled or [])
     return float(sum(float(item.get("points") or 0) for item in content.get("items", [])
                      if item.get("kind", "item") == "item" and item.get("item_id") not in skip))
 
@@ -283,8 +285,8 @@ class Attempt(models.Model):
 
     def recompute(self) -> None:
         """Nota del intento: suma de sus respuestas menos la penalización por atraso, sin los ítems
-        que no se califican (que tampoco cuentan en el máximo). Guarda."""
-        skip = self.activity.ungraded
+        deshabilitados (que tampoco cuentan en el máximo). Guarda."""
+        skip = self.activity.disabled
         rows = [a for a in self.answer_rows.all() if a.item_id not in skip]
         raw = sum(a.points for a in rows)
         self.points = round(raw * (100 - self.penalty) / 100, 4)

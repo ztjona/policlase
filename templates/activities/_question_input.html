@@ -4,14 +4,17 @@
    solo se lee lo respondido. Los botones usan formaction: sin JavaScript también funcionan. {% endcomment %}
 {% with q=row.question value=row.draft key=row.key timer=row.timer %}
 <fieldset class="q-block{% if q.follow_up %} follow-up{% endif %}{% if error %} has-error{% endif %}{% if timer %} timed timed-{{ timer.state }}{% endif %}" id="q-{{ key }}"
-          data-q="{{ key }}"{% if row.ungraded %} data-ungraded{% endif %}{% if timer.state == "closed" %} data-done="{% if row.blank %}0{% else %}1{% endif %}"{% endif %}
+          data-q="{{ key }}"{% if timer.state == "closed" %} data-done="{% if row.blank %}0{% else %}1{% endif %}"{% endif %}
           {% if timer %}data-timed="{{ key }}"{% if timer.state == "open" %} data-remaining-ms="{{ timer.remaining_ms }}"{% endif %}{% endif %}>
   <legend class="q-head">
     <span class="chip">{% if q.survey %}{% translate "Encuesta" %}{% else %}{{ q.points|floatformat:"-2" }} {% translate "pts" %}{% endif %}</span>
     <span class="small muted">{% include "activities/_type_label.html" %}</span>
     {% if timer %}<span class="chip warn">{% blocktranslate with s=q.time_limit_s %}{{ s }} s{% endblocktranslate %}</span>{% endif %}
-    {% if timer.state != "closed" %}<label class="mark-toggle small"><input type="checkbox" name="mark" value="{{ key }}"{% if row.marked %} checked{% endif %}> {% translate "Revisar después" %}</label>{% endif %}
   </legend>
+  {# Marcar para revisar: una bandera discreta que aparece al pasar el puntero o al responder; marcada, queda a la vista. Es una casilla: sin JavaScript también se guarda. #}
+  {% if timer.state != "closed" %}<label class="mark-toggle" title="{% translate 'Revisar después' %}">
+    <input type="checkbox" name="mark" value="{{ key }}"{% if row.marked %} checked{% endif %} aria-label="{% translate 'Marcar para revisar después' %}">
+    <span class="off">{% icon "flag_outline" 18 %}</span><span class="on">{% icon "flag" 18 %}</span></label>{% endif %}
 {% if timer.state == "locked" %}
   {# La regla completa está al comienzo de la parte (_block_head.html); aquí, solo un recordatorio. #}
   <div class="row timed-lock">

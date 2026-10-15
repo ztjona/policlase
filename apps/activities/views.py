@@ -149,8 +149,8 @@ def activity_detail(request, course_pk, pk):
             reopened = engine.reopen_auto_submitted(activity)
             if reopened:
                 messages.info(request, ngettext(
-                    "La nueva fecha de entrega es posterior: %(n)d intento enviado automáticamente volvió a quedar abierto.",
-                    "La nueva fecha de entrega es posterior: %(n)d intentos enviados automáticamente volvieron a quedar abiertos.",
+                    "Como la nueva fecha de entrega es posterior, %(n)d intento enviado automáticamente volvió a quedar abierto.",
+                    "Como la nueva fecha de entrega es posterior, %(n)d intentos enviados automáticamente volvieron a quedar abiertos.",
                     reopened) % {"n": reopened})
             return redirect("activity_detail", course_pk=course.pk, pk=activity.pk)
         messages.error(request, _("Revise los campos marcados."))
@@ -168,7 +168,7 @@ def activity_detail(request, course_pk, pk):
         "submitted": sum(1 for r in rows if r["attempt"]),
         "review": [{"question": q, "pending": pending.get(q["key"], 0)} for q in review],
         "milestones": Milestone.objects.filter(course=course),
-        "parts": outline.parts(activity.compiled), "ungraded": activity.ungraded,
+        "parts": outline.parts(activity.compiled), "disabled": activity.disabled,
         "full_points": float(activity.compiled.get("points") or 0),
     })
 
@@ -176,19 +176,19 @@ def activity_detail(request, course_pk, pk):
 @teacher_required
 @require_POST
 def activity_parts(request, course_pk, pk):
-    """Qué partes se califican. Lo que no se califica sigue visible como práctica; las entregas ya
-    enviadas se recalculan, y las respuestas no se tocan."""
+    """Qué secciones están habilitadas. Una deshabilitada no se muestra al estudiante ni cuenta para
+    la nota; las entregas ya enviadas se recalculan y las respuestas no se tocan."""
     course, activity = _own_activity(request, course_pk, pk)
-    graded = set(request.POST.getlist("graded"))
+    enabled = set(request.POST.getlist("enabled"))
     every = {i["item_id"] for i in activity.compiled.get("items", []) if i.get("kind", "item") == "item"}
-    count = engine.set_ungraded(activity, every - graded)
+    count = engine.set_disabled(activity, every - enabled)
     if activity.ungraded_items:
         messages.success(request, ngettext(
-            "Partes guardadas: la actividad vale ahora %(p)s puntos; %(n)d entrega se recalculó.",
-            "Partes guardadas: la actividad vale ahora %(p)s puntos; %(n)d entregas se recalcularon.", count)
+            "Se guardaron las secciones. La actividad vale ahora %(p)s puntos y se recalculó %(n)d entrega.",
+            "Se guardaron las secciones. La actividad vale ahora %(p)s puntos y se recalcularon %(n)d entregas.", count)
             % {"p": f"{activity.points:g}", "n": count})
     else:
-        messages.success(request, _("Se califican todas las partes."))
+        messages.success(request, _("Todas las secciones están habilitadas."))
     return redirect(reverse("activity_detail", args=[course.pk, activity.pk]) + "#parts")
 
 
@@ -235,6 +235,7 @@ def attempt_review(request, course_pk, pk, attempt_pk):
     return render(request, "activities/attempt_review.html", {
         "course": course, "activity": activity, "attempt": attempt, "others": others,
         "rows": engine.answer_rows(attempt), "flags": _flags(attempt.telemetry),
+        "blocks": outline.for_review(attempt.content, activity.compiled),
         "previous": order[here - 1] if here else None,
         "next": order[here + 1] if here is not None and here + 1 < len(order) else None,
         "position": (here + 1) if here is not None else None, "total": len(order),
@@ -263,12 +264,13 @@ def _slides(activity, now=None) -> list[dict]:
     una respuesta correcta). Las diapositivas de solución, solo si la revisión ya está abierta para
     los estudiantes."""
     review = activity.review_open(now)
+    hidden = outline.hidden_blocks(activity.compiled, activity.disabled)
     out = []
     for block in activity.compiled.get("items", []):
         kind = block.get("kind", "item")
         if kind == "segment" and not (block.get("title") or block.get("instructions")):
             continue
-        if kind == "solution" and not review:
+        if (kind == "solution" and not review) or block.get("at") in hidden:
             continue
         out.append(block)
     return out
@@ -542,9 +544,13 @@ def activity_student(request, course_pk, pk):
     activity = _student_activity(request, course_pk, pk)
     state = engine.state(activity, request.user)
     counted = state.counted
+    if counted:
+        blocks = outline.for_review(counted.content, activity.compiled if state.solutions else {}, activity.disabled)
+    else:
+        blocks = outline.for_review(activity.compiled, activity.compiled, activity.disabled)
     return render(request, "activities/student.html", {
         "course": activity.course, "activity": activity, "state": state,
-        "rows": engine.answer_rows(counted) if counted else [],
+        "rows": engine.answer_rows(counted) if counted else [], "blocks": blocks,
     })
 
 
@@ -627,12 +633,15 @@ def attempt_form(request, course_pk, pk):
     state = engine.state(activity, request.user)
     _ok, reason, late = engine.can_answer(activity, state.used, timezone.now())
     titles = _titles(activity)
-    rows = _labeled(engine.answer_rows(draft), titles)
+    hidden = outline.hidden_blocks(draft.content, activity.disabled)
+    rows = _labeled([r for r in engine.answer_rows(draft) if not r["disabled"]], titles)
+    entries = [e for e in outline.build(draft.content, titles) if e["at"] not in hidden]
     return render(request, "activities/attempt.html", {
         "course": activity.course, "activity": activity, "attempt": draft,
         "rows": rows, "errors": errors, "late": late, "blocked": reason,
-        "accept": images.ACCEPT_ATTR, "entries": _progress(outline.build(draft.content, titles), rows),
-        "ungraded": activity.ungraded,
+        "accept": images.ACCEPT_ATTR, "entries": _progress(entries, rows), "hidden": hidden,
+        "answered": sum(1 for r in rows if not r["blank"]), "unanswered": sum(1 for r in rows if r["blank"]),
+        "marked": sum(1 for r in rows if r["marked"]),
     })
 
 
@@ -643,13 +652,21 @@ def _labeled(rows: list[dict], titles: dict[str, str]) -> list[dict]:
     for row in rows:
         per_item[row["item"]["item_id"]] = per_item.get(row["item"]["item_id"], 0) + 1
     numbers = {item_id: n for n, item_id in enumerate(per_item, start=1)}
+    # Las preguntas se numeran 1, 2, 3…; las de seguimiento llevan el número de la suya y una letra (2a, 2b).
     seen: dict[str, int] = {}
+    letters: dict[str, int] = {}
     for row in rows:
         item_id = row["item"]["item_id"]
-        seen[item_id] = seen.get(item_id, 0) + 1
+        if row["question"].get("follow_up") and seen.get(item_id):
+            letters[item_id] = letters.get(item_id, 0) + 1
+            number = f"{seen[item_id]}{'abcdefghijklmnopqrstuvwxyz'[(letters[item_id] - 1) % 26]}"
+        else:
+            seen[item_id] = seen.get(item_id, 0) + 1
+            letters[item_id] = 0
+            number = str(seen[item_id])
         title = outline.item_title(row["item"], titles, numbers[item_id])
-        row["item_title"], row["number"], row["single"] = title, seen[item_id], per_item[item_id] == 1
-        row["label"] = title if row["single"] else _("%(title)s · %(n)d") % {"title": title, "n": seen[item_id]}
+        row["item_title"], row["number"], row["single"] = title, number, per_item[item_id] == 1
+        row["label"] = title if row["single"] else _("%(title)s · %(n)s") % {"title": title, "n": number}
     return rows
 
 
@@ -698,8 +715,8 @@ def _save_answers(request, draft) -> None:
     """Solo si llegó el formulario completo (`form=attempt`): una petición con solo una imagen
     no trae las respuestas y no debe dejarlas en blanco."""
     if request.POST.get("form") == "attempt":
-        engine.save_draft(draft, engine.parse_answers(draft.questions, request.POST), _telemetry(request),
-                          marked=request.POST.getlist("mark"))
+        engine.save_draft(draft, engine.parse_answers(engine.visible_questions(draft), request.POST),
+                          _telemetry(request), marked=request.POST.getlist("mark"))
 
 
 def _receive_files(request, draft) -> dict[str, str]:

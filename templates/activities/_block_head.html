@@ -6,7 +6,7 @@
 {% elif item.kind == "solution" %}
   {# Solo en la vista previa del docente y en la revisión: durante el intento no se muestra. #}
   <section class="card block-content solution{% if index is not None %} item-card{% endif %}"{% if index is not None %} data-index="{{ index }}"{% endif %}>
-    <span class="chip ok">{% if index is not None %}{% translate "Solución · se muestra en la revisión" %}{% else %}{% translate "Solución" %}{% endif %}</span>
+    <span class="chip ok">{% if index is not None %}{% translate "Solución (se muestra en la revisión)" %}{% else %}{% translate "Solución" %}{% endif %}</span>
     {{ item.markdown|md }}</section>
 {% elif item.kind == "segment" %}
   {% if item.title or item.instructions or item.time_limit_s or item.block_paste or index is not None %}
@@ -14,7 +14,7 @@
       {% if item.title %}<h2>{{ item.title|md_inline }}</h2>{% endif %}
       {% if item.instructions %}<div>{{ item.instructions|md }}</div>{% endif %}
       {% if item.time_limit_s %}
-        <p class="small timed-rule">{% blocktranslate with s=item.time_limit_s %}Preguntas con límite de tiempo: cada una se abre cuando usted lo decide y, desde ese momento, dispone de {{ s }} segundos para responderla. El tiempo sigue corriendo aunque salga de la página, y cada pregunta solo puede responderse una vez.{% endblocktranslate %}{% if item.block_paste %} {% translate "No se puede pegar texto." %}{% endif %}</p>
+        <p class="small timed-rule">{% blocktranslate with s=item.time_limit_s %}Estas preguntas tienen límite de tiempo. Cada una se abre cuando usted lo decide y, desde ese momento, dispone de {{ s }} segundos para responderla. El tiempo sigue corriendo aunque salga de la página, y cada pregunta solo puede responderse una vez.{% endblocktranslate %}{% if item.block_paste %} {% translate "No se puede pegar texto." %}{% endif %}</p>
       {% elif item.block_paste %}<p class="small muted">{% translate "No se puede pegar texto." %}</p>
       {% elif index is not None %}<p class="small muted">{% translate "Segmento: se restablece la configuración del documento." %}</p>{% endif %}
     </div>

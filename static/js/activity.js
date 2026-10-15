@@ -275,11 +275,9 @@
     if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S")) { e.preventDefault(); flush(false); }
   });
 
-  // ------------------------------------------------------------------ pendientes e índice
+  // ------------------------------------------------------------------ estado de las preguntas e índice
   // Lo mismo que el servidor considera «en blanco» (engine.blank): sin texto, sin marca, sin imagen.
 
-  var pendingList = document.querySelector("[data-pending-list]");
-  var markedList = document.querySelector("[data-marked-list]");
   var submitButton = form.querySelector("[data-submit]");
   var baseConfirm = submitButton ? submitButton.dataset.confirm : "";
 
@@ -294,32 +292,32 @@
     });
   }
 
+  function setText(selector, value) {
+    document.querySelectorAll(selector).forEach(function (el) { if (el.textContent !== String(value)) el.textContent = value; });
+  }
+
   function refresh() {
-    var pending = 0, marked = 0, perItem = {};
+    var pending = 0, done = 0, marked = 0, perItem = {};
     form.querySelectorAll("[data-q]").forEach(function (block) {
-      var key = block.dataset.q, done = answered(block);
-      var mark = block.querySelector("input[name=mark]");
-      var li = pendingList && pendingList.querySelector('[data-pending="' + CSS.escape(key) + '"]');
-      if (li) { li.hidden = done; if (!done) pending += 1; }
-      var mli = markedList && markedList.querySelector('[data-marked="' + CSS.escape(key) + '"]');
-      var isMarked = !!(mark && mark.checked);
-      if (mli) mli.hidden = !isMarked;
+      var key = block.dataset.q, isDone = answered(block);
+      var mark = block.querySelector("input[name=mark]"), isMarked = !!(mark && mark.checked);
+      if (isDone) done += 1; else pending += 1;
       if (isMarked) marked += 1;
+      var chip = document.querySelector('[data-qchip="' + CSS.escape(key) + '"]');
+      if (chip) {
+        chip.classList.toggle("done", isDone);
+        chip.classList.toggle("marked", isMarked);
+      }
       var item = block.closest("[data-item]");
       if (item) {
         var c = perItem[item.dataset.item] || (perItem[item.dataset.item] = { done: 0, total: 0 });
         c.total += 1;
-        if (done) c.done += 1;
+        if (isDone) c.done += 1;
       }
     });
-    if (pendingList) pendingList.querySelectorAll("[data-pending-item]").forEach(function (item) {
-      item.hidden = !item.querySelector("[data-pending]:not([hidden])");
-    });
-    document.querySelectorAll("[data-pending-count]").forEach(function (el) { el.textContent = pending; });
-    var none = document.querySelector("[data-pending-none]");
-    if (none) none.hidden = pending > 0;
-    var noneMarked = document.querySelector("[data-marked-none]");
-    if (noneMarked) noneMarked.hidden = marked > 0;
+    setText("[data-pending-count]", pending);
+    setText("[data-answered-count]", done);
+    setText("[data-marked-count]", marked);
     Object.keys(perItem).forEach(function (id) {
       var el = document.querySelector('[data-toc-count="' + CSS.escape(id) + '"]');
       if (!el) return;
@@ -342,7 +340,21 @@
   window.policlaseAttemptRefresh = refresh;     // tras subir o quitar una imagen, o abrir una pregunta con tiempo
   refresh();
 
-  // Paneles laterales: en pantallas angostas se abren sobre la página con los botones de abajo.
+  // Paneles laterales. Los botones solo sirven con JavaScript: llegan ocultos y se muestran aquí.
+  document.querySelectorAll("[data-side-open], [data-side-collapse], [data-side-expand]").forEach(function (b) { b.hidden = false; });
+
+  // En pantalla ancha, cada panel se pliega a un costado; este navegador lo recuerda.
+  function setCollapsed(side, collapsed) {
+    side.classList.toggle("collapsed", collapsed);
+    try { localStorage.setItem("policlase.side." + side.id, collapsed ? "1" : "0"); } catch (e) {}
+  }
+  document.querySelectorAll(".attempt-side").forEach(function (side) {
+    try { if (localStorage.getItem("policlase.side." + side.id) === "1") side.classList.add("collapsed"); } catch (e) {}
+    side.querySelector("[data-side-collapse]").addEventListener("click", function () { setCollapsed(side, true); });
+    side.querySelector("[data-side-expand]").addEventListener("click", function () { setCollapsed(side, false); });
+  });
+
+  // En pantalla angosta se abren sobre la página con los botones de abajo.
   function closeSides() { document.querySelectorAll(".attempt-side.open").forEach(function (a) { a.classList.remove("open"); }); }
   document.addEventListener("click", function (e) {
     var open = e.target.closest("[data-side-open]");

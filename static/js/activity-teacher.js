@@ -19,11 +19,11 @@
     syncDue();
   }
 
-  // Partes que se califican: la casilla del título marca o desmarca todos sus ítems.
+  // Secciones de la actividad: la casilla del título habilita o deshabilita todos sus ítems.
   document.querySelectorAll("fieldset.part").forEach(function (part) {
     var all = part.querySelector("[data-part-all]");
     if (!all) return;
-    var boxes = Array.from(part.querySelectorAll("input[name=graded]"));
+    var boxes = Array.from(part.querySelectorAll("input[name=enabled]"));
     var sync = function () {
       var on = boxes.filter(function (b) { return b.checked; }).length;
       all.checked = on === boxes.length;

@@ -30,7 +30,7 @@
     var keys = Object.keys(res.answered || {});
     if (!keys.length || !res.working) { progressBox.textContent = ""; return; }
     var most = Math.max.apply(null, keys.map(function (k) { return res.answered[k]; }));
-    progressBox.textContent = interpolate(gettext("Respondieron esta parte: %(n)s de %(total)s en curso"),
+    progressBox.textContent = interpolate(gettext("%(n)s de %(total)s estudiantes respondieron esta parte"),
                                           { n: most, total: res.working }, true);
   }
 
@@ -40,7 +40,7 @@
       if (!r.ok) throw new Error(r.status);
       return r.json();
     }).then(function (res) {
-      conn.textContent = gettext("los estudiantes ven su posición");
+      conn.textContent = gettext("Los estudiantes pueden seguir su posición");
       conn.className = "conn on";
       showProgress(res);
     }).catch(function () {

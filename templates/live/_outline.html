@@ -20,7 +20,7 @@
         <span class="body">
           <span class="kind">{% if e.kind == "segment" %}{% translate "Segmento" %}{% if e.time_limit_s %} · {{ e.time_limit_s }} s{% endif %}{% if e.block_paste %} · {% translate "sin pegar" %}{% endif %}
             {% elif e.kind == "content" %}{% translate "Contenido" %}
-            {% elif e.kind == "solution" %}{% translate "Solución (en la revisión)" %}
+            {% elif e.kind == "solution" %}{% translate "Solución (se muestra en la revisión)" %}
             {% elif e.kind == "item" %}{{ e.item_id }} · {% blocktranslate count n=e.questions|length %}{{ n }} pregunta{% plural %}{{ n }} preguntas{% endblocktranslate %}{% if e.questions.0.time_limit_s %} · {{ e.questions.0.time_limit_s }} s{% endif %}
             {% else %}{{ e.question.type }}{% if e.question.survey %} · {% translate "encuesta" %}{% endif %}{% endif %}</span>
           <span class="title">{% if e.kind == "segment" %}{% if e.title %}{{ e.title|md_inline }}{% else %}{% translate "Restablece la configuración del documento" %}{% endif %}{% else %}{{ e|slide_title|md_inline }}{% endif %}</span>

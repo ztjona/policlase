@@ -73,14 +73,71 @@ def build(content: dict, titles: dict[str, str] | None = None, solutions: bool =
     return out
 
 
+def groups(content: dict) -> list[dict]:
+    """Las secciones de la actividad: cada una empieza en un segmento con título o en un título
+    `#`/`##` del contenido, y reúne los bloques hasta la siguiente. [{"title", "ats", "items"}],
+    con las posiciones de todos sus bloques y los `item_id` de sus ítems. Lo anterior al primer
+    título va en una sección sin título."""
+    out: list[dict] = [{"title": "", "ats": [], "items": []}]
+    for block in content.get("items", []):
+        kind = block.get("kind", "item")
+        found = heading(block.get("markdown", "")) if kind == "content" else None
+        if (kind == "segment" and block.get("title")) or (found and found[0] <= 2):
+            out.append({"title": block.get("title") or found[1], "ats": [], "items": []})
+        out[-1]["ats"].append(block.get("at"))
+        if kind == "item":
+            out[-1]["items"].append(block.get("item_id", ""))
+    return [g for g in out if g["ats"]]
+
+
+def hidden_blocks(content: dict, disabled) -> set:
+    """Las posiciones que el estudiante no ve porque el docente deshabilitó esos ítems: los ítems y,
+    si toda una sección quedó deshabilitada, también su contenido (el enunciado del ejercicio)."""
+    disabled = set(disabled or [])
+    if not disabled:
+        return set()
+    out = set()
+    for group in groups(content):
+        if group["items"] and all(i in disabled for i in group["items"]):
+            out.update(group["ats"])
+    for block in content.get("items", []):
+        if block.get("kind", "item") == "item" and block.get("item_id") in disabled:
+            out.add(block.get("at"))
+    return out
+
+
 def parts(content: dict, titles: dict[str, str] | None = None) -> list[dict]:
-    """Los ítems agrupados bajo su parte o título más cercano, para elegir qué se califica:
-    [{"title", "items": [entrada de ítem, …]}]. Los ítems antes de cualquier título van en un grupo
-    sin título."""
-    groups: list[dict] = [{"title": "", "items": []}]
-    for entry in build(content, titles):
-        if entry["kind"] == "item":
-            groups[-1]["items"].append(entry)
-        elif entry["level"] <= 2:
-            groups.append({"title": entry["title"], "items": []})
-    return [g for g in groups if g["items"]]
+    """Los ítems agrupados por sección, para habilitar o deshabilitar secciones:
+    [{"title", "items": [entrada de ítem, …]}]."""
+    entries = {e["item_id"]: e for e in build(content, titles) if e["kind"] == "item"}
+    return [{"title": g["title"], "items": [entries[i] for i in g["items"] if i in entries]}
+            for g in groups(content) if g["items"]]
+
+
+def for_review(content: dict, current: dict, disabled=None) -> list[dict]:
+    """Los bloques de un intento para la revisión, con las diapositivas de solución de la versión
+    actual de la actividad: el intento copia la actividad al empezar, y las soluciones suelen
+    escribirse después. Cada solución va tras el ítem que la precede en la versión actual (al
+    final, si ese ítem no está en el intento). Con `disabled`, sin lo que el estudiante no vio."""
+    disabled = set(disabled or [])
+    hidden = hidden_blocks(content, disabled)
+    after: dict[str, list] = {}
+    anchor = ""
+    for block in current.get("items", []):
+        kind = block.get("kind", "item")
+        if kind == "item":
+            anchor = block.get("item_id", "")
+        elif kind == "solution" and anchor not in disabled:
+            after.setdefault(anchor, []).append(block)
+    out = list(after.pop("", []))
+    for block in content.get("items", []):
+        kind = block.get("kind", "item")
+        if kind == "solution":
+            continue                                   # se usan las de la versión actual
+        if block.get("at") not in hidden:
+            out.append(block)
+        if kind == "item":
+            out.extend(after.pop(block.get("item_id", ""), []))
+    for rest in after.values():
+        out.extend(rest)
+    return out

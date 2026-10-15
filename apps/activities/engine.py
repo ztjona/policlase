@@ -12,8 +12,8 @@ futura API digan lo mismo:
 - La corrección detallada se muestra en la revisión, desde que vence la fecha hasta su cierre
   (`Activity.review_until`), o antes si se acabaron los intentos; fuera de ella, solo el puntaje,
   para que no se acierte por descarte. Las diapositivas de solución, solo en la revisión.
-- Los ítems que el docente no califica (`Activity.ungraded_items`) siguen visibles como
-  práctica, pero no suman ni cuentan en el máximo.
+- Los ítems que el docente deshabilita (`Activity.ungraded_items`) no se muestran ni se califican;
+  lo que ya se había respondido en ellos se conserva.
 - Una pregunta con tiempo (`time_limit_s`, de un segmento) no se ve hasta que el estudiante la
   abre; desde ahí corre el reloj del servidor y solo se guarda lo que llega antes de que se acabe
   (más `TIMER_GRACE_S` por la conexión). No se reinicia: cerrar la página no da más tiempo.
@@ -328,10 +328,11 @@ def format_errors(attempt: Attempt) -> dict[str, str]:
     """Respuestas que no se pueden leer («2,5,3» en una numérica): se le piden corregir antes de
     enviar. Una pregunta en blanco no es un error: vale cero."""
     errors = {}
-    for key, (_item, q, record) in _records(attempt.content).items():
+    skip = attempt.activity.disabled
+    for key, (item, q, record) in _records(attempt.content).items():
         value = attempt.answers.get(key)
-        if q["type"] in REVIEW_TYPES or blank(value):
-            continue
+        if q["type"] in REVIEW_TYPES or blank(value) or item["item_id"] in skip:
+            continue                       # lo deshabilitado no se ve: no se le puede pedir corregirlo
         result = grade(q, value, solution=record)
         if not result.gradable:
             errors[key] = " ".join(result.format_errors)
@@ -425,8 +426,17 @@ def reopen_auto_submitted(activity: Activity, now=None) -> int:
     return reopened
 
 
-def set_ungraded(activity: Activity, item_ids) -> int:
-    """Qué ítems no se califican. Recalcula las entregas ya enviadas; devuelve cuántas."""
+def visible_questions(attempt: Attempt) -> list[dict]:
+    """Las preguntas que el estudiante tiene a la vista: sin las de los ítems deshabilitados. Solo
+    estas se leen del formulario, para que el autoguardado no deje en blanco lo que ya había
+    respondido en una sección que luego se deshabilitó."""
+    skip = attempt.activity.disabled
+    return [q for item in attempt.content.get("items", []) if item.get("item_id") not in skip
+            for q in item["questions"]]
+
+
+def set_disabled(activity: Activity, item_ids) -> int:
+    """Qué ítems están deshabilitados. Recalcula las entregas ya enviadas; devuelve cuántas."""
     known = {item["item_id"] for item in activity.compiled.get("items", []) if item.get("kind", "item") == "item"}
     activity.ungraded_items = sorted(set(item_ids) & known)
     activity.save(update_fields=["ungraded_items"])
@@ -522,14 +532,14 @@ def answer_rows(attempt: Attempt) -> list[dict]:
     uploads: dict[str, list[Upload]] = {}
     for u in attempt.uploads.all():
         uploads.setdefault(u.key, []).append(u)
-    skip = attempt.activity.ungraded
+    skip = attempt.activity.disabled
     out = []
     for key, (item, q, record) in _records(attempt.content).items():
         given = uploads.get(key, []) if q["type"] == "image" else attempt.answers.get(key)
         row = {"key": key, "item": item, "question": q, "record": record,
                "answer": rows.get(key), "draft": attempt.answers.get(key), "uploads": uploads.get(key, []),
                "timer": timer(attempt, q), "blank": blank(given), "marked": key in (attempt.marked or []),
-               "ungraded": item["item_id"] in skip,
+               "disabled": item["item_id"] in skip,
                "value": rows[key].value if key in rows else attempt.answers.get(key)}
         if q["type"] == "numeric_list":
             given = row["draft"] if isinstance(row["draft"], list) else []
