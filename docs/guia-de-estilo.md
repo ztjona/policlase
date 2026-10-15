@@ -184,6 +184,16 @@ Reglas de interacción:
   terminada). El estudiante decide si va a esa diapositiva, vuelve a donde estaba o sigue al docente.
   La posición viaja con el `item_id` o el título del bloque, porque el intento puede ser de una
   versión anterior de la actividad. Muestra cuántos respondieron, nunca qué.
+- **Evaluaciones** (`Activity.kind = evaluation`, desde `use: evaluation`): se editan, sincronizan y
+  califican como una actividad, con otras reglas. Un intento, sin atrasos, en un horario (de
+  `opens_at` a `due_at`, el día de su fecha clave o en una fecha fija) y, si hay `duration_min`, con
+  un límite propio desde que se empieza (`Activity.deadline`). Se empieza con el código que el docente
+  proyecta (`evaluation_projector`), y diez códigos equivocados obligan a esperar. Pasado el límite
+  (con una gracia de 20 s), nada se guarda y el intento se envía solo. El estudiante no ve su puntaje,
+  su corrección ni su nota en «Calificaciones» hasta que el docente publica las notas
+  (`published_at`); la revisión empieza entonces. Una evaluación nunca se proyecta con sus preguntas
+  y lo enviado no se reabre al mover la fecha. Las variantes por estudiante (§7 del formato) quedan
+  para una segunda etapa.
 - **Pegar:** lo decide el documento (`block_paste` en la raíz o en un segmento). La antigua casilla
   de la plataforma (`Activity.block_paste`) ya no se usa: bloqueaba también las preguntas que piden
   pegar código.

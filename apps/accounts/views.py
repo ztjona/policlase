@@ -81,10 +81,13 @@ def preferences(request):
     initial = {"language": user.language or translation.get_language(),
                "timezone": user.timezone or settings.TIME_ZONE, "theme": user.theme}
     form = PreferencesForm(request.POST or None, initial=initial)
+    if not user.is_teacher:
+        del form.fields["theme"]            # los estudiantes lo cambian en «Mis cursos»
     if request.method == "POST" and form.is_valid():
         user.language = form.cleaned_data["language"]
         user.timezone = form.cleaned_data["timezone"]
-        user.theme = form.cleaned_data["theme"]
+        if "theme" in form.fields:
+            user.theme = form.cleaned_data["theme"]
         user.save(update_fields=["language", "timezone", "theme"])
         translation.activate(user.language)
         messages.success(request, _("Preferencias guardadas."))

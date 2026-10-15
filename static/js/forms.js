@@ -27,8 +27,12 @@
     }
 
     function day() {
-      var mode = form.querySelector("input[name=due_mode]:checked");
+      var mode = form.querySelector("input[name=due_mode]:checked") || form.querySelector("input[name=day_mode]:checked");
       if (mode && mode.value === "none") return "";
+      if (mode && mode.name === "day_mode" && mode.value === "fixed") {        // una evaluación en una fecha fija
+        var fixed = form.querySelector("[name=day]");
+        return fixed && fixed.value ? fixed.value : "";
+      }
       if (mode && mode.value === "milestone") {
         var milestone = form.querySelector("select[name=due_milestone]"), chosen = milestone && milestone.selectedOptions[0];
         if (!chosen || !chosen.dataset.day) return "";

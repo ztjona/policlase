@@ -34,7 +34,8 @@ Dentro de la carpeta vinculada:
 |---|---|
 | Un `.yaml`/`.yml` con `schema: policlase/v1` y `use: class` (o `schema: policlase.deck/v1`), sin errores | Una presentación (clase en vivo) |
 | Un `.yaml` con `schema: policlase/v1` y `use: activity` (o `schema: policlase.activity/v1`), sin errores | Una actividad; la primera vez llega como **borrador** (falta decidir fechas y ponderación en policlase) |
-| Un `.yaml` con `use: evaluation` | Un aviso: las evaluaciones llegan con su pestaña |
+| Un `.yaml` con `use: evaluation` | Una evaluación (prueba o examen) en la pestaña Evaluaciones; la primera vez llega como **borrador** (falta decidir su fecha, horario y ponderación en policlase) |
+| Un archivo que pasó de `activity` a `evaluation` (o al revés) | Si aún no tiene entregas, cambia de tipo; con entregas, un aviso y no se actualiza |
 | Un archivo que cambió de `use` (de clase a actividad o al revés) | Un aviso; lo que ya existe no se convierte (tiene clases o entregas): cree un archivo nuevo |
 | Un `.yaml` con errores | Un aviso en el curso (archivo, línea, código); **se conserva la última versión válida** |
 | Otro YAML (ítems, configuración) | Se ignora |

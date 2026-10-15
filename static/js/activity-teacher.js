@@ -6,14 +6,21 @@
   // Vencimiento: solo los campos del modo elegido.
   var settings = document.getElementById("settings");
   if (settings) {
+    var show = function (selector, visible) {
+      var el = settings.querySelector(selector);
+      if (el) el.hidden = !visible;
+    };
     var syncDue = function () {
       var mode = (settings.querySelector("input[name=due_mode]:checked") || {}).value;
-      settings.querySelector(".due-milestone").hidden = mode !== "milestone";
-      settings.querySelector(".due-opening").hidden = mode !== "opening";
-      settings.querySelector(".due-fixed").hidden = mode !== "fixed";
+      show(".due-milestone", mode === "milestone");
+      show(".due-opening", mode === "opening");
+      show(".due-fixed", mode === "fixed");
+      var day = (settings.querySelector("input[name=day_mode]:checked") || {}).value;     // evaluación
+      show(".day-milestone", day === "milestone");
+      show(".day-fixed", day === "fixed");
       var review = (settings.querySelector("input[name=review_mode]:checked") || {}).value;
-      settings.querySelector(".review-milestone").hidden = review !== "milestone";
-      settings.querySelector(".review-fixed").hidden = review !== "fixed";
+      show(".review-milestone", review === "milestone");
+      show(".review-fixed", review === "fixed");
     };
     settings.addEventListener("change", syncDue);
     syncDue();

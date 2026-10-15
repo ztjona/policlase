@@ -137,12 +137,14 @@ def pull(link: CourseRepo) -> PullResult:
             skipped[path] = sha
             result.issues.append({"path": path, "diagnostics": _diagnostics(report)})
             continue
-        if use == "evaluation":
+        if activity and activity.attempts.exists() and (use == "evaluation") != activity.is_evaluation \
+                and use in ("activity", "evaluation"):
             skipped[path] = sha
             result.issues.append({"path": path, "diagnostics": [], "note": _(
-                "es una evaluación (use: evaluation); las evaluaciones estarán disponibles con la pestaña Evaluaciones.")})
+                "cambió de actividad a evaluación (o al revés) en GitHub y ya tiene entregas; no se actualizó. "
+                "Para usar el otro tipo, cree un archivo nuevo.")})
             continue
-        if (use == "activity" and deck) or (use == "class" and activity):
+        if (use in ("activity", "evaluation") and deck) or (use == "class" and activity):
             # Cambió de tipo en GitHub: lo que ya existe (con sus clases o entregas) no se convierte.
             skipped[path] = sha
             result.issues.append({"path": path, "diagnostics": [], "note": _(
@@ -151,16 +153,23 @@ def pull(link: CourseRepo) -> PullResult:
         compiled, missing = images.rewrite(content_format.compile_content(document), path, link.prefix, found_images)
         if missing:
             result.issues.append(_missing_images_issue(path, missing))
-        if use == "activity":
+        if use in ("activity", "evaluation"):
             if activity is None:
-                activities[path] = Activity.objects.create(
-                    course=link.course, title=compiled["title"], source=source, compiled=compiled,
-                    github_path=path, github_sha=sha)
+                activity = Activity(course=link.course, title=compiled["title"], source=source, compiled=compiled,
+                                    github_path=path, github_sha=sha)
+                activity.set_kind(use)
+                activity.save()
+                activities[path] = activity
                 result.created.append(path)
             else:
                 activity.title, activity.source, activity.compiled, activity.github_sha = \
                     compiled["title"], source, compiled, sha
-                activity.save(update_fields=["title", "source", "compiled", "github_sha", "updated_at"])
+                fields = ["title", "source", "compiled", "github_sha", "updated_at"]
+                was = activity.kind
+                activity.set_kind(use)
+                if activity.kind != was:                 # sin entregas: el tipo puede cambiar
+                    fields += ["kind", "max_attempts", "late_policy", "auto_submit", "require_code", "access_code"]
+                activity.save(update_fields=fields)
                 result.updated.append(path)
             continue
         if deck is None:

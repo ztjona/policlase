@@ -29,10 +29,11 @@
     <div class="muted small"><a href="{% url 'activity_student' course.pk activity.pk %}">← {{ activity.title }}</a></div>
     <div class="spread">
       <h1>{{ activity.title }}</h1>
-      <span class="small muted">{% blocktranslate with n=attempt.number max=activity.max_attempts %}Intento {{ n }} de {{ max }}{% endblocktranslate %}</span>
+      {% if not activity.is_evaluation %}<span class="small muted">{% blocktranslate with n=attempt.number max=activity.max_attempts %}Intento {{ n }} de {{ max }}{% endblocktranslate %}</span>{% endif %}
     </div>
     <p class="small">
-      {% if activity.due_at %}{% blocktranslate with when=activity.due_at|date:"D d M Y, H:i" %}Entrega: {{ when }}{% endblocktranslate %}{% else %}{% translate "Sin fecha de entrega" %}{% endif %}
+      {% if activity.is_evaluation %}{% blocktranslate with when=activity.due_at|date:"H:i" %}Se cierra a las {{ when }}{% endblocktranslate %}
+      {% elif activity.due_at %}{% blocktranslate with when=activity.due_at|date:"D d M Y, H:i" %}Entrega: {{ when }}{% endblocktranslate %}{% else %}{% translate "Sin fecha de entrega" %}{% endif %}
       · {% blocktranslate with n=activity.points|floatformat:"-2" %}{{ n }} puntos{% endblocktranslate %}
     </p>
     {% if late %}<div class="notice">{% blocktranslate with p=activity.late_penalty %}La fecha de entrega ya pasó: si envía ahora, su nota tendrá un {{ p }} % de penalización.{% endblocktranslate %}</div>{% endif %}
@@ -42,12 +43,14 @@
     {% if activity.compiled.instructions %}<div class="card">{{ activity.compiled.instructions|md }}</div>{% endif %}
     <p class="small muted anon-note">
       {% translate "Sus respuestas se guardan automáticamente mientras escribe. Se registra si pega texto o sale de esta página, y su docente lo verá junto con su entrega." %}
-      {% if activity.auto_submit and activity.due_at %}{% translate "Si no envía el intento antes de la fecha de entrega, se enviará automáticamente con lo que tenga guardado en ese momento." %}{% endif %}
+      {% if activity.is_evaluation %}{% translate "Al acabarse el tiempo, la evaluación se envía automáticamente con lo que tenga guardado." %}
+      {% elif activity.auto_submit and activity.due_at %}{% translate "Si no envía el intento antes de la fecha de entrega, se enviará automáticamente con lo que tenga guardado en ese momento." %}{% endif %}
     </p>
 
     <form method="post" enctype="multipart/form-data" class="stack" id="attempt-form"
           data-upload-url="{% url 'attempt_upload' course.pk activity.pk %}"
-          data-pointer-url="{% url 'attempt_pointer' course.pk activity.pk %}" data-autosave>
+          {% if not activity.is_evaluation %}data-pointer-url="{% url 'attempt_pointer' course.pk activity.pk %}"{% endif %}
+          {% if remaining_ms is not None %}data-remaining-ms="{{ remaining_ms }}"{% endif %} data-autosave>
       {% csrf_token %}
       <input type="hidden" name="form" value="attempt">
       <input type="hidden" name="telemetry" value="">
@@ -57,7 +60,7 @@
           <div class="block" id="b-{{ item.at }}" data-block="{{ item.at }}">{% include "activities/_block_head.html" with index=None %}</div>
         {% else %}
           <section class="card stack block" id="b-{{ item.at }}" data-block="{{ item.at }}" data-item="{{ item.item_id }}">
-            {% if item.stem %}<div>{{ item.stem|md }}</div>{% endif %}
+            {% if item.stem %}<div class="stem">{{ item.stem|md }}</div>{% endif %}
             {% for row in rows %}{% if row.item.item_id == item.item_id %}
               {% include "activities/_question_input.html" with row=row error=errors|get_item:row.key %}
             {% endif %}{% endfor %}
@@ -73,6 +76,8 @@
           <button type="submit" name="action" value="submit" data-submit
                   data-confirm="{% translate 'Después de enviar no podrá cambiar este intento. ¿Enviar?' %}">{% translate "Enviar" %}</button>
         {% endif %}
+        {% if remaining_ms is not None %}<span class="eval-clock" data-clock role="timer" aria-live="off"
+              title="{% translate 'Tiempo restante de la evaluación' %}">{% translate "Tiempo restante" %} <strong data-clock-value>—</strong></span>{% endif %}
         <span class="small muted" data-save-status role="status">{% if attempt.saved_at %}{% blocktranslate with t=attempt.saved_at|time:"H:i" %}Guardado a las {{ t }}{% endblocktranslate %}{% endif %}</span>
       </div>
     </form>

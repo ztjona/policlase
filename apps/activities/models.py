@@ -38,6 +38,10 @@ class Activity(models.Model):
         PENALTY = "penalty", _("Se aceptan con penalización")
         BLOCK = "block", _("No se aceptan")
 
+    class Kind(models.TextChoices):
+        ACTIVITY = "activity", _("Actividad")
+        EVALUATION = "evaluation", _("Evaluación")
+
     class Review(models.TextChoices):
         ALWAYS = "always", _("Sin límite")
         MILESTONE = "milestone", _("Hasta una fecha relativa a una fecha clave")
@@ -45,6 +49,10 @@ class Activity(models.Model):
         NONE = "none", _("Sin revisión (solo se muestra el puntaje)")
 
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="activities")
+    #: Lo dice el documento (`use: activity` o `use: evaluation`). Una evaluación (prueba, examen) se
+    #: rinde una sola vez en un horario, con duración por estudiante, código de acceso y notas que el
+    #: docente publica cuando termina de calificar.
+    kind = models.CharField(max_length=12, choices=Kind.choices, default=Kind.ACTIVITY, db_default=Kind.ACTIVITY)
     #: La unidad a la que pertenece (pestaña Clases); con GitHub, la carpeta donde está su archivo.
     section = models.ForeignKey(Section, on_delete=models.SET_NULL, null=True, blank=True,
                                 related_name="activities", verbose_name=_("sección"))
@@ -77,6 +85,15 @@ class Activity(models.Model):
     review_offset_days = models.SmallIntegerField(_("días respecto a la fecha clave"), default=0, db_default=0)
     review_time = models.TimeField(_("hora de cierre de la revisión"), default=time(0, 0), db_default=time(0, 0))
     review_until = models.DateTimeField(_("revisión hasta"), null=True, blank=True)
+    #: Evaluación: hora de inicio el día de su fecha clave (el cierre es `due_time`).
+    opens_time = models.TimeField(_("hora de inicio"), null=True, blank=True)
+    #: Evaluación: minutos desde que el estudiante empieza, sin pasar del cierre. Vacío: hasta el cierre.
+    duration_min = models.PositiveSmallIntegerField(_("duración (minutos)"), null=True, blank=True)
+    #: Evaluación: el código que el docente proyecta en el aula; sin él no se puede empezar.
+    require_code = models.BooleanField(_("pedir un código de acceso para empezar"), default=True, db_default=True)
+    access_code = models.CharField(max_length=8, blank=True, default="", db_default="")
+    #: Evaluación: cuándo publicó el docente las notas. Antes, el estudiante no ve ni su puntaje.
+    published_at = models.DateTimeField(_("notas publicadas"), null=True, blank=True)
     late_policy = models.CharField(_("entregas atrasadas"), max_length=8, choices=Late.choices,
                                    default=Late.PENALTY)
     late_penalty = models.PositiveSmallIntegerField(_("penalización (%)"), default=30)
@@ -156,11 +173,14 @@ class Activity(models.Model):
         return bool(self.due_milestone_id or self.due_from_opening)
 
     def compute_due(self) -> None:
-        """Recalcula `due_at` (y el fin de la revisión) desde su fecha de referencia. No guarda."""
+        """Recalcula `due_at` (y el fin de la revisión) desde su fecha de referencia. No guarda. Una
+        evaluación relativa a una fecha clave abre ese día a las `opens_time`."""
         tz = course_tz(self.course)
         if self.due_milestone_id:
             day = self.due_milestone.on + timedelta(days=self.due_offset_days)
             self.due_at = datetime.combine(day, self.due_time, tzinfo=tz)
+            if self.is_evaluation and self.opens_time:
+                self.opens_at = datetime.combine(day, self.opens_time, tzinfo=tz)
         elif self.due_from_opening and self.opens_at:
             day = self.opens_at.astimezone(tz).date() + timedelta(days=self.due_offset_days)
             self.due_at = datetime.combine(day, self.due_time, tzinfo=tz)
@@ -185,11 +205,43 @@ class Activity(models.Model):
                                                            "D d M, H:i")}
 
     def review_open(self, now=None) -> bool:
-        """¿Está abierta la revisión? Desde que vence la fecha hasta `review_until`."""
+        """¿Está abierta la revisión? Desde que vence la fecha hasta `review_until`; en una evaluación,
+        además, solo con las notas publicadas."""
         now = now or timezone.now()
         if self.review_mode == self.Review.NONE or not self.is_past_due(now):
             return False
+        if self.is_evaluation and not self.published_at:
+            return False
         return self.review_until is None or now <= self.review_until
+
+    @property
+    def is_evaluation(self) -> bool:
+        return self.kind == self.Kind.EVALUATION
+
+    def set_kind(self, use: str) -> None:
+        """El tipo según el `use` del documento. Una evaluación nueva parte de lo habitual: un solo
+        intento, sin atrasos, envío automático y código de acceso. No guarda."""
+        kind = self.Kind.EVALUATION if use == "evaluation" else self.Kind.ACTIVITY
+        if kind == self.kind and self.pk:
+            return
+        self.kind = kind
+        if kind == self.Kind.EVALUATION:
+            self.max_attempts, self.late_policy, self.auto_submit = 1, self.Late.BLOCK, True
+            self.require_code = True
+            self.access_code = self.access_code or new_access_code()
+
+    def deadline(self, attempt) -> datetime | None:
+        """Hasta cuándo puede responder este intento: el cierre o, en una evaluación con duración,
+        lo que llegue primero entre el cierre y la duración contada desde que empezó."""
+        if self.is_evaluation and self.duration_min and attempt.started_at:
+            own = attempt.started_at + timedelta(minutes=self.duration_min)
+            return min(own, self.due_at) if self.due_at else own
+        return self.due_at
+
+    def window_open(self, now=None) -> bool:
+        """Evaluación: dentro del horario (de la apertura al cierre)."""
+        now = now or timezone.now()
+        return bool(self.opens_at and self.due_at) and self.opens_at <= now <= self.due_at
 
     def is_presenting(self, now=None) -> bool:
         return bool(self.presenting_at) and (now or timezone.now()) - self.presenting_at < PRESENTING_TTL
@@ -205,7 +257,11 @@ class Activity(models.Model):
         return None
 
     def is_visible(self, now=None) -> bool:
+        """Una actividad publicada se ve desde que abre; una evaluación publicada, desde antes, para
+        que el estudiante sepa cuándo es (pero solo se empieza en su horario)."""
         now = now or timezone.now()
+        if self.is_evaluation:
+            return self.published
         return self.published and (self.opens_at is None or self.opens_at <= now)
 
     def is_past_due(self, now=None) -> bool:
@@ -225,6 +281,13 @@ def graded_points(content: dict, disabled) -> float:
 
 def new_token() -> str:
     return uuid.uuid4().hex
+
+
+def new_access_code() -> str:
+    """Seis cifras, fáciles de leer en el proyector y de escribir en un teléfono."""
+    import secrets
+
+    return f"{secrets.randbelow(10**6):06d}"
 
 
 class Attempt(models.Model):

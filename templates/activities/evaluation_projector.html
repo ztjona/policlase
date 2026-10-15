@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load static i18n policlase %}
+{% block title %}{{ activity.title }} · {% translate "código de acceso" %}{% endblock %}
+{# Como el proyector de las clases: claro, salvo que el docente elija oscuro. #}
+{% block html_theme %} data-theme="{{ theme|default:'light' }}"{% endblock %}
+{% block color_scheme %}{{ theme|default:'light' }}{% endblock %}
+{% block head %}<meta http-equiv="refresh" content="15">{% endblock %}
+{% block chrome %}
+{% comment %} El código de acceso de una evaluación, para proyectarlo al comenzar. Se recarga sola cada 15 s para mostrar
+   cuántos empezaron y enviaron; no revela nada más. {% endcomment %}
+<div class="live-shell projector-shell">
+  <div class="live-bar">
+    <a class="brand" href="{% url 'activity_detail' course.pk activity.pk %}"><img src="{% static 'img/icon.svg' %}" alt="" width="22" height="22">poli<span>clase</span></a>
+    <strong>{{ activity.title }}</strong>
+    <span class="muted">{{ course.code }}</span>
+  </div>
+  <div class="stage">
+    <div class="slide lobby">
+      <h1>{{ activity.title }}</h1>
+      {% if activity.opens_at and activity.due_at %}
+        <p class="url">{% blocktranslate with start=activity.opens_at|time:"H:i" end=activity.due_at|time:"H:i" %}De {{ start }} a {{ end }}{% endblocktranslate %}{% if activity.duration_min %} · {% blocktranslate count n=activity.duration_min %}{{ n }} minuto desde que empieza{% plural %}{{ n }} minutos desde que empieza{% endblocktranslate %}{% endif %}</p>
+      {% endif %}
+      {% if activity.require_code %}
+        <p class="url">{% blocktranslate with course=course.name %}Abra la evaluación en el curso «{{ course }}» e ingrese el código:{% endblocktranslate %}</p>
+        <div class="pin" aria-label="{% translate 'Código de acceso' %}">{{ activity.access_code }}</div>
+      {% endif %}
+      <p class="meter">
+        {% if activity.opens_at and now < activity.opens_at %}{% blocktranslate with start=activity.opens_at|time:"H:i" %}Se puede empezar desde las {{ start }}.{% endblocktranslate %}
+        {% elif activity.due_at and now > activity.due_at %}{% translate "La evaluación se cerró." %}
+        {% else %}{% blocktranslate count n=working %}{{ n }} estudiante rindiendo{% plural %}{{ n }} estudiantes rindiendo{% endblocktranslate %} · {% blocktranslate count n=submitted %}{{ n }} entrega{% plural %}{{ n }} entregas{% endblocktranslate %} · {% blocktranslate count n=enrolled %}{{ n }} inscrito{% plural %}{{ n }} inscritos{% endblocktranslate %}{% endif %}
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}

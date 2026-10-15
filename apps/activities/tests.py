@@ -509,8 +509,11 @@ class GitHubActivityTests(ActivityBase):
         self.assertEqual(Deck.objects.get(github_path="mn/clases/unidad-01/clase-teclado.yaml").section.title,
                          "Unidad 01")
         self.assertTrue(Activity.objects.filter(github_path="mn/clases/unidad-01/deber-teclado.yaml").exists())
-        notes = [i for i in result.issues if i["path"].endswith("prueba.yaml")]
-        self.assertIn("evaluación", notes[0]["note"])
+        self.assertEqual([i for i in result.issues if i["path"].endswith("prueba.yaml")], [])
+        prueba = Activity.objects.get(github_path="mn/clases/unidad-01/prueba.yaml")
+        self.assertTrue(prueba.is_evaluation)                              # llega como evaluación
+        self.assertEqual((prueba.max_attempts, prueba.late_policy, prueba.published), (1, "block", False))
+        self.assertEqual(len(prueba.access_code), 6)
 
     def test_borrada_en_github_con_entregas_se_conserva(self):
         from apps.github import sync
@@ -1103,6 +1106,26 @@ class PanelsAndReviewTests(WorkshopBase):
         page = self.client.get(reverse("activity_student", args=[self.course.pk, self.workshop.pk]))
         self.assertContains(page, "AltGr")
 
+    def test_las_casillas_de_una_lista_llevan_su_numero(self):
+        engine.start(self.workshop, self.ana)
+        self.client.force_login(self.ana)
+        from policlase_gen import document as content_format
+
+        source = WORKSHOP.replace("  - segment: {}\n", """  - segment: {}
+  - item:
+      id: T-lista
+      questions:
+        - { id: q1, type: numeric_list, shape: [1, 6], prompt: 'Seis valores', solution: [1, 2, 3, 4, 5, 6], grading: { atol: 0 } }
+""")
+        document, _report, _use = content_format.load_text(source)
+        Activity.objects.filter(pk=self.workshop.pk).update(compiled=content_format.compile_content(document))
+        Attempt.objects.all().delete()
+        self.workshop.refresh_from_db()
+        engine.start(self.workshop, self.ana)
+        page = self.client.get(reverse("attempt_form", args=[self.course.pk, self.workshop.pk]))
+        self.assertContains(page, 'class="cells cells-list many"')
+        self.assertContains(page, '<span class="cell-n" aria-hidden="true">6</span>')
+
     def test_las_preguntas_de_seguimiento_se_numeran_con_letra(self):
         from .views import _labeled
 
@@ -1120,3 +1143,183 @@ class PanelsAndReviewTests(WorkshopBase):
         groups = outline.parts(self.workshop.compiled)
         self.assertEqual([g["title"] for g in groups], ["Antes de empezar", "Rápidas"])
         self.assertTrue(any(e["kind"] == "solution" for e in outline.build(self.workshop.compiled, solutions=True)))
+
+
+EVALUATION = r"""schema: policlase/v1
+title: 'Prueba 1'
+use: evaluation
+slides:
+  - item:
+      id: P1-a
+      questions:
+        - { id: q1, type: numeric, points: 2, prompt: 'Raíz de 2', solution: 1.4142, grading: { atol: 0.001 } }
+        - id: q2
+          type: open
+          points: 2
+          prompt: 'Explique su criterio de parada'
+          grading: { mode: manual, rubric: [{ criterion: 'Idea', points: 2 }] }
+  - solution: |
+      La raíz de 2 vale 1.4142 (CLAVE-SOLUCION).
+"""
+
+
+class EvaluationTests(ActivityBase):
+    def setUp(self):
+        super().setUp()
+        from policlase_gen import document as content_format
+
+        document, report, _use = content_format.load_text(EVALUATION)
+        self.assertEqual(report.errors, [])
+        self.prueba = self.course.periods.first().categories.get(name="Prueba")
+        self.exam = Activity(course=self.course, title="Prueba 1", source=EVALUATION,
+                             compiled=content_format.compile_content(document), category=self.prueba,
+                             published=True, opens_at=timezone.now() - timedelta(minutes=10),
+                             due_at=timezone.now() + timedelta(hours=2), duration_min=60)
+        self.exam.set_kind("evaluation")
+        self.exam.save()
+        self.code = self.exam.access_code
+
+    def started(self, student=None, minutes_ago=0):
+        attempt = engine.start(self.exam, student or self.ana, code=self.code)
+        if minutes_ago:
+            Attempt.objects.filter(pk=attempt.pk).update(started_at=timezone.now() - timedelta(minutes=minutes_ago))
+            attempt.refresh_from_db()
+        return attempt
+
+    def test_valores_de_una_evaluacion_nueva(self):
+        self.assertEqual((self.exam.max_attempts, self.exam.late_policy, self.exam.require_code), (1, "block", True))
+        self.assertRegex(self.code, r"^\d{6}$")
+
+    def test_horario_y_codigo(self):
+        with self.assertRaises(engine.ActionError):
+            engine.start(self.exam, self.ana, code="000000" if self.code != "000000" else "111111")
+        with self.assertRaises(engine.ActionError):
+            engine.start(self.exam, self.ana)                              # sin código
+        self.assertIsNone(Attempt.objects.filter(student=self.ana).first())
+        self.started()
+        Activity.objects.filter(pk=self.exam.pk).update(opens_at=timezone.now() + timedelta(hours=1))
+        self.exam.refresh_from_db()
+        state = engine.state(self.exam, self.bruno)
+        self.assertFalse(state.can_start)
+        self.assertIn("comienza", state.reason)
+
+    def test_demasiados_codigos_incorrectos(self):
+        from django.core.cache import cache
+
+        cache.clear()
+        wrong = "999999" if self.code != "999999" else "888888"
+        for _ in range(engine.CODE_TRIES):
+            with self.assertRaises(engine.ActionError):
+                engine.start(self.exam, self.ana, code=wrong)
+        with self.assertRaisesMessage(engine.ActionError, "demasiadas veces"):
+            engine.start(self.exam, self.ana, code=self.code)               # ni el correcto, por ahora
+
+    def test_la_duracion_cierra_el_intento(self):
+        attempt = self.started(minutes_ago=61)
+        with self.assertRaises(engine.ActionError):
+            engine.save_draft(attempt, {"P1-a.q1": "1.4142"})              # ya pasó su límite
+        attempt = self.started(self.bruno, minutes_ago=30)
+        engine.save_draft(attempt, {"P1-a.q1": "1.4142"})
+        engine.finalize_overdue(self.exam)
+        attempt.refresh_from_db()
+        self.assertIsNone(attempt.submitted_at)                            # aún tiene tiempo
+        ana = Attempt.objects.get(student=self.ana)
+        self.assertTrue(ana.auto_submitted)
+        self.assertEqual(ana.submitted_at, ana.started_at + timedelta(minutes=60))
+        self.assertEqual(engine.remaining_ms(attempt) // 60_000, 29)
+
+    def test_al_llegar_a_cero_la_pagina_la_envia(self):
+        self.started(minutes_ago=60)
+        self.client.force_login(self.ana)
+        url = reverse("attempt_form", args=[self.course.pk, self.exam.pk])
+        response = self.client.post(url, {"form": "attempt", "a-P1-a.q1": "1.4142", "action": "timeout"})
+        self.assertRedirects(response, reverse("activity_student", args=[self.course.pk, self.exam.pk]))
+        attempt = Attempt.objects.get(student=self.ana)
+        self.assertIsNotNone(attempt.submitted_at)
+        self.assertEqual(attempt.answers["P1-a.q1"], "1.4142")            # lo último llegó dentro de la gracia
+
+    def test_nada_se_ve_hasta_publicar(self):
+        attempt = self.started()
+        engine.save_draft(attempt, {"P1-a.q1": "1.4142"})
+        engine.submit(attempt)
+        self.client.force_login(self.ana)
+        page = self.client.get(reverse("activity_student", args=[self.course.pk, self.exam.pk]))
+        self.assertContains(page, "Su evaluación se recibió")
+        self.assertNotContains(page, "2 / 4")
+        self.assertNotContains(page, "CLAVE-SOLUCION")
+        grades = self.client.get(reverse("my_grades", args=[self.course.pk]))
+        self.assertNotContains(grades, "Prueba 1")
+        self.assertFalse(engine.state(self.exam, self.ana).can_start)       # un solo intento
+        with self.assertRaises(engine.ActionError):
+            engine.publish(self.exam)                                       # todavía no se cierra
+        Activity.objects.filter(pk=self.exam.pk).update(due_at=timezone.now() - timedelta(minutes=1))
+        self.exam.refresh_from_db()
+        engine.publish(self.exam)
+        page = self.client.get(reverse("activity_student", args=[self.course.pk, self.exam.pk]))
+        self.assertContains(page, "2 / 4")
+        self.assertContains(page, "CLAVE-SOLUCION")
+        self.assertContains(self.client.get(reverse("my_grades", args=[self.course.pk])), "Prueba 1")
+
+    def test_paginas_del_docente_y_aislamiento(self):
+        self.client.force_login(self.teacher)
+        detail = self.client.get(reverse("activity_detail", args=[self.course.pk, self.exam.pk]))
+        self.assertContains(detail, self.code)
+        projector = self.client.get(reverse("evaluation_projector", args=[self.course.pk, self.exam.pk]))
+        self.assertContains(projector, self.code)
+        self.assertNotContains(projector, "Raíz de 2")
+        self.assertEqual(self.client.get(reverse("activity_present", args=[self.course.pk, self.exam.pk])).status_code, 404)
+        self.client.post(reverse("evaluation_code", args=[self.course.pk, self.exam.pk]))
+        self.exam.refresh_from_db()
+        self.assertNotEqual(self.exam.access_code, self.code)
+        tab = self.client.get(reverse("activity_dates", args=[self.course.pk]))
+        self.assertContains(tab, "Prueba 1")
+        other = make_user("otra", User.Role.TEACHER)
+        self.client.force_login(other)
+        for name in ("evaluation_projector", "activity_detail"):
+            self.assertEqual(self.client.get(reverse(name, args=[self.course.pk, self.exam.pk])).status_code, 404)
+        for name in ("evaluation_code", "evaluation_publish"):
+            self.assertEqual(self.client.post(reverse(name, args=[self.course.pk, self.exam.pk])).status_code, 404)
+
+    def test_fecha_relativa_a_la_prueba_con_horario(self):
+        prueba = Milestone.objects.create(course=self.course, name="Prueba 1", on=date(2026, 11, 12))
+        self.client.force_login(self.teacher)
+        self.client.post(reverse("activity_detail", args=[self.course.pk, self.exam.pk]), {
+            "category": self.prueba.pk, "published": "on", "day_mode": "milestone", "due_milestone": prueba.pk,
+            "due_offset_days": "0", "opens_time": "07:00", "due_time": "09:00", "duration_min": "90",
+            "require_code": "on", "review_mode": "always"})
+        self.exam.refresh_from_db()
+        tz = timezone.get_default_timezone()
+        self.assertEqual(timezone.localtime(self.exam.opens_at, tz).replace(tzinfo=None), datetime(2026, 11, 12, 7, 0))
+        self.assertEqual(timezone.localtime(self.exam.due_at, tz).replace(tzinfo=None), datetime(2026, 11, 12, 9, 0))
+        self.assertEqual(self.exam.duration_min, 90)
+        prueba.on = date(2026, 11, 19)
+        prueba.save()
+        gradebook.recompute_due_dates(prueba)
+        self.exam.refresh_from_db()
+        self.assertEqual(timezone.localtime(self.exam.opens_at, tz).date(), date(2026, 11, 19))
+
+    def test_el_estudiante_la_ve_en_su_curso_con_su_horario(self):
+        self.client.force_login(self.ana)
+        page = self.client.get(reverse("course_detail", args=[self.course.pk]))
+        self.assertContains(page, "Evaluaciones")
+        self.assertContains(page, "disponible")
+        start = self.client.get(reverse("activity_student", args=[self.course.pk, self.exam.pk]))
+        self.assertContains(start, 'name="code"')
+        response = self.client.post(reverse("attempt_start", args=[self.course.pk, self.exam.pk]), {"code": self.code})
+        self.assertRedirects(response, reverse("attempt_form", args=[self.course.pk, self.exam.pk]))
+        page = self.client.get(reverse("attempt_form", args=[self.course.pk, self.exam.pk]))
+        self.assertContains(page, "data-remaining-ms")
+        self.assertNotContains(page, "data-pointer-url")
+
+    def test_crear_una_evaluacion_en_el_editor(self):
+        self.client.force_login(self.teacher)
+        page = self.client.get(reverse("activity_new", args=[self.course.pk]) + "?tipo=evaluacion")
+        self.assertContains(page, "use: evaluation")
+        self.client.post(reverse("activity_new", args=[self.course.pk]),
+                         {"source": EVALUATION.replace("Prueba 1", "Recuperación ZQ")})
+        exam = Activity.objects.get(title="Recuperación ZQ")
+        self.assertTrue(exam.is_evaluation)
+        self.assertEqual(exam.max_attempts, 1)
+        self.client.get(reverse("activity_detail", args=[self.course.pk, exam.pk]))   # muestra los avisos
+        clases = self.client.get(reverse("course_manage", args=[self.course.pk]))
+        self.assertNotContains(clases, "Recuperación ZQ")                 # no es material de una unidad

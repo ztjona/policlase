@@ -385,6 +385,36 @@
   window.addEventListener("scroll", function () { if (!ticking) { ticking = true; requestAnimationFrame(highlight); } }, { passive: true });
   highlight();
 
+  // ------------------------------------------------------------------ tiempo de una evaluación
+  // El límite lo pone el servidor (engine.check_time); aquí se muestra la cuenta regresiva y, al
+  // llegar a cero, se envía la evaluación con lo que haya (el servidor la cierra igual si la página
+  // no lo hace).
+
+  if (form.dataset.remainingMs !== undefined) {
+    var end = Date.now() + Number(form.dataset.remainingMs);
+    var clock = form.querySelector("[data-clock]"), value = form.querySelector("[data-clock-value]");
+    var pad = function (n) { return String(n).padStart(2, "0"); };
+    var finished = false;
+    var tickClock = function () {
+      var left = Math.max(0, Math.ceil((end - Date.now()) / 1000));
+      var h = Math.floor(left / 3600), m = Math.floor((left % 3600) / 60), sec = left % 60;
+      value.textContent = (h ? h + ":" + pad(m) : m) + ":" + pad(sec);
+      clock.classList.toggle("low", left <= 300);
+      clock.classList.toggle("urgent", left <= 60);
+      if (left <= 0 && !finished) {
+        finished = true;
+        say(gettext("Se acabó el tiempo. Se está enviando la evaluación…"));
+        var action = document.createElement("input");
+        action.type = "hidden"; action.name = "action"; action.value = "timeout";
+        form.appendChild(action);
+        HTMLFormElement.prototype.submit.call(form);     // sin pasar por la confirmación de «Enviar»
+        return;
+      }
+      setTimeout(tickClock, 500);
+    };
+    tickClock();
+  }
+
   // ------------------------------------------------------------------ seguir al docente
   // Si el docente presenta la actividad, se ofrece ir a la diapositiva donde está, volver a donde se
   // estaba o seguirlo automáticamente. Se consulta cada 5 s mientras presenta y cada 20 s si no.

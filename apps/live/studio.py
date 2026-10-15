@@ -97,9 +97,43 @@ slides:
         - { id: q1, type: image, prompt: 'Suba la foto de su desarrollo a mano.', max_files: 3 }
 """
 
+EVALUATION_TEMPLATE = r"""schema: policlase/v1
+title: 'Prueba 1'
+use: evaluation             # una sola vez, en un horario; pegar viene bloqueado
+instructions: |
+  Resuelva de forma individual. La fecha, el horario, la duración y el código de acceso se
+  configuran en policlase, no en este archivo.
+
+# El LaTeX va entre comillas simples: en las dobles, 	, , … son escapes de YAML.
+slides:
+  - item:
+      id: P01-ejemplo
+      questions:
+        - id: q1
+          type: numeric
+          points: 2
+          prompt: 'Calcule $\sqrt{2}$ con cuatro decimales.'
+          solution: 1.4142
+          grading: { atol: 0.0001 }
+        - id: q2
+          type: open
+          points: 3
+          prompt: 'Justifique el criterio de parada que usó.'
+          grading:
+            mode: manual
+            rubric:
+              - { criterion: 'Enuncia el criterio', points: 1 }
+              - { criterion: 'Lo justifica con el error', points: 2 }
+
+  - solution: |             # se muestra en la revisión, cuando usted publique las notas
+      ## Solución
+      $\sqrt{2} \approx 1.4142$.
+"""
+
 TEMPLATES = {DECK: DECK_TEMPLATE, ACTIVITY: ACTIVITY_TEMPLATE}
-#: `use` del formato → tipo de la plataforma. Las evaluaciones llegan con su pestaña.
-KINDS = {"class": DECK, "activity": ACTIVITY}
+#: `use` del formato → tipo de la plataforma. Una evaluación se edita y se guarda como una actividad
+#: (`Activity.kind` la distingue).
+KINDS = {"class": DECK, "activity": ACTIVITY, "evaluation": ACTIVITY}
 
 
 def _diagnostics(report) -> list[dict]:
@@ -139,9 +173,10 @@ def editor(request, course_pk, kind=DECK, pk=None):
         sync.maybe_pull(link)                    # abrir el editor sobre la última versión de GitHub
     model = Activity if kind == ACTIVITY else Deck
     content = get_object_or_404(model, pk=pk, course=course) if pk else None
-    if content is None and request.GET.get("tipo") in ("actividad", ACTIVITY):
+    evaluation = content is None and request.GET.get("tipo") == "evaluacion"
+    if content is None and (evaluation or request.GET.get("tipo") in ("actividad", ACTIVITY)):
         kind = ACTIVITY
-    source = content.source if content else TEMPLATES[kind]
+    source = content.source if content else EVALUATION_TEMPLATE if evaluation else TEMPLATES[kind]
     diagnostics = []
     sections = list(Section.objects.filter(course=course))
     wanted = request.POST.get("section") if request.method == "POST" else request.GET.get("seccion")
@@ -161,9 +196,11 @@ def editor(request, course_pk, kind=DECK, pk=None):
             source = request.POST.get("source", "")
         document, report, found = _load(source)
         found = found or kind
-        if found == "evaluation":
-            messages.error(request, _("Las evaluaciones estarán disponibles con la pestaña Evaluaciones; por ahora, "
-                                      "guarde el documento como actividad (use: activity)."))
+        use = content_format.kind_of(document) if document is not None else None
+        if content is not None and kind == ACTIVITY and use in ("activity", "evaluation") \
+                and (use == "evaluation") != content.is_evaluation and content.attempts.exists():
+            messages.error(request, _("No se guardó: el documento cambió de actividad a evaluación, o al revés, y "
+                                      "ya tiene entregas. Para usar el otro tipo, cree un documento nuevo."))
         elif content is not None and found != kind:
             messages.error(request, _("No se guardó: el documento es una presentación y el texto corresponde a una "
                                       "actividad, o viceversa. Para crear un documento del otro tipo, use los botones "
@@ -204,6 +241,8 @@ def _save(request, course, link, kind, content, source, section, document, repor
     compiled = content_format.compile_content(document)
     new = content is None
     content = content or (Activity if kind == ACTIVITY else Deck)(course=course)
+    if kind == ACTIVITY:
+        content.set_kind(content_format.kind_of(document))
     content.title = compiled["title"]
     content.section = section
     if link:
@@ -224,7 +263,11 @@ def _save(request, course, link, kind, content, source, section, document, repor
                              % {"images": ", ".join(missing)})
     content.source, content.compiled = source, compiled
     content.save()
-    if kind == ACTIVITY:
+    if kind == ACTIVITY and content.is_evaluation:
+        messages.success(request, _("Evaluación «%(title)s» guardada: %(questions)d preguntas, %(points)s puntos.")
+                         % {"title": content.title, "questions": len(content.questions),
+                            "points": f"{content.points:g}"})
+    elif kind == ACTIVITY:
         messages.success(request, _("Actividad «%(title)s» guardada: %(questions)d preguntas, %(points)s puntos.")
                          % {"title": content.title, "questions": len(content.questions),
                             "points": f"{content.points:g}"})
@@ -236,7 +279,9 @@ def _save(request, course, link, kind, content, source, section, document, repor
     if link:
         messages.info(request, _("Confirmado en GitHub: %(path)s") % {"path": content.github_path})
     if kind == ACTIVITY:
-        if new:
+        if new and content.is_evaluation:
+            messages.info(request, _("Asigne la fecha, el horario y la ponderación, y publique la evaluación."))
+        elif new:
             messages.info(request, _("Asigne la ponderación y la fecha de entrega, y publique la actividad."))
         return redirect("activity_detail", course_pk=course.pk, pk=content.pk)
     return redirect("deck_view", course_pk=course.pk, pk=content.pk)

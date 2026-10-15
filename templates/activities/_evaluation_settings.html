@@ -1,0 +1,93 @@
+{% load i18n policlase %}
+{% comment %} Una evaluación: su aplicación (código de acceso y publicación de las notas) y su configuración (fecha, horario,
+   duración, ponderación y revisión). {% endcomment %}
+<div class="stack">
+  <section class="card stack" id="apply">
+    <h2>{% translate "Aplicación" %}</h2>
+    <p class="small" style="margin:0">
+      {% if not activity.opens_at or not activity.due_at %}{% translate "Defina la fecha y el horario en la configuración." %}
+      {% elif now < activity.opens_at %}{% blocktranslate with day=activity.opens_at|date:"D d M Y" start=activity.opens_at|time:"H:i" end=activity.due_at|time:"H:i" %}Programada para el {{ day }}, de {{ start }} a {{ end }}.{% endblocktranslate %}
+      {% elif now <= activity.due_at %}<span class="chip live">{% translate "en curso" %}</span> {% blocktranslate count n=working %}{{ n }} estudiante está rindiéndola.{% plural %}{{ n }} estudiantes están rindiéndola.{% endblocktranslate %} {% blocktranslate with end=activity.due_at|time:"H:i" %}Se cierra a las {{ end }}.{% endblocktranslate %}
+      {% elif activity.published_at %}{% blocktranslate with when=activity.published_at|date:"D d M, H:i" %}Cerrada. Notas publicadas el {{ when }}.{% endblocktranslate %}
+      {% else %}{% translate "Cerrada. Las notas todavía no se han publicado, por lo que los estudiantes no ven su puntaje." %}{% endif %}
+      {% if activity.duration_min %}{% blocktranslate count n=activity.duration_min %}Cada estudiante dispone de {{ n }} minuto desde que empieza.{% plural %}Cada estudiante dispone de {{ n }} minutos desde que empieza.{% endblocktranslate %}{% endif %}
+    </p>
+    {% if activity.require_code %}
+      <div class="access-code">
+        <span class="small muted">{% translate "Código de acceso" %}</span>
+        <strong class="mono">{{ activity.access_code }}</strong>
+      </div>
+      <div class="row">
+        <a class="btn secondary small" href="{% url 'evaluation_projector' course.pk activity.pk %}" target="_blank" rel="noopener">{% icon "fullscreen" 16 %} {% translate "Proyectar el código" %}</a>
+        <form method="post" action="{% url 'evaluation_code' course.pk activity.pk %}" style="margin:0">{% csrf_token %}
+          <button class="secondary small" data-confirm="{% translate 'Se generará un código nuevo y el actual dejará de ser válido. Quienes ya empezaron no lo necesitan. ¿Continuar?' %}">{% translate "Generar otro código" %}</button></form>
+      </div>
+      <span class="helptext" style="margin:0">{% translate "Proyecte el código al comenzar la evaluación; sin él, no es posible empezarla. Si el código circula fuera del aula, genere otro." %}</span>
+    {% else %}
+      <p class="small muted" style="margin:0">{% translate "Esta evaluación no pide código de acceso. Pueden rendirla los estudiantes inscritos, dentro del horario." %}</p>
+    {% endif %}
+    {% if activity.due_at and now > activity.due_at %}
+      <form method="post" action="{% url 'evaluation_publish' course.pk activity.pk %}" class="row" style="margin:0">{% csrf_token %}
+        {% if activity.published_at %}
+          <button name="action" value="unpublish" class="secondary small"
+                  data-confirm="{% translate 'Los estudiantes dejarán de ver sus notas de esta evaluación hasta que las publique de nuevo. ¿Retirar la publicación?' %}">{% translate "Retirar la publicación" %}</button>
+        {% else %}
+          <button name="action" value="publish"
+                  data-confirm="{% translate 'Cada estudiante verá su nota y, durante la revisión, su corrección. ¿Publicar las notas?' %}">{% translate "Publicar las notas" %}</button>
+          {% for r in review %}{% if r.pending %}<span class="chip warn">{% translate "Hay respuestas por revisar" %}</span>{% endif %}{% endfor %}
+        {% endif %}
+      </form>
+    {% endif %}
+  </section>
+
+  <form method="post" class="card stack" id="settings" data-evaluation data-dirty{% if form.errors %}="1"{% endif %}>
+    {% csrf_token %}
+    <h2>{% translate "Configuración" %}</h2>
+    {% if form.non_field_errors %}<div class="notice">{{ form.non_field_errors }}</div>{% endif %}
+    <label class="check-toggle">{{ form.published }} {% translate "Publicada (los estudiantes la ven en su curso; solo se rinde en su horario)" %}</label>
+    <div>
+      <div class="grid two tight">
+        <div>{{ form.period.label_tag }}{{ form.period }}{{ form.period.errors }}</div>
+        <div>{{ form.category.label_tag }}{{ form.category }}{{ form.category.errors }}</div>
+      </div>
+      <span class="helptext">{% translate "El parcial se propone según la fecha de la evaluación." %} <a href="{% url 'grading_settings' course.pk %}">{% translate "Editar ponderaciones" %}</a></span>
+      {% if mismatch %}<div class="notice small">{% blocktranslate with p=mismatch.name row=activity.category %}La evaluación es en «{{ p }}», pero cuenta en «{{ row }}», y ese parcial no tiene una fila con el mismo nombre. Elija la fila que corresponde.{% endblocktranslate %}</div>{% endif %}
+    </div>
+
+    <fieldset class="due">
+      <legend>{{ form.day_mode.label }}</legend>
+      {% for choice in form.day_mode %}<label class="radio-row">{{ choice.tag }} {{ choice.choice_label }}</label>{% endfor %}
+      <div class="day-milestone row">
+        {{ form.due_milestone }} <span class="small">{% translate "con un desfase de" %}</span> {{ form.due_offset_days }} <span class="small">{% translate "días" %}</span>
+        {% if not milestones %}<span class="helptext">{% translate "Todavía no hay fechas clave:" %} <a href="{% url 'activity_dates' course.pk %}">{% translate "créelas en Evaluaciones" %}</a>.</span>{% endif %}
+        {{ form.due_milestone.errors }}
+        <span class="helptext">{% translate "Si la fecha clave se reprograma, la evaluación se mueve con ella." %}</span>
+      </div>
+      <div class="day-fixed">{{ form.day }}{{ form.day.errors }}</div>
+      <div class="row">
+        <label class="small" style="margin:0">{{ form.opens_time.label }} {{ form.opens_time }}</label>
+        <label class="small" style="margin:0">{{ form.due_time.label }} {{ form.due_time }}</label>
+        {{ form.opens_time.errors }}{{ form.due_time.errors }}
+      </div>
+    </fieldset>
+
+    <div>{{ form.duration_min.label_tag }}{{ form.duration_min }}{{ form.duration_min.errors }}
+      <span class="helptext">{% translate "Se cuenta desde que cada estudiante empieza, sin pasar de la hora de cierre. Si se deja vacío, cada estudiante dispone hasta la hora de cierre. Al acabarse el tiempo, la evaluación se envía con lo que tenga guardado." %}</span></div>
+    <label class="check-toggle">{{ form.require_code }} {{ form.require_code.label|capfirst }}</label>
+
+    <fieldset class="due" id="review">
+      <legend>{% translate "Revisión" %}</legend>
+      <span class="helptext" style="margin:0">{% translate "Cuando usted publique las notas, cada estudiante ve su corrección detallada y las diapositivas de solución durante el tiempo que se indique. Antes de publicarlas, no ve ni su puntaje." %}</span>
+      {% for choice in form.review_mode %}<label class="radio-row">{{ choice.tag }} {{ choice.choice_label }}</label>{% endfor %}
+      {{ form.review_mode.errors }}
+      <div class="review-milestone row">
+        {{ form.review_offset_days }} <span class="small">{% translate "días respecto a" %}</span> {{ form.review_milestone }}
+        <span class="small">{% translate "a las" %}</span> {{ form.review_time }}
+        {{ form.review_milestone.errors }}{{ form.review_offset_days.errors }}{{ form.review_time.errors }}
+      </div>
+      <div class="review-fixed">{{ form.review_until.label_tag }}{{ form.review_until }}{{ form.review_until.errors }}</div>
+    </fieldset>
+    <p class="small muted" style="margin:0">{% translate "Una evaluación se rinde una sola vez y no admite entregas atrasadas. Pegar texto viene bloqueado salvo que el documento diga otra cosa." %}</p>
+    <div class="row"><button type="submit" data-dirty-enable>{% translate "Guardar" %}</button></div>
+  </form>
+</div>

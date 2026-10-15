@@ -17,6 +17,10 @@ futura API digan lo mismo:
 - Una pregunta con tiempo (`time_limit_s`, de un segmento) no se ve hasta que el estudiante la
   abre; desde ahí corre el reloj del servidor y solo se guarda lo que llega antes de que se acabe
   (más `TIMER_GRACE_S` por la conexión). No se reinicia: cerrar la página no da más tiempo.
+- **Evaluaciones** (`Activity.kind`): un intento, dentro del horario (de `opens_at` a `due_at`), con
+  el código que el docente proyecta y, si hay duración, un límite propio desde que se empieza. Al
+  acabarse el tiempo se envía sola. El estudiante no ve su puntaje ni la corrección hasta que el
+  docente publica las notas (`Activity.published_at`).
 """
 
 from __future__ import annotations
@@ -24,8 +28,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+import secrets
+
+from django.core.cache import cache
 from django.db import IntegrityError, transaction
 from django.utils import timezone
+from django.utils.formats import date_format
 from django.utils.translation import gettext as _
 from policlase_gen.grading import grade
 
@@ -39,6 +47,11 @@ MAX_TEXT = 10_000
 TIMER_GRACE_S = 3
 #: Gracia del envío automático: lo que tarda en llegar el último autoguardado al vencer la fecha.
 AUTO_SUBMIT_GRACE = timedelta(minutes=2)
+#: En una evaluación, la gracia es corta: solo lo que tarda el último guardado al acabarse el tiempo.
+EVALUATION_GRACE = timedelta(seconds=20)
+#: Intentos con un código de acceso equivocado antes de esperar. El contador vive en la caché de
+#: cada proceso: es un freno a probar códigos al azar, no un registro.
+CODE_TRIES, CODE_WAIT_S = 10, 600
 
 
 class ActionError(Exception):
@@ -58,6 +71,7 @@ class State:
     reveal: bool                     # puede ver la corrección detallada del intento que cuenta
     solutions: bool = False          # puede ver las diapositivas de solución (y, sin entrega, las respuestas)
     review_closed: bool = False      # la revisión ya terminó
+    show_score: bool = True          # en una evaluación, solo con las notas publicadas
 
     @property
     def used(self) -> int:
@@ -76,20 +90,40 @@ def state(activity: Activity, student, now=None) -> State:
     past_due, in_review = activity.is_past_due(now), activity.review_open(now)
     if activity.review_mode == Activity.Review.NONE:
         reveal = False
-    elif past_due:
+    elif past_due or activity.is_evaluation:
         reveal = bool(counted) and in_review
     else:
         reveal = bool(counted) and exhausted
     # Las soluciones, en la revisión: para quien entregó y para quien ya no puede entregar. A quien
     # todavía puede entregar (atrasado), verlas sería responder con las soluciones a la vista.
     solutions = in_review and (bool(counted) or (not ok and draft is None))
+    closed = past_due and not in_review and activity.review_mode != Activity.Review.NONE
+    if activity.is_evaluation and not activity.published_at:
+        closed = False                                 # la revisión ni siquiera empezó
     return State(attempts=attempts, draft=draft, counted=counted, can_start=ok and draft is None,
-                 reason=reason, late=late, reveal=reveal, solutions=solutions,
-                 review_closed=past_due and not in_review and activity.review_mode != Activity.Review.NONE)
+                 reason=reason, late=late, reveal=reveal, solutions=solutions, review_closed=closed,
+                 show_score=not activity.is_evaluation or bool(activity.published_at))
+
+
+def _when(moment) -> str:
+    return date_format(timezone.localtime(moment), "D d M, H:i")
 
 
 def can_answer(activity: Activity, submitted: int, now) -> tuple[bool, str, bool]:
     """(¿puede responder?, motivo si no, ¿sería atrasado?)"""
+    if activity.is_evaluation:
+        # Una evaluación se rinde en su horario y una sola vez; no hay entregas atrasadas.
+        if not activity.published:
+            return False, _("La evaluación todavía no está disponible."), False
+        if submitted >= activity.max_attempts:
+            return False, _("Ya rindió esta evaluación."), False
+        if not (activity.opens_at and activity.due_at):
+            return False, _("La evaluación todavía no tiene horario."), False
+        if now < activity.opens_at:
+            return False, _("La evaluación comienza el %(when)s.") % {"when": _when(activity.opens_at)}, False
+        if now > activity.due_at:
+            return False, _("La evaluación se cerró el %(when)s.") % {"when": _when(activity.due_at)}, False
+        return True, "", False
     if not activity.is_visible(now):
         return False, _("La actividad todavía no está disponible."), False
     if submitted >= activity.max_attempts:
@@ -106,12 +140,28 @@ def can_answer(activity: Activity, submitted: int, now) -> tuple[bool, str, bool
     return True, "", True
 
 
-def start(activity: Activity, student) -> Attempt:
+def check_code(activity: Activity, student, code: str | None) -> None:
+    """El código que el docente proyecta en el aula. Tras varios intentos fallidos, hay que esperar."""
+    key = f"policlase:codigo:{activity.pk}:{student.pk}"
+    tries = cache.get(key, 0)
+    if tries >= CODE_TRIES:
+        raise ActionError(_("Se ingresó un código incorrecto demasiadas veces. Espere unos minutos e "
+                            "inténtelo de nuevo."))
+    given = "".join(str(code or "").split())
+    if not activity.access_code or not secrets.compare_digest(given, activity.access_code):
+        cache.set(key, tries + 1, CODE_WAIT_S)
+        raise ActionError(_("El código de acceso no es correcto. Solicítelo a su docente."))
+    cache.delete(key)
+
+
+def start(activity: Activity, student, code: str | None = None) -> Attempt:
     current = state(activity, student)
     if current.draft:
         return current.draft
     if not current.can_start:
         raise ActionError(current.reason)
+    if activity.is_evaluation and activity.require_code:
+        check_code(activity, student, code)
     try:
         with transaction.atomic():
             return Attempt.objects.create(
@@ -193,6 +243,27 @@ def timer(attempt: Attempt, question: dict, now=None) -> Timer | None:
     return Timer("open", ms) if ms > -TIMER_GRACE_S * 1000 else Timer("closed")
 
 
+def check_time(attempt: Attempt, now=None) -> None:
+    """En una evaluación, lo que llega después del límite del intento (más una gracia corta por la
+    conexión) ya no se guarda."""
+    activity = attempt.activity
+    if not activity.is_evaluation:
+        return
+    deadline = activity.deadline(attempt)
+    if deadline and (now or timezone.now()) > deadline + EVALUATION_GRACE:
+        raise ActionError(_("Se acabó el tiempo de la evaluación; se conserva lo que se guardó hasta ese momento."))
+
+
+def remaining_ms(attempt: Attempt, now=None) -> int | None:
+    """Milisegundos que le quedan a un intento de evaluación (None si no hay límite)."""
+    if not attempt.activity.is_evaluation:
+        return None
+    deadline = attempt.activity.deadline(attempt)
+    if not deadline:
+        return None
+    return max(0, int((deadline - (now or timezone.now())).total_seconds() * 1000))
+
+
 def _accepts(attempt: Attempt, question: dict, now) -> bool:
     """¿Se guarda ahora lo que llegue para esta pregunta? Sin tiempo, siempre; con tiempo, solo
     mientras su reloj corre (con la gracia)."""
@@ -207,6 +278,7 @@ def open_timer(attempt: Attempt, key: str, now=None) -> Attempt:
     attempt = Attempt.objects.select_for_update().get(pk=attempt.pk)
     if attempt.submitted_at:
         raise ActionError(_("Este intento ya se envió."))
+    check_time(attempt, now)
     question = _question(attempt, key)
     if not question.get("time_limit_s"):
         raise ActionError(_("Esa pregunta no tiene límite de tiempo."))
@@ -224,6 +296,7 @@ def close_timer(attempt: Attempt, key: str, answers: dict | None = None, now=Non
     attempt = Attempt.objects.select_for_update().get(pk=attempt.pk)
     if attempt.submitted_at:
         raise ActionError(_("Este intento ya se envió."))
+    check_time(attempt, now)
     question = _question(attempt, key)
     if not question.get("time_limit_s") or key not in (attempt.timers or {}):
         raise ActionError(_("Esa pregunta no está abierta."))
@@ -242,6 +315,7 @@ def save_draft(attempt: Attempt, answers: dict, telemetry: dict | None = None, n
     if attempt.submitted_at:
         raise ActionError(_("Este intento ya se envió."))
     now = now or timezone.now()
+    check_time(attempt, now)
     if marked is not None:
         known = {q["key"] for q in attempt.questions}
         attempt.marked = [k for k in dict.fromkeys(marked) if k in known]
@@ -283,6 +357,7 @@ def _question(attempt: Attempt, key: str) -> dict:
 def add_upload(attempt: Attempt, key: str, upload) -> Upload:
     if attempt.submitted_at:
         raise ActionError(_("Este intento ya se envió."))
+    check_time(attempt)
     question = _question(attempt, key)
     if question["type"] != "image":
         raise ActionError(_("Esa pregunta no admite imágenes."))
@@ -307,6 +382,7 @@ def add_upload(attempt: Attempt, key: str, upload) -> Upload:
 def remove_upload(attempt: Attempt, upload_pk: int) -> None:
     if attempt.submitted_at:
         raise ActionError(_("Este intento ya se envió."))
+    check_time(attempt)
     row = attempt.uploads.filter(pk=upload_pk).first()
     if row:
         row.delete()
@@ -350,6 +426,11 @@ def submit(attempt: Attempt, now=None, auto: bool = False) -> Attempt:
     activity = attempt.activity
     previous = Attempt.objects.filter(activity=activity, student=attempt.student,
                                       submitted_at__isnull=False).count()
+    if activity.is_evaluation:
+        # Pasado su límite, el intento cuenta como enviado en ese momento (nada se guardó después).
+        deadline = activity.deadline(attempt)
+        if deadline and now > deadline:
+            now = deadline
     ok, reason, late = can_answer(activity, previous, now)
     if not ok:
         raise ActionError(reason)
@@ -386,22 +467,57 @@ def submit(attempt: Attempt, now=None, auto: bool = False) -> Attempt:
 def finalize_overdue(activity: Activity, now=None, student=None) -> int:
     """Envía los borradores que quedaron abiertos al vencer la fecha (`Activity.auto_submit`), con lo
     que tengan, como entregas a tiempo. Solo los empezados antes del vencimiento: un intento
-    atrasado se envía a mano. Se llama al consultar la actividad (no hay tareas programadas), así
-    que da igual cuándo se mire: el resultado es el mismo."""
+    atrasado se envía a mano. En una evaluación (siempre se envía sola), cada intento vence en su
+    propio límite (`Activity.deadline`). Se llama al consultar la actividad (no hay tareas
+    programadas), así que da igual cuándo se mire: el resultado es el mismo."""
     now = now or timezone.now()
-    if not (activity.auto_submit and activity.due_at and now > activity.due_at + AUTO_SUBMIT_GRACE):
+    if not activity.due_at or not (activity.auto_submit or activity.is_evaluation):
+        return 0
+    grace = EVALUATION_GRACE if activity.is_evaluation else AUTO_SUBMIT_GRACE
+    timed = activity.is_evaluation and activity.duration_min
+    if not timed and now <= activity.due_at + grace:
         return 0
     drafts = Attempt.objects.filter(activity=activity, submitted_at=None, started_at__lte=activity.due_at)
     if student is not None:
         drafts = drafts.filter(student=student)
     sent = 0
     for draft in drafts:
+        draft.activity = activity
+        deadline = activity.deadline(draft)
+        if now <= deadline + grace:
+            continue
         try:
-            submit(draft, now=activity.due_at, auto=True)
+            submit(draft, now=deadline, auto=True)
         except ActionError:
             continue
         sent += 1
     return sent
+
+
+def finish_on_time(attempt: Attempt, now=None) -> Attempt:
+    """Se acabó el tiempo de una evaluación (la página lo pide al llegar a cero): se envía tal como
+    está, con la hora del límite."""
+    now = now or timezone.now()
+    deadline = attempt.activity.deadline(attempt)
+    if not attempt.activity.is_evaluation or not deadline or now < deadline - timedelta(seconds=5):
+        raise ActionError(_("Todavía queda tiempo."))
+    return submit(attempt, now=min(now, deadline), auto=True)
+
+
+def publish(activity: Activity, now=None) -> None:
+    """Publica las notas de una evaluación cerrada: desde ahora, cada estudiante ve su nota y, durante
+    la revisión, su corrección."""
+    now = now or timezone.now()
+    if not activity.is_past_due(now):
+        raise ActionError(_("Las notas se publican cuando la evaluación ya se cerró."))
+    finalize_overdue(activity, now)
+    activity.published_at = now
+    activity.save(update_fields=["published_at"])
+
+
+def unpublish(activity: Activity) -> None:
+    activity.published_at = None
+    activity.save(update_fields=["published_at"])
 
 
 def reopen_auto_submitted(activity: Activity, now=None) -> int:
@@ -410,8 +526,8 @@ def reopen_auto_submitted(activity: Activity, now=None) -> int:
     calificó a mano ni uno tras el cual el estudiante empezó otro. Las respuestas no se pierden:
     siguen en el borrador (`Attempt.answers`)."""
     now = now or timezone.now()
-    if not activity.due_at or activity.due_at <= now:
-        return 0
+    if not activity.due_at or activity.due_at <= now or activity.is_evaluation:
+        return 0                              # una evaluación se rinde una vez: lo enviado no se reabre
     reopened = 0
     for attempt in Attempt.objects.filter(activity=activity, auto_submitted=True, submitted_at__isnull=False):
         later = Attempt.objects.filter(activity=activity, student=attempt.student, number__gt=attempt.number).exists()

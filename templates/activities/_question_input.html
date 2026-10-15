@@ -57,11 +57,17 @@
     </div>
 
   {% elif q.type == "numeric_list" %}
-    <div class="cells" style="--cols: {{ q.shape|last|default:1 }}">
-      {% for cell in row.cells %}
-        <input type="text" name="a-{{ key }}-{{ forloop.counter0 }}" value="{{ cell }}" inputmode="decimal" autocomplete="off" {% if q.block_paste %}data-no-paste{% endif %}
-               aria-label="{% blocktranslate with n=forloop.counter %}Casilla {{ n }}{% endblocktranslate %}">
-      {% endfor %}
+    {% comment %} Una lista (una fila) lleva el número de cada casilla, como en la tabla del enunciado; en el teléfono,
+       si tiene más de tres, las casillas van una debajo de otra. Una matriz conserva su forma y se desplaza dentro
+       del recuadro si no cabe. {% endcomment %}
+    <div class="cells-wrap">
+      <div class="cells{% if q.shape|length < 2 or q.shape.0 == 1 %} cells-list{% if row.cells|length > 3 %} many{% endif %}{% endif %}" style="--cols: {{ q.shape|last|default:1 }}">
+        {% for cell in row.cells %}
+          <label class="cell">{% if q.shape|length < 2 or q.shape.0 == 1 %}<span class="cell-n" aria-hidden="true">{{ forloop.counter }}</span>{% endif %}
+            <input type="text" name="a-{{ key }}-{{ forloop.counter0 }}" value="{{ cell }}" inputmode="decimal" autocomplete="off" {% if q.block_paste %}data-no-paste{% endif %}
+                   aria-label="{% blocktranslate with n=forloop.counter %}Casilla {{ n }}{% endblocktranslate %}"></label>
+        {% endfor %}
+      </div>
     </div>
 
   {% elif q.type == "open" %}

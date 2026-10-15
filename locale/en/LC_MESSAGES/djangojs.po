@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: policlase\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-15 11:46-0500\n"
+"POT-Creation-Date: 2026-10-15 14:02-0500\n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -24,15 +24,15 @@ msgstr "Students can follow your position"
 msgid "sin conexión"
 msgstr "offline"
 
-#: static/js/activity-teacher.js:62 static/js/activity.js:70
+#: static/js/activity-teacher.js:69 static/js/activity.js:70
 msgid "Guardando…"
 msgstr "Saving…"
 
-#: static/js/activity-teacher.js:69
+#: static/js/activity-teacher.js:76
 msgid "calificada"
 msgstr "graded"
 
-#: static/js/activity-teacher.js:72
+#: static/js/activity-teacher.js:79
 msgid "Sin conexión: no se guardó."
 msgstr "Offline: not saved."
 
@@ -110,7 +110,11 @@ msgid_plural "%s preguntas están marcadas para revisar."
 msgstr[0] "%s question is marked for review."
 msgstr[1] "%s questions are marked for review."
 
-#: static/js/activity.js:424
+#: static/js/activity.js:406
+msgid "Se acabó el tiempo. Se está enviando la evaluación…"
+msgstr "Time is up. The assessment is being submitted…"
+
+#: static/js/activity.js:454
 msgid "el comienzo de la actividad"
 msgstr "the beginning of the activity"
 

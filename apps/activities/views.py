@@ -4,6 +4,7 @@ from datetime import timedelta
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
+from django.db.models import Count, Q
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -21,8 +22,8 @@ from apps.grades.forms import MilestoneForm
 from apps.grades.models import Milestone, Period
 
 from . import engine, images, outline
-from .forms import ActivitySettingsForm
-from .models import Activity, Answer, Attempt, Upload
+from .forms import ActivitySettingsForm, EvaluationSettingsForm
+from .models import Activity, Answer, Attempt, Upload, new_access_code
 
 def _course_link(course):
     from apps.github.models import CourseRepo
@@ -50,14 +51,20 @@ def activity_delete(request, course_pk, pk):
         except sync.GitHubError as exc:
             messages.error(request, _("No se eliminó: %(error)s") % {"error": exc})
             return redirect("activity_detail", course_pk=course.pk, pk=activity.pk)
-    title = activity.title
+    title, evaluation = activity.title, activity.is_evaluation
     activity.delete()
-    if link and activity.github_path:
+    if evaluation and link and activity.github_path:
+        messages.success(request, _("Evaluación «%(title)s» eliminada, con sus entregas; su archivo se borró de "
+                                    "GitHub.") % {"title": title})
+    elif evaluation:
+        messages.success(request, _("Evaluación «%(title)s» eliminada, con sus entregas.") % {"title": title})
+    elif link and activity.github_path:
         messages.success(request, _("Actividad «%(title)s» eliminada, con sus entregas; su archivo se borró de "
                                     "GitHub.") % {"title": title})
     else:
         messages.success(request, _("Actividad «%(title)s» eliminada, con sus entregas.") % {"title": title})
-    return redirect("course_activities", pk=course.pk)
+    return redirect("activity_dates" if evaluation else "course_activities", **(
+        {"course_pk": course.pk} if evaluation else {"pk": course.pk}))
 
 
 @teacher_required
@@ -92,7 +99,8 @@ def _results(activity, students) -> list[dict]:
     counted = engine.counted_attempts(activity)
     tries: dict[int, int] = {}
     drafts: dict[int, Attempt] = {}
-    for a in Attempt.objects.filter(activity=activity).only("pk", "student_id", "submitted_at", "telemetry"):
+    for a in Attempt.objects.filter(activity=activity).only("pk", "student_id", "submitted_at", "telemetry",
+                                                             "started_at", "activity_id"):
         if a.submitted_at:
             tries[a.student_id] = tries.get(a.student_id, 0) + 1
         else:
@@ -100,11 +108,20 @@ def _results(activity, students) -> list[dict]:
     rows = []
     for student in students:
         attempt = counted.get(student.pk)
+        draft = drafts.get(student.pk)
+        if draft is not None:
+            draft.activity = activity
         rows.append({"student": student, "attempt": attempt, "tries": tries.get(student.pk, 0),
-                     "working": student.pk in drafts, "draft": drafts.get(student.pk),
+                     "working": draft is not None, "draft": draft,
+                     # En una evaluación en curso, cuánto le queda.
+                     "remaining": _minutes(engine.remaining_ms(draft)) if draft is not None else None,
                      "flags": _flags(attempt.telemetry) if attempt else []})
     rows.sort(key=lambda r: (r["attempt"] is None, r["student"].last_name, r["student"].first_name))
     return rows
+
+
+def _minutes(ms: int | None) -> int | None:
+    return None if ms is None else -(-ms // 60_000)
 
 
 def _flags(telemetry: dict) -> list[str]:
@@ -136,7 +153,8 @@ def activity_detail(request, course_pk, pk):
                                  pk=pk, course=course)
     gradebook.ensure_defaults(course)
     engine.finalize_overdue(activity)
-    form = ActivitySettingsForm(request.POST or None, instance=activity, course=course)
+    form_class = EvaluationSettingsForm if activity.is_evaluation else ActivitySettingsForm
+    form = form_class(request.POST or None, instance=activity, course=course)
     if request.method == "POST":
         if form.is_valid():
             form.save()
@@ -170,7 +188,64 @@ def activity_detail(request, course_pk, pk):
         "milestones": Milestone.objects.filter(course=course),
         "parts": outline.parts(activity.compiled), "disabled": activity.disabled,
         "full_points": float(activity.compiled.get("points") or 0),
+        "working": sum(1 for r in rows if r["working"]),
+        "now": timezone.now(),
     })
+
+
+# -------------------------------------------------------------------- docente: evaluaciones
+
+
+def _own_evaluation(request, course_pk, pk):
+    course, activity = _own_activity(request, course_pk, pk)
+    if not activity.is_evaluation:
+        raise Http404
+    return course, activity
+
+
+@teacher_required
+@require_POST
+def evaluation_code(request, course_pk, pk):
+    """Otro código de acceso (por ejemplo, si el anterior circuló). Quien ya empezó no lo necesita."""
+    course, activity = _own_evaluation(request, course_pk, pk)
+    activity.access_code = new_access_code()
+    activity.save(update_fields=["access_code"])
+    messages.success(request, _("Se generó un nuevo código de acceso, %(code)s; el anterior dejó de ser válido.") % {"code": activity.access_code})
+    return redirect(reverse("activity_detail", args=[course.pk, activity.pk]) + "#apply")
+
+
+@teacher_required
+def evaluation_projector(request, course_pk, pk):
+    """El código de acceso en grande, para proyectarlo en el aula, con cuántos empezaron y enviaron.
+    Se actualiza sola cada 15 s."""
+    course, activity = _own_evaluation(request, course_pk, pk)
+    engine.finalize_overdue(activity)
+    attempts = Attempt.objects.filter(activity=activity)
+    return render(request, "activities/evaluation_projector.html", {
+        "course": course, "activity": activity, "now": timezone.now(),
+        "working": attempts.filter(submitted_at=None).count(),
+        "submitted": attempts.filter(submitted_at__isnull=False).values("student").distinct().count(),
+        "enrolled": len(_approved(course)),
+    })
+
+
+@teacher_required
+@require_POST
+def evaluation_publish(request, course_pk, pk):
+    """Publicar (o retirar) las notas: hasta entonces, el estudiante no ve ni su puntaje."""
+    course, activity = _own_evaluation(request, course_pk, pk)
+    if request.POST.get("action") == "unpublish":
+        engine.unpublish(activity)
+        messages.info(request, _("Se retiró la publicación. Los estudiantes ya no ven sus notas de esta evaluación."))
+    else:
+        try:
+            engine.publish(activity)
+        except engine.ActionError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, _("Se publicaron las notas. Cada estudiante ve ahora su nota y, durante la "
+                                        "revisión, su corrección."))
+    return redirect(reverse("activity_detail", args=[course.pk, activity.pk]) + "#apply")
 
 
 @teacher_required
@@ -282,7 +357,7 @@ def activity_present(request, course_pk, pk):
     estudiante decide si lo sigue o continúa donde estaba (static/js/activity.js)."""
     course, activity = _own_activity(request, course_pk, pk)
     slides = _slides(activity)
-    if not slides:
+    if not slides or activity.is_evaluation:          # una evaluación no se proyecta: mostraría sus preguntas
         raise Http404
     return render(request, "activities/present.html", {
         "course": course, "activity": activity, "slides": slides,
@@ -296,6 +371,8 @@ def activity_present_action(request, course_pk, pk):
     """`move` (el docente cambió de diapositiva), `beat` (la página sigue abierta) o `stop`.
     Devuelve el avance de la clase en el ítem actual: cuántos lo respondieron, no qué."""
     course, activity = _own_activity(request, course_pk, pk)
+    if activity.is_evaluation:
+        raise Http404
     action = request.POST.get("action")
     if action == "stop":
         engine.stop_presenting(activity)
@@ -478,11 +555,18 @@ def dates_panel(request, course_pk):
 
     milestones = [{"milestone": m, "form": MilestoneForm(instance=m, prefix=f"m{m.pk}"),
                    "count": m.activities.count()} for m in Milestone.objects.filter(course=course)]
-    activities = Activity.objects.filter(course=course).select_related("due_milestone", "review_milestone",
-                                                                       "category__period", "course__owner")
+    activities = list(Activity.objects.filter(course=course).select_related("due_milestone", "review_milestone",
+                                                                            "category__period", "course__owner")
+                      .annotate(sent=Count("attempts__student", filter=Q(attempts__submitted_at__isnull=False),
+                                           distinct=True),
+                                working=Count("attempts", filter=Q(attempts__submitted_at__isnull=True))))
+    evaluations = sorted([a for a in activities if a.is_evaluation],
+                         key=lambda a: (a.opens_at is None, a.opens_at or timezone.now()))
     return render(request, "activities/dates.html", {
         "course": course, "milestones": milestones, "milestone_form": milestone_form,
-        "activities": activities, "milestone_choices": Milestone.objects.filter(course=course),
+        "activities": [a for a in activities if not a.is_evaluation], "evaluations": evaluations,
+        "milestone_choices": Milestone.objects.filter(course=course), "now": timezone.now(),
+        "enrolled": len(_approved(course)),
     })
 
 
@@ -566,7 +650,7 @@ def attempt_pointer(request, course_pk, pk):
 def attempt_start(request, course_pk, pk):
     activity = _student_activity(request, course_pk, pk)
     try:
-        engine.start(activity, request.user)
+        engine.start(activity, request.user, code=request.POST.get("code"))
     except engine.ActionError as exc:
         messages.error(request, str(exc))
         return redirect("activity_student", course_pk=course_pk, pk=pk)
@@ -610,7 +694,23 @@ def attempt_form(request, course_pk, pk):
     errors: dict[str, str] = {}
     if request.method == "POST":
         action = request.POST.get("action", "save")
-        _save_answers(request, draft)
+        try:
+            _save_answers(request, draft)
+        except engine.ActionError as exc:          # una evaluación cuyo tiempo se acabó
+            if action != "timeout":
+                if fetched:
+                    return JsonResponse({"error": str(exc)}, status=409)
+                messages.error(request, str(exc))
+                return redirect("activity_student", course_pk=course_pk, pk=pk)
+        if action == "timeout":
+            # Se acabó el tiempo de la evaluación: la página lo pide al llegar a cero.
+            try:
+                engine.finish_on_time(draft)
+            except engine.ActionError as exc:
+                messages.error(request, str(exc))
+                return redirect("attempt_form", course_pk=course_pk, pk=pk)
+            messages.info(request, _("Se acabó el tiempo. Su evaluación se envió con lo que tenía guardado."))
+            return redirect("activity_student", course_pk=course_pk, pk=pk)
         upload_errors = _receive_files(request, draft)
         if fetched:
             return JsonResponse({"saved_at": timezone.localtime(draft.saved_at).strftime("%H:%M:%S"),
@@ -640,6 +740,7 @@ def attempt_form(request, course_pk, pk):
         "course": activity.course, "activity": activity, "attempt": draft,
         "rows": rows, "errors": errors, "late": late, "blocked": reason,
         "accept": images.ACCEPT_ATTR, "entries": _progress(entries, rows), "hidden": hidden,
+        "remaining_ms": engine.remaining_ms(draft),
         "answered": sum(1 for r in rows if not r["blank"]), "unanswered": sum(1 for r in rows if r["blank"]),
         "marked": sum(1 for r in rows if r["marked"]),
     })
@@ -753,8 +854,8 @@ def attempt_upload_remove(request, course_pk, pk, upload_pk):
     draft = _draft(request, activity)
     row = get_object_or_404(Upload, pk=upload_pk, attempt=draft)
     key = row.key
-    _save_answers(request, draft)           # sin JavaScript, el botón envía todo el formulario
     try:
+        _save_answers(request, draft)       # sin JavaScript, el botón envía todo el formulario
         engine.remove_upload(draft, upload_pk)
     except engine.ActionError as exc:
         messages.error(request, str(exc))

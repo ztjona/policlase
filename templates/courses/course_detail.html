@@ -19,6 +19,31 @@
   <div class="card muted">{% translate "No hay ninguna clase en vivo en este momento." %}</div>
 {% endif %}
 
+{% if evaluations %}
+  <h2>{% translate "Evaluaciones" %}</h2>
+  <div class="card table-wrap">
+    <table>
+      <tbody>
+        {% for r in evaluations %}{% with a=r.activity st=r.state %}
+          <tr>
+            <td><a href="{% url 'activity_student' course.pk a.pk %}"><strong>{{ a.title }}</strong></a>
+              {% if a.category %}<div class="small muted">{{ a.category.name }}</div>{% endif %}</td>
+            <td class="small">{% if a.opens_at and a.due_at %}{{ a.opens_at|date:"D d M" }}, {{ a.opens_at|time:"H:i" }}–{{ a.due_at|time:"H:i" }}{% else %}<span class="muted">{% translate "por definir" %}</span>{% endif %}</td>
+            <td class="small">
+              {% if st.draft %}<span class="chip warn">{% translate "en curso" %}</span>
+              {% elif st.counted and st.show_score %}<span class="chip ok">{% translate "nota publicada" %}</span> {{ st.counted.points|floatformat:"-2" }}/{{ st.counted.max_points|floatformat:"-2" }}
+              {% elif st.counted %}<span class="chip ok">{% translate "enviada" %}</span>
+              {% elif st.can_start %}<span class="chip live">{% translate "disponible" %}</span>
+              {% elif a.opens_at and a.opens_at > now %}<span class="chip">{% translate "programada" %}</span>
+              {% else %}<span class="muted">{% translate "cerrada" %}</span>{% endif %}
+            </td>
+          </tr>
+        {% endwith %}{% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+
 {% if activities %}
   <div class="spread"><h2>{% translate "Actividades" %}</h2><a class="small" href="{% url 'my_grades' course.pk %}">{% translate "Calificaciones" %}</a></div>
   <div class="card table-wrap">

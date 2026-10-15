@@ -1,0 +1,60 @@
+{% load i18n policlase %}
+{# Configuración de una actividad: ponderación, fechas, revisión, atrasos e intentos. #}
+<form method="post" class="card stack" id="settings" data-dirty{% if form.errors %}="1"{% endif %}>
+  {% csrf_token %}
+  <h2>{% translate "Configuración" %}</h2>
+  {% if form.non_field_errors %}<div class="notice">{{ form.non_field_errors }}</div>{% endif %}
+  <label class="check-toggle">{{ form.published }} {% translate "Publicada (visible para los estudiantes)" %}</label>
+  <div>
+    <div class="grid two tight">
+      <div>{{ form.period.label_tag }}{{ form.period }}{{ form.period.errors }}</div>
+      <div>{{ form.category.label_tag }}{{ form.category }}{{ form.category.errors }}</div>
+    </div>
+    <span class="helptext">{% translate "El parcial se propone según la fecha de entrega, y la ponderación muestra las filas de ese parcial. Si la fecha de entrega corresponde a otro parcial, la actividad pasa a la fila del mismo nombre en ese parcial." %} <a href="{% url 'grading_settings' course.pk %}">{% translate "Editar ponderaciones" %}</a></span>
+    {% if mismatch %}<div class="notice small">{% blocktranslate with p=mismatch.name row=activity.category %}Vence en «{{ p }}», pero cuenta en «{{ row }}»: ese parcial no tiene una fila con el mismo nombre. Elija la fila que corresponde.{% endblocktranslate %}</div>{% endif %}</div>
+  <div>{{ form.opens_at.label_tag }}{{ form.opens_at }}{{ form.opens_at.errors }}<span class="helptext">{{ form.opens_at.help_text }}</span></div>
+
+  <fieldset class="due">
+    <legend>{{ form.due_mode.label }}</legend>
+    {% for choice in form.due_mode %}<label class="radio-row">{{ choice.tag }} {{ choice.choice_label }}</label>{% endfor %}
+    <div class="due-milestone row">
+      {{ form.due_offset_days }} <span class="small">{% translate "días respecto a" %}</span> {{ form.due_milestone }}
+      <span class="small">{% translate "a las" %}</span> {{ form.due_time }}
+      {% if not milestones %}<span class="helptext">{% translate "Todavía no hay fechas clave:" %} <a href="{% url 'activity_dates' course.pk %}">{% translate "créelas en Fechas" %}</a>.</span>{% endif %}
+      {{ form.due_milestone.errors }}{{ form.due_offset_days.errors }}{{ form.due_time.errors }}
+      <span class="helptext">{% translate "−1 corresponde al día anterior. Si la fecha clave cambia, la fecha de entrega se ajusta con ella." %}</span>
+    </div>
+    <div class="due-opening row">
+      {{ form.opening_days }} <span class="small">{% translate "días después de la apertura, a las" %}</span> {{ form.opening_time }}
+      {{ form.opening_days.errors }}{{ form.opening_time.errors }}
+      <span class="helptext">{% translate "Por ejemplo, 7 días después del taller. Si la fecha de apertura cambia, la fecha de entrega se ajusta con ella." %}</span>
+    </div>
+    <div class="due-fixed">{{ form.due_at.label_tag }}{{ form.due_at }}{{ form.due_at.errors }}</div>
+  </fieldset>
+
+  <fieldset class="due" id="review">
+    <legend>{% translate "Revisión" %}</legend>
+    <span class="helptext" style="margin:0">{% translate "Al vencer la fecha de entrega, cada estudiante ve su corrección detallada y las diapositivas de solución, durante el tiempo que se indique. Fuera de la revisión, solo ve su puntaje." %}</span>
+    {% for choice in form.review_mode %}<label class="radio-row">{{ choice.tag }} {{ choice.choice_label }}</label>{% endfor %}
+    {{ form.review_mode.errors }}
+    <div class="review-milestone row">
+      {{ form.review_offset_days }} <span class="small">{% translate "días respecto a" %}</span> {{ form.review_milestone }}
+      <span class="small">{% translate "a las" %}</span> {{ form.review_time }}
+      {{ form.review_milestone.errors }}{{ form.review_offset_days.errors }}{{ form.review_time.errors }}
+      <span class="helptext">{% translate "Con 0 días y las 00:00, la revisión se cierra al comenzar el día de la fecha clave (por ejemplo, el de la prueba)." %}</span>
+    </div>
+    <div class="review-fixed">{{ form.review_until.label_tag }}{{ form.review_until }}{{ form.review_until.errors }}</div>
+  </fieldset>
+
+  <div class="row">
+    <div>{{ form.late_policy.label_tag }}{{ form.late_policy }}</div>
+    <div>{{ form.late_penalty.label_tag }}{{ form.late_penalty }}{{ form.late_penalty.errors }}</div>
+  </div>
+  <span class="helptext">{% translate "Las entregas atrasadas se aceptan hasta el cierre del parcial y solo de quienes no entregaron a tiempo." %}</span>
+  <div>{{ form.max_attempts.label_tag }}{{ form.max_attempts }}{{ form.max_attempts.errors }}
+    <span class="helptext">{% translate "Se califica el último intento enviado. Entre intentos, el estudiante ve su puntaje; las soluciones se muestran en la revisión." %}</span></div>
+  <div><label class="check-toggle">{{ form.auto_submit }} {{ form.auto_submit.label|capfirst }}</label>
+    <span class="helptext">{% translate "Un borrador que no se envía no cuenta para la nota. Con esta opción, al vencer la fecha se envía con lo que el estudiante tenga guardado, como entrega a tiempo; si luego mueve la fecha de entrega hacia adelante, vuelve a quedar abierto." %}</span></div>
+  <div class="row"><button type="submit" data-dirty-enable>{% translate "Guardar" %}</button>
+    {% if activity.due_at %}<span class="small muted">{% blocktranslate with when=activity.due_at|date:"D d M Y, H:i" %}Vence: {{ when }}{% endblocktranslate %}</span>{% endif %}</div>
+</form>

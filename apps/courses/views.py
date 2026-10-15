@@ -107,10 +107,14 @@ def course_detail(request, pk):
     if not can_view_course(request.user, course):
         # Pendiente o rechazado ven lo mismo que un curso ajeno: nada.
         raise Http404
+    rows = _student_activities(course, request.user)
     return render(request, "courses/course_detail.html", {
         "course": course,
         "live": LiveSession.objects.active().filter(course=course).first(),
-        "activities": _student_activities(course, request.user),
+        "activities": [r for r in rows if not r["activity"].is_evaluation],
+        "evaluations": sorted([r for r in rows if r["activity"].is_evaluation],
+                              key=lambda r: r["activity"].opens_at or timezone.now()),
+        "now": timezone.now(),
     })
 
 
@@ -185,7 +189,9 @@ def course_manage(request, pk, tab="clases"):
         from apps.activities.models import Activity
 
         decks = list(Deck.objects.filter(course=course))
-        activities = list(Activity.objects.filter(course=course).select_related("category"))
+        # Las evaluaciones no son material de una unidad: viven en la pestaña Evaluaciones.
+        activities = list(Activity.objects.filter(course=course).exclude(kind=Activity.Kind.EVALUATION)
+                          .select_related("category"))
         taught: dict[int, list] = {}
         for session in (LiveSession.objects.filter(course=course, status=LiveSession.Status.ENDED, deck__isnull=False)
                         .order_by("started_at", "created_at")):

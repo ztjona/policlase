@@ -47,7 +47,7 @@
   {% if item.kind == "content" or item.kind == "segment" or item.kind == "solution" %}{% include "activities/_block_head.html" with index=None %}
   {% else %}
     <section class="card stack">
-      {% if item.stem %}<div>{{ item.stem|md }}</div>{% endif %}
+      {% if item.stem %}<div class="stem">{{ item.stem|md }}</div>{% endif %}
       {% for row in rows %}{% if row.item.item_id == item.item_id %}
         {% include "activities/_answer.html" with row=row reveal=True %}
         {% if row.answer and not row.question.survey and not row.disabled %}{% include "activities/_grade_form.html" with a=row.answer q=row.question %}{% endif %}

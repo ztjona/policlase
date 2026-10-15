@@ -3,8 +3,37 @@
 {% block title %}{% translate "Evaluaciones" %} · {{ course.name }}{% endblock %}
 {% block main %}
 {% include "courses/_course_head.html" with tab="evaluaciones" %}
-<p class="muted">{% translate "Las fechas clave corresponden a las pruebas y exámenes del curso. La fecha de entrega de un deber y el fin de su revisión pueden definirse en relación con una de ellas (p. ej., entrega 3 días antes de la prueba y revisión hasta el día de la prueba); si la prueba se reprograma, basta con cambiar aquí su fecha para que esos deberes se actualicen automáticamente." %}
-  <span class="small">{% translate "La creación de pruebas y exámenes con preguntas generadas para cada estudiante estará disponible en esta pestaña." %}</span></p>
+<p class="muted">{% translate "Las fechas clave corresponden a las pruebas y exámenes del curso. La fecha de entrega de un deber y el fin de su revisión pueden definirse en relación con una de ellas (p. ej., entrega 3 días antes de la prueba y revisión hasta el día de la prueba); si la prueba se reprograma, basta con cambiar aquí su fecha para que esos deberes se actualicen automáticamente." %}</p>
+
+<div class="spread"><h2>{% translate "Evaluaciones" %}</h2>
+  <a class="ghost" href="{% url 'activity_new' course.pk %}?tipo=evaluacion">{% icon "file_add" 16 %} {% translate "Nueva evaluación" %}</a></div>
+{% if evaluations %}
+  <div class="card table-wrap">
+    <table>
+      <thead><tr><th>{% translate "Evaluación" %}</th><th>{% translate "Fecha y horario" %}</th><th>{% translate "Estado" %}</th>
+        <th class="center">{% translate "Entregas" %}</th></tr></thead>
+      <tbody>
+        {% for a in evaluations %}
+          <tr>
+            <td><a href="{% url 'activity_detail' course.pk a.pk %}">{{ a.title }}</a>{% if not a.published %} <span class="chip warn">{% translate "Borrador" %}</span>{% endif %}
+              {% if a.category %}<div class="small muted">{{ a.category }}</div>{% endif %}</td>
+            <td class="small">{% if a.opens_at and a.due_at %}{{ a.opens_at|date:"D d M Y" }}, {{ a.opens_at|time:"H:i" }}–{{ a.due_at|time:"H:i" }}
+                {% if a.due_milestone %}<div class="muted">{% blocktranslate with name=a.due_milestone.name %}día de «{{ name }}»{% endblocktranslate %}</div>{% endif %}
+              {% else %}<span class="muted">{% translate "por definir" %}</span>{% endif %}</td>
+            <td class="small">{% if not a.opens_at or not a.due_at %}—
+              {% elif now < a.opens_at %}{% translate "programada" %}
+              {% elif now <= a.due_at %}<span class="chip live">{% translate "en curso" %}</span>
+              {% elif a.published_at %}<span class="chip ok">{% translate "notas publicadas" %}</span>
+              {% else %}<span class="chip warn">{% translate "por publicar" %}</span>{% endif %}</td>
+            <td class="center">{{ a.sent }} / {{ enrolled }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p class="muted small">{% translate "Todavía no hay evaluaciones. Cree una con «Nueva evaluación» o súbala a GitHub con «use: evaluation»." %}</p>
+{% endif %}
 
 <h2>{% translate "Fechas clave" %}</h2>
 <div class="card table-wrap">

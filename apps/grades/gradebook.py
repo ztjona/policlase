@@ -152,7 +152,7 @@ def recompute_due_dates(milestone) -> int:
     for activity in milestone.activities.select_related("course__owner", "due_milestone", "review_milestone", "category"):
         activity.compute_due()
         rebind(activity, periods)
-        activity.save(update_fields=["due_at", "review_until", "category"])
+        activity.save(update_fields=["opens_at", "due_at", "review_until", "category"])
         engine.reopen_auto_submitted(activity)
         count += 1
     for activity in milestone.review_activities.exclude(due_milestone=milestone).select_related("course__owner", "review_milestone"):
@@ -260,8 +260,11 @@ class StudentGrades:
         return round(max(float(self.rules.makeup_min), float(self.rules.makeup_total) - self.total), 2)
 
 
-def course_grades(course, students, now=None) -> list[StudentGrades]:
-    """Notas de cada estudiante en cada parcial. Pocas consultas: todo se arma en memoria."""
+def course_grades(course, students, now=None, published_only=False) -> list[StudentGrades]:
+    """Notas de cada estudiante en cada parcial. Pocas consultas: todo se arma en memoria.
+
+    `published_only` (lo que ve el estudiante): una evaluación cuenta solo con sus notas publicadas;
+    antes no aparece, ni como cero."""
     from apps.activities.models import Activity, Attempt
     from apps.live.models import LiveSession, Participant, Response, SessionGrade
 
@@ -334,6 +337,8 @@ def course_grades(course, students, now=None) -> list[StudentGrades]:
                                                got, s.max_points, _("ausente") if absent else ""))
                 else:
                     for activity in by_category.get(category.pk, []):
+                        if published_only and activity.is_evaluation and not activity.published_at:
+                            continue
                         attempt = last.get((activity.pk, student.pk))
                         day = day_of(activity)
                         if attempt is not None:

@@ -173,12 +173,25 @@ class ThemePreferenceTests(TestCase):
         self.assertNotContains(self.client.get(reverse("account_login")), "data-theme")
         self.client.post(reverse("set_theme"), {"theme": "light", "next": "/"})
         self.assertContains(self.client.get(reverse("account_login")), 'data-theme="light"')
-        user = User.objects.create_user("ana", "ana@example.ec", PASSWORD)
-        self.client.force_login(user)
+        # El docente lo elige en Preferencias.
+        teacher = User.objects.create_user("profe", "profe@example.ec", PASSWORD, role=User.Role.TEACHER)
+        self.client.force_login(teacher)
         self.client.post(reverse("account_preferences"),
                          {"language": "es", "timezone": "America/Guayaquil", "theme": "dark"})
+        teacher.refresh_from_db()
+        self.assertEqual(teacher.theme, "dark")
+
+    def test_el_estudiante_cambia_el_tema_en_mis_cursos(self):
+        user = User.objects.create_user("ana", "ana@example.ec", PASSWORD)
+        self.client.force_login(user)
+        home = self.client.get(reverse("home"))
+        self.assertContains(home, 'name="theme" value="dark"')
+        self.assertNotContains(self.client.get(reverse("account_preferences")), 'name="theme"')
+        self.client.post(reverse("set_theme"), {"theme": "dark", "next": "/"})
+        self.client.post(reverse("account_preferences"), {"language": "es", "timezone": "America/Guayaquil"})
         user.refresh_from_db()
-        self.assertEqual(user.theme, "dark")
+        self.assertEqual(user.theme, "dark")                       # Preferencias ya no lo toca
+        self.assertContains(self.client.get(reverse("home")), 'value="dark" class="secondary small" aria-pressed="true"')
 
     def test_tema_invalido_se_ignora(self):
         response = self.client.post(reverse("set_theme"), {"theme": "<script>", "next": "/"})
