@@ -22,8 +22,8 @@ from apps.grades.forms import MilestoneForm
 from apps.grades.models import Milestone, Period
 
 from . import engine, images, outline
-from .forms import ActivitySettingsForm, EvaluationSettingsForm
-from .models import Activity, Answer, Attempt, Upload, new_access_code
+from .forms import ActivitySettingsForm, EvaluationSettingsForm, PracticeSettingsForm
+from .models import Activity, Answer, Attempt, Extension, Upload, new_access_code
 
 def _course_link(course):
     from apps.github.models import CourseRepo
@@ -153,9 +153,18 @@ def activity_detail(request, course_pk, pk):
                                  pk=pk, course=course)
     gradebook.ensure_defaults(course)
     engine.finalize_overdue(activity)
-    form_class = EvaluationSettingsForm if activity.is_evaluation else ActivitySettingsForm
+    form_class = (EvaluationSettingsForm if activity.is_evaluation else PracticeSettingsForm if activity.is_practice
+                  else ActivitySettingsForm)
     form = form_class(request.POST or None, instance=activity, course=course)
-    if request.method == "POST":
+    if request.method == "POST" and activity.is_practice:
+        if form.is_valid():
+            form.save()
+            messages.success(request, _("Configuración guardada."))
+            if form.closes_before:
+                messages.info(request, _("El repaso se cierra antes de abrir, así que los estudiantes no lo verán."))
+            return redirect("activity_detail", course_pk=course.pk, pk=activity.pk)
+        messages.error(request, _("Revise los campos marcados."))
+    elif request.method == "POST":
         if form.is_valid():
             form.save()
             messages.success(request, _("Configuración guardada."))
@@ -190,7 +199,41 @@ def activity_detail(request, course_pk, pk):
         "full_points": float(activity.compiled.get("points") or 0),
         "working": sum(1 for r in rows if r["working"]),
         "now": timezone.now(),
+        "extensions": Extension.objects.filter(activity=activity).select_related("student"),
+        "students": students,
     })
+
+
+@teacher_required
+@require_POST
+def activity_extension(request, course_pk, pk):
+    """Agregar o quitar la prórroga de un estudiante: su propia fecha de entrega o, en una evaluación,
+    su propio horario."""
+    from django.utils.dateparse import parse_datetime
+
+    course, activity = _own_activity(request, course_pk, pk)
+    back = reverse("activity_detail", args=[course.pk, activity.pk]) + "#extensions"
+    if request.POST.get("action") == "remove":
+        Extension.objects.filter(activity=activity, pk=request.POST.get("extension")).delete()
+        messages.success(request, _("Prórroga eliminada."))
+        return redirect(back)
+    student = next((s for s in _approved(course) if str(s.pk) == request.POST.get("student")), None)
+    tz = timezone.get_current_timezone()
+
+    def when(name):
+        value = parse_datetime(request.POST.get(name, "") or "")
+        return timezone.make_aware(value, tz) if value and timezone.is_naive(value) else value
+
+    due, opens = when("due_at"), when("opens_at")
+    if student is None or due is None:
+        messages.error(request, _("Elija el estudiante e indique la nueva fecha."))
+    elif opens and opens >= due:
+        messages.error(request, _("La apertura debe ser anterior al cierre."))
+    else:
+        engine.grant_extension(activity, student, due, opens if activity.is_evaluation else None,
+                               request.POST.get("note", "").strip())
+        messages.success(request, _("Prórroga guardada para %(name)s.") % {"name": student.display_name})
+    return redirect(back)
 
 
 # -------------------------------------------------------------------- docente: evaluaciones
@@ -562,9 +605,12 @@ def dates_panel(request, course_pk):
                                 working=Count("attempts", filter=Q(attempts__submitted_at__isnull=True))))
     evaluations = sorted([a for a in activities if a.is_evaluation],
                          key=lambda a: (a.opens_at is None, a.opens_at or timezone.now()))
+    practices = sorted([a for a in activities if a.is_practice],
+                       key=lambda a: (a.opens_at is None, a.opens_at or timezone.now()))
     return render(request, "activities/dates.html", {
         "course": course, "milestones": milestones, "milestone_form": milestone_form,
-        "activities": [a for a in activities if not a.is_evaluation], "evaluations": evaluations,
+        "activities": [a for a in activities if a.kind == Activity.Kind.ACTIVITY], "evaluations": evaluations,
+        "practices": practices,
         "milestone_choices": Milestone.objects.filter(course=course), "now": timezone.now(),
         "enrolled": len(_approved(course)),
     })
@@ -598,6 +644,9 @@ def _shift(activities, days: int) -> int:
         if activity.review_mode == Activity.Review.FIXED and activity.review_until:
             activity.review_until += delta
             fields.append("review_until")
+        if activity.debate_until and activity.debate_until > timezone.now():
+            activity.debate_until += delta
+            fields.append("debate_until")
         if periods is None:
             periods = list(Period.objects.filter(course_id=activity.course_id))
         if fields and gradebook.rebind(activity, periods):
@@ -625,17 +674,65 @@ def _student_activity(request, course_pk, pk) -> Activity:
 
 @login_required
 def activity_student(request, course_pk, pk):
+    from . import debate
+
     activity = _student_activity(request, course_pk, pk)
     state = engine.state(activity, request.user)
     counted = state.counted
+    now = timezone.now()
     if counted:
         blocks = outline.for_review(counted.content, activity.compiled if state.solutions else {}, activity.disabled)
     else:
         blocks = outline.for_review(activity.compiled, activity.compiled, activity.disabled)
+    # Cada solución, como la explicación de su ítem; la de un ítem en debate espera a que se cierre.
+    blocks = outline.with_explanations(blocks, debate.hidden_items(activity, now))
+    rows = engine.answer_rows(counted) if counted else []
+    for row in rows:
+        row["in_debate"] = debate.in_debate(activity, row["key"], now)
+    debates = _debates(request, activity, state, now)
+    # El foro va junto a su pregunta en la revisión; si la revisión no se muestra, en su propia sección.
+    inline = bool(counted and state.reveal) or bool(not counted and state.solutions)
     return render(request, "activities/student.html", {
-        "course": activity.course, "activity": activity, "state": state,
-        "rows": engine.answer_rows(counted) if counted else [], "blocks": blocks,
+        "course": activity.course, "activity": activity, "state": state, "rows": rows, "blocks": blocks,
+        "debates": debates, "debates_inline": inline, "now": now,
+        "held": {k for k in debates if debate.in_debate(activity, k, now)},
+        "debate_rows": {r["key"]: r for r in rows if r["key"] in debates},
     })
+
+
+def _debates(request, activity, state, now) -> dict:
+    """El panel del debate de cada pregunta de debate, para este estudiante."""
+    from . import debate
+
+    if not activity.debate_keys or not activity.due_at:
+        return {}
+    debate.sync(activity, now)
+    names = debate.names(activity)
+    out = {}
+    for key, (item, question, record) in debate.records(activity).items():
+        access = debate.access(activity, request.user, state, key, now)
+        panel = {"key": key, "item": item, "question": question, "record": record, "access": access}
+        if access.can_read:
+            panel["thread"] = debate.thread(activity, key, request.user, names_map=names)
+        entry = access.entry
+        if access.can_post:
+            # El formulario de la respuesta revisada parte de lo último publicado.
+            value = entry.shown_value if entry else None
+            panel["form_row"] = {"key": key, "question": question, "draft": value, "timer": None,
+                                 "marked": False, "uploads": [], "reason": entry.shown_reason if entry else "",
+                                 "cells": _cells(question, value)}
+        if entry and entry.revised_at and access.status == "closed":
+            panel["verdict"] = debate.verdict(record, question, entry.revised_value)
+        out[key] = panel
+    return out
+
+
+def _cells(question: dict, value) -> list:
+    if question["type"] != "numeric_list":
+        return []
+    count = engine._cell_count(question)
+    given = value if isinstance(value, list) else []
+    return [given[i] if i < len(given) else "" for i in range(count)]
 
 
 @login_required
@@ -725,18 +822,25 @@ def attempt_form(request, course_pk, pk):
                 errors = engine.format_errors(draft)
             else:
                 draft.refresh_from_db()
-                messages.success(request, _("Entrega recibida."))
+                messages.success(request, _("Repaso terminado. Debajo están su corrección y las explicaciones.")
+                                 if activity.is_practice else _("Entrega recibida."))
                 return redirect("activity_student", course_pk=course_pk, pk=pk)
         else:
             messages.info(request, _("Borrador guardado."))
             return redirect("attempt_form", course_pk=course_pk, pk=pk)
     state = engine.state(activity, request.user)
-    _ok, reason, late = engine.can_answer(activity, state.used, timezone.now())
+    _ok, reason, late = engine.can_answer(activity, state.used, timezone.now(), request.user)
     titles = _titles(activity)
     hidden = outline.hidden_blocks(draft.content, activity.disabled)
     rows = _labeled([r for r in engine.answer_rows(draft) if not r["disabled"]], titles)
     entries = [e for e in outline.build(draft.content, titles) if e["at"] not in hidden]
+    explanations, explained = {}, set()
+    if activity.is_practice:
+        # Repaso: la explicación de un ítem aparece cuando se comprobaron todas sus preguntas.
+        explanations = outline.explanations(draft.content, activity.compiled, activity.disabled)
+        explained = _explained(rows, explanations)
     return render(request, "activities/attempt.html", {
+        "explanations": explanations, "explained": explained,
         "course": activity.course, "activity": activity, "attempt": draft,
         "rows": rows, "errors": errors, "late": late, "blocked": reason,
         "accept": images.ACCEPT_ATTR, "entries": _progress(entries, rows), "hidden": hidden,
@@ -744,6 +848,43 @@ def attempt_form(request, course_pk, pk):
         "answered": sum(1 for r in rows if not r["blank"]), "unanswered": sum(1 for r in rows if r["blank"]),
         "marked": sum(1 for r in rows if r["marked"]),
     })
+
+
+def _explained(rows: list[dict], explanations: dict) -> set[str]:
+    """Ítems con explicación cuyas preguntas ya se comprobaron todas."""
+    pending = {r["item"]["item_id"] for r in rows if not r.get("check")}
+    return {item_id for item_id in explanations if item_id not in pending}
+
+
+@login_required
+@require_POST
+def attempt_check(request, course_pk, pk, key):
+    """Repaso: comprobar una pregunta. Con JavaScript llega por fetch y se devuelve la pregunta
+    corregida (y la explicación de su ítem, si ya se comprobó entero); sin él, se vuelve al intento."""
+    activity = _student_activity(request, course_pk, pk)
+    draft = get_object_or_404(Attempt, activity=activity, student=request.user, submitted_at=None)
+    fetched = request.headers.get("X-Requested-With") == "fetch"
+    try:
+        _save_answers(request, draft)                # llega el formulario entero
+        question = [q for q in draft.questions if q["key"] == key]
+        draft = engine.check(draft, key, engine.parse_answers(question, request.POST))
+    except engine.ActionError as exc:
+        if fetched:
+            return JsonResponse({"error": str(exc)}, status=409)
+        messages.error(request, str(exc))
+        return redirect(f"{reverse('attempt_form', args=[course_pk, pk])}#q-{key}")
+    if not fetched:
+        return redirect(f"{reverse('attempt_form', args=[course_pk, pk])}#q-{key}")
+    rows = [r for r in engine.answer_rows(draft) if not r["disabled"]]
+    row = next(r for r in rows if r["key"] == key)
+    context = {"row": row, "activity": activity, "course": activity.course}
+    html = render_to_string("activities/_practice_checked.html", context, request)
+    explanations = outline.explanations(draft.content, activity.compiled, activity.disabled)
+    item_id = row["item"]["item_id"]
+    explanation = ""
+    if item_id in _explained(rows, explanations):
+        explanation = render_to_string("activities/_explanation.html", {"item": explanations[item_id]}, request)
+    return JsonResponse({"html": html, "explanation": explanation})
 
 
 def _labeled(rows: list[dict], titles: dict[str, str]) -> list[dict]:
@@ -816,8 +957,9 @@ def _save_answers(request, draft) -> None:
     """Solo si llegó el formulario completo (`form=attempt`): una petición con solo una imagen
     no trae las respuestas y no debe dejarlas en blanco."""
     if request.POST.get("form") == "attempt":
-        engine.save_draft(draft, engine.parse_answers(engine.visible_questions(draft), request.POST),
-                          _telemetry(request), marked=request.POST.getlist("mark"))
+        visible = engine.visible_questions(draft)
+        engine.save_draft(draft, engine.parse_answers(visible, request.POST), _telemetry(request),
+                          marked=request.POST.getlist("mark"), reasons=engine.parse_reasons(visible, request.POST))
 
 
 def _receive_files(request, draft) -> dict[str, str]:

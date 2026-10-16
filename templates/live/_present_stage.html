@@ -18,6 +18,7 @@
           </div>
         </div>
       {% endif %}
+      {% if session.speed_bonus %}<p class="url">{% translate "Respondan lo antes posible: las respuestas rápidas suman más puntos en el marcador." %}</p>{% endif %}
       <p class="meter">{% blocktranslate count n=participants %}{{ n }} estudiante conectado{% plural %}{{ n }} estudiantes conectados{% endblocktranslate %} · {% translate "también pueden entrar desde la página del curso" %}</p>
     </div>
   {% elif session.status == "paused" %}
@@ -50,10 +51,7 @@
     </div>
   {% else %}
     <div class="slide">
-      {% if session.phase == "open" %}
-        {% if session.closes_at %}<div class="timer" data-closes-at="{{ session.closes_at|date:'c' }}" data-server-now="{{ now|date:'c' }}">–</div>
-        {% else %}<div class="timer" title="{% translate 'Sin límite de tiempo' %}">∞</div>{% endif %}
-      {% endif %}
+
       {% if slide.stem %}<div>{{ slide.stem|md }}</div>{% endif %}
       <div class="prompt">{{ slide.question.prompt|md }}</div>
 
@@ -141,7 +139,11 @@
       <button data-action="prev" class="secondary" {% if not has_prev or session.phase == "open" %}disabled{% endif %} title="{% translate 'Flecha izquierda' %}">◀ {% translate "Anterior" %}</button>
       <span class="progress">{{ position }} / {{ visible_total }}</span>
       {% if session.phase == "ready" %}<button data-action="open" title="{% translate 'Espacio' %}">{% translate "Abrir pregunta" %}</button>{% endif %}
-      {% if session.phase == "open" %}<button data-action="close" title="{% translate 'Espacio' %}">{% translate "Cerrar ya" %}</button>{% endif %}
+      {% if session.phase == "open" %}<button data-action="close" title="{% translate 'Espacio' %}">{% translate "Cerrar ya" %}</button>
+        {# El tiempo, discreto y solo en los controles: la clase no ve una cuenta regresiva. Al acabarse, la pregunta sigue abierta. #}
+        {% if session.closes_at %}<span class="time-left" data-closes-at="{{ session.closes_at|date:'c' }}" data-server-now="{{ now|date:'c' }}"
+              data-done-text="{% translate 'tiempo cumplido' %}" title="{% blocktranslate with p=late_penalty %}Tiempo de la pregunta. Al acabarse, sigue abierta hasta que la cierre; lo que se responda después vale un {{ p }} % menos.{% endblocktranslate %}">–</span>
+        {% else %}<span class="time-left" title="{% translate 'Sin límite de tiempo' %}">∞</span>{% endif %}{% endif %}
       {% if session.phase == "open" and session.closes_at %}<button data-action="extend" class="secondary" title="{% translate 'Da más tiempo a todos' %}">+15 s</button>
         <button data-action="unlimit" class="secondary" title="{% translate 'Quitar el límite: se cierra manualmente o cuando respondan todos' %}">∞</button>{% endif %}
       {% if session.phase == "closed" %}<button data-action="extend" class="secondary" title="{% translate 'Quienes no alcanzaron a responder pueden hacerlo; las respuestas ya enviadas se mantienen' %}">{% translate "Reabrir +15 s" %}</button>{% endif %}

@@ -141,3 +141,34 @@ def for_review(content: dict, current: dict, disabled=None) -> list[dict]:
     for rest in after.values():
         out.extend(rest)
     return out
+
+
+def with_explanations(blocks: list[dict], waiting=()) -> list[dict]:
+    """Cada diapositiva de solución pasa a su ítem (el que la precede) como su explicación, que el
+    estudiante abre con «Ver la explicación» después de ver su corrección. Las de los ítems en
+    `waiting` (con una pregunta en debate) se retienen hasta que se cierre: el ítem queda marcado
+    con `explanation_waits`. Una solución antes de todo ítem queda como bloque."""
+    waiting = set(waiting)
+    out: list[dict] = []
+    last = None
+    for block in blocks:
+        kind = block.get("kind", "item")
+        if kind == "solution" and last is not None:
+            if last.get("item_id") in waiting:
+                last["explanation_waits"] = True
+            else:
+                last.setdefault("explanations", []).append(block)
+            continue
+        if kind == "item":
+            block = {**block}
+            last = block
+        out.append(block)
+    return out
+
+
+def explanations(content: dict, current: dict, disabled=None) -> dict[str, dict]:
+    """`item_id` → {"explanations": [diapositivas de solución]} de cada ítem que tiene explicación,
+    con las soluciones de la versión actual (como en la revisión)."""
+    blocks = with_explanations(for_review(content, current, disabled))
+    return {b["item_id"]: {"explanations": b["explanations"]} for b in blocks
+            if b.get("kind", "item") == "item" and b.get("explanations")}

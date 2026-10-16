@@ -7,6 +7,7 @@
       <div class="emoji" aria-hidden="true">✓</div>
       <h2>{% translate "Ya estás dentro" %}</h2>
       <p class="muted">{% blocktranslate with title=session.title %}Espera a que tu docente inicie <strong>{{ title }}</strong>.{% endblocktranslate %}</p>
+      {% if session.speed_bonus %}<p class="small">{% translate "Responde lo antes posible: las respuestas rápidas suman más puntos en el marcador." %}</p>{% endif %}
     </div>
 
   {% elif session.status == "paused" %}
@@ -35,7 +36,10 @@
 
   {% else %}
     {% if session.phase == "open" and not mine and session.closes_at %}
-      <div class="timer" data-closes-at="{{ session.closes_at|date:'c' }}" data-server-now="{{ now|date:'c' }}">–</div>
+      {# Sin cuenta regresiva: 10 s antes, una señal discreta; al acabarse, el aviso de que todavía se puede responder. #}
+      <span class="phone-clock" data-closes-at="{{ session.closes_at|date:'c' }}" data-server-now="{{ now|date:'c' }}"
+            data-extra-ms="{{ extra_ms }}" data-quiet hidden></span>
+      <p class="small overtime-note" data-overtime-note hidden>{% blocktranslate with p=late_penalty %}Se acabó el tiempo. Todavía puedes responder, con un {{ p }} % menos.{% endblocktranslate %}</p>
     {% endif %}
     {% if slide.stem %}<div>{{ slide.stem|md }}</div>{% endif %}
     <div class="prompt">{{ slide.question.prompt|md }}</div>
@@ -102,7 +106,8 @@
         <div class="card status-card {% if mine.correct %}ok{% elif mine.points > 0 %}{% else %}bad{% endif %}">
           <div class="emoji" aria-hidden="true">{% if mine.correct %}✓{% elif mine.points > 0 %}≈{% else %}✗{% endif %}</div>
           <h2>{% if mine.correct %}{% translate "¡Correcto!" %}{% elif mine.points > 0 %}{% translate "Parcialmente correcto" %}{% else %}{% translate "Incorrecto" %}{% endif %}</h2>
-          <p class="score-gain">+{{ mine.score }}{% if session.speed_bonus and mine.score and mine.points %} <span class="small muted">{% translate "incluye el bono por rapidez" %}</span>{% endif %}</p>
+          <p class="score-gain">+{{ mine.score }}{% if session.speed_bonus and mine.score and mine.points and not mine.late %} <span class="small muted">{% translate "incluye el bono por rapidez" %}</span>{% endif %}</p>
+          {% if mine.late %}<p class="small muted">{% blocktranslate with p=late_penalty %}Respondiste fuera de tiempo, así que en tu nota vale un {{ p }} % menos.{% endblocktranslate %}</p>{% endif %}
         </div>
         <p class="small">{% translate "Respondiste:" %} {% for a in mine_display %}{{ a|md_inline }}{% if not forloop.last %} · {% endif %}{% endfor %}</p>
       {% else %}

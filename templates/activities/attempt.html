@@ -29,10 +29,12 @@
     <div class="muted small"><a href="{% url 'activity_student' course.pk activity.pk %}">← {{ activity.title }}</a></div>
     <div class="spread">
       <h1>{{ activity.title }}</h1>
-      {% if not activity.is_evaluation %}<span class="small muted">{% blocktranslate with n=attempt.number max=activity.max_attempts %}Intento {{ n }} de {{ max }}{% endblocktranslate %}</span>{% endif %}
+      {% if activity.is_practice %}<span class="small muted">{% blocktranslate with n=attempt.number %}Intento {{ n }}{% endblocktranslate %}</span>
+      {% elif not activity.is_evaluation %}<span class="small muted">{% blocktranslate with n=attempt.number max=activity.max_attempts %}Intento {{ n }} de {{ max }}{% endblocktranslate %}</span>{% endif %}
     </div>
     <p class="small">
-      {% if activity.is_evaluation %}{% blocktranslate with when=activity.due_at|date:"H:i" %}Se cierra a las {{ when }}{% endblocktranslate %}
+      {% if activity.is_practice %}<span class="chip">{% translate "Repaso" %}</span> {% translate "Sin nota y sin tiempo." %}
+      {% elif activity.is_evaluation %}{% blocktranslate with when=activity.due_at|date:"H:i" %}Se cierra a las {{ when }}{% endblocktranslate %}
       {% elif activity.due_at %}{% blocktranslate with when=activity.due_at|date:"D d M Y, H:i" %}Entrega: {{ when }}{% endblocktranslate %}{% else %}{% translate "Sin fecha de entrega" %}{% endif %}
       · {% blocktranslate with n=activity.points|floatformat:"-2" %}{{ n }} puntos{% endblocktranslate %}
     </p>
@@ -43,7 +45,8 @@
     {% if activity.compiled.instructions %}<div class="card">{{ activity.compiled.instructions|md }}</div>{% endif %}
     <p class="small muted anon-note">
       {% translate "Sus respuestas se guardan automáticamente mientras escribe. Se registra si pega texto o sale de esta página, y su docente lo verá junto con su entrega." %}
-      {% if activity.is_evaluation %}{% translate "Al acabarse el tiempo, la evaluación se envía automáticamente con lo que tenga guardado." %}
+      {% if activity.is_practice %}{% translate "Compruebe cada pregunta para ver su corrección y, al comprobar todo un ejercicio, su explicación. Al terminar, las preguntas que no comprobó también se corrigen." %}
+      {% elif activity.is_evaluation %}{% translate "Al acabarse el tiempo, la evaluación se envía automáticamente con lo que tenga guardado." %}
       {% elif activity.auto_submit and activity.due_at %}{% translate "Si no envía el intento antes de la fecha de entrega, se enviará automáticamente con lo que tenga guardado en ese momento." %}{% endif %}
     </p>
 
@@ -62,8 +65,10 @@
           <section class="card stack block" id="b-{{ item.at }}" data-block="{{ item.at }}" data-item="{{ item.item_id }}">
             {% if item.stem %}<div class="stem">{{ item.stem|md }}</div>{% endif %}
             {% for row in rows %}{% if row.item.item_id == item.item_id %}
-              {% include "activities/_question_input.html" with row=row error=errors|get_item:row.key %}
+              {% if row.check %}{% include "activities/_practice_checked.html" %}
+              {% else %}{% include "activities/_question_input.html" with row=row error=errors|get_item:row.key %}{% endif %}
             {% endif %}{% endfor %}
+            {% if item.item_id in explained %}{% include "activities/_explanation.html" with item=explanations|get_item:item.item_id %}{% endif %}
           </section>
         {% endif %}
       {% endfor %}
@@ -73,11 +78,21 @@
                 title="{% translate 'Preguntas sin responder' %}">{% translate "Preguntas" %} <span class="chip" data-pending-count>{{ unanswered }}</span></button>
         <button type="submit" name="action" value="save" class="secondary" data-save-button>{% translate "Guardar borrador" %}</button>
         {% if not blocked %}
+          {% if activity.is_practice %}
+          <button type="submit" name="action" value="submit" data-submit
+                  data-confirm="{% translate 'Las preguntas que no comprobó se corrigen al terminar. ¿Terminar el repaso?' %}">{% translate "Terminar el repaso" %}</button>
+          {% else %}
           <button type="submit" name="action" value="submit" data-submit
                   data-confirm="{% translate 'Después de enviar no podrá cambiar este intento. ¿Enviar?' %}">{% translate "Enviar" %}</button>
+          {% endif %}
         {% endif %}
-        {% if remaining_ms is not None %}<span class="eval-clock" data-clock role="timer" aria-live="off"
-              title="{% translate 'Tiempo restante de la evaluación' %}">{% translate "Tiempo restante" %} <strong data-clock-value>—</strong></span>{% endif %}
+        {% if remaining_ms is not None %}
+          {# El reloj de la evaluación no está a la vista: se consulta a pedido y avisa a los 10 y a los 2 minutos del final. #}
+          <button type="button" class="secondary small" data-clock-toggle aria-expanded="false"
+                  data-show="{% translate 'Ver tiempo restante' %}" data-hide="{% translate 'Ocultar el tiempo' %}">{% translate "Ver tiempo restante" %}</button>
+          <span class="eval-clock" data-clock role="timer" aria-live="off" hidden
+                title="{% translate 'Tiempo restante de la evaluación' %}">{% translate "Tiempo restante" %} <strong data-clock-value>—</strong></span>
+        {% endif %}
         <span class="small muted" data-save-status role="status">{% if attempt.saved_at %}{% blocktranslate with t=attempt.saved_at|time:"H:i" %}Guardado a las {{ t }}{% endblocktranslate %}{% endif %}</span>
       </div>
     </form>
@@ -111,6 +126,8 @@
     </div>
   </aside>
 </div>
+
+<div class="clock-reminder" data-clock-reminder role="alert" hidden></div>
 
 {# Cuando el docente presenta la actividad en clase: ir a donde está, volver a donde se estaba o seguirlo (static/js/activity.js). #}
 <div class="pointer-bar card" data-pointer hidden role="status">

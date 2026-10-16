@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: policlase\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-15 14:02-0500\n"
+"POT-Creation-Date: 2026-10-16 14:11-0500\n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -19,20 +19,20 @@ msgstr "%(n)s of %(total)s students answered this part"
 msgid "Los estudiantes pueden seguir su posición"
 msgstr "Students can follow your position"
 
-#: static/js/activity-present.js:47 static/js/live.js:121
+#: static/js/activity-present.js:47 static/js/live.js:126
 #: static/js/studio.js:233
 msgid "sin conexión"
 msgstr "offline"
 
-#: static/js/activity-teacher.js:69 static/js/activity.js:70
+#: static/js/activity-teacher.js:72 static/js/activity.js:70
 msgid "Guardando…"
 msgstr "Saving…"
 
-#: static/js/activity-teacher.js:76
+#: static/js/activity-teacher.js:79
 msgid "calificada"
 msgstr "graded"
 
-#: static/js/activity-teacher.js:79
+#: static/js/activity-teacher.js:82
 msgid "Sin conexión: no se guardó."
 msgstr "Offline: not saved."
 
@@ -91,63 +91,78 @@ msgstr "Image saved."
 msgid "Sin conexión: no se pudo enviar. Se volverá a intentar automáticamente."
 msgstr "Offline: could not be sent. It will retry automatically."
 
-#: static/js/activity.js:242
-#, javascript-format
-msgid "%s s"
-msgstr "%s s"
+#: static/js/activity.js:290
+msgid "Sin conexión: no se pudo comprobar. Inténtelo de nuevo."
+msgstr "No connection: it could not be checked. Please try again."
 
-#: static/js/activity.js:330
+#: static/js/activity.js:367
 #, javascript-format
 msgid "Queda %s pregunta sin responder, que vale cero."
 msgid_plural "Quedan %s preguntas sin responder, que valen cero."
 msgstr[0] "%s question is unanswered and is worth zero."
 msgstr[1] "%s questions are unanswered and are worth zero."
 
-#: static/js/activity.js:332
+#: static/js/activity.js:369
 #, javascript-format
 msgid "%s pregunta está marcada para revisar."
 msgid_plural "%s preguntas están marcadas para revisar."
 msgstr[0] "%s question is marked for review."
 msgstr[1] "%s questions are marked for review."
 
-#: static/js/activity.js:406
+#: static/js/activity.js:447
+msgid "Quedan 10 minutos de evaluación."
+msgstr "10 minutes of the assessment remain."
+
+#: static/js/activity.js:447
+msgid "Quedan 2 minutos de evaluación."
+msgstr "2 minutes of the assessment remain."
+
+#: static/js/activity.js:465
 msgid "Se acabó el tiempo. Se está enviando la evaluación…"
 msgstr "Time is up. The assessment is being submitted…"
 
-#: static/js/activity.js:454
+#: static/js/activity.js:513
 msgid "el comienzo de la actividad"
 msgstr "the beginning of the activity"
 
-#: static/js/live.js:117
+#: static/js/debate.js:25
+msgid "No se pudo registrar el «me gusta»."
+msgstr "The like could not be recorded."
+
+#: static/js/debate.js:30
+msgid "Sin conexión. Inténtelo de nuevo."
+msgstr "No connection. Please try again."
+
+#: static/js/live.js:122
 msgid "Sin acceso a esta clase."
 msgstr "No access to this class."
 
-#: static/js/live.js:172
+#: static/js/live.js:177
 msgid "en vivo"
 msgstr "live"
 
-#: static/js/live.js:173
+#: static/js/live.js:178
 msgid "reconectando…"
 msgstr "reconnecting…"
 
-#: static/js/live.js:178
+#: static/js/live.js:183
 msgid "clase terminada"
 msgstr "class ended"
 
-#: static/js/live.js:205
+#: static/js/live.js:210
 #, javascript-format
 msgid "No se pudo aplicar la acción (%s)."
 msgstr "Couldn't apply the action (%s)."
 
-#: static/js/live.js:331
+#: static/js/live.js:336
 msgid "Enviando…"
 msgstr "Sending…"
 
-#: static/js/live.js:336
+#: static/js/live.js:341
 msgid "Enviar respuesta"
 msgstr "Submit answer"
 
-#: static/js/live.js:337
+#: static/js/live.js:342
 msgid "No se pudo enviar. Revise su conexión e intente de nuevo."
 msgstr "Couldn't send. Check your connection and try again."
 

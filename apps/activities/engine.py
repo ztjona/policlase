@@ -15,8 +15,13 @@ futura API digan lo mismo:
 - Los ítems que el docente deshabilita (`Activity.ungraded_items`) no se muestran ni se califican;
   lo que ya se había respondido en ellos se conserva.
 - Una pregunta con tiempo (`time_limit_s`, de un segmento) no se ve hasta que el estudiante la
-  abre; desde ahí corre el reloj del servidor y solo se guarda lo que llega antes de que se acabe
-  (más `TIMER_GRACE_S` por la conexión). No se reinicia: cerrar la página no da más tiempo.
+  abre; desde ahí corre el reloj del servidor. Al acabarse el tiempo (más `TIMER_GRACE_S` por la
+  conexión) sigue abierta, pero lo que se responda después vale con la penalización por atraso.
+  No se reinicia: cerrar la página no da más tiempo. El tiempo adicional del estudiante
+  (`Enrollment.extra_time_pct`) alarga el de cada pregunta.
+- **Repasos** (`Activity.kind`): sin nota, sin tiempo y con intentos ilimitados. Cada pregunta se
+  comprueba al momento (`check`): queda cerrada en ese intento, con su corrección y, cuando se
+  comprobó todo el ítem, su explicación.
 - **Evaluaciones** (`Activity.kind`): un intento, dentro del horario (de `opens_at` a `due_at`), con
   el código que el docente proyecta y, si hay duración, un límite propio desde que se empieza. Al
   acabarse el tiempo se envía sola. El estudiante no ve su puntaje ni la corrección hasta que el
@@ -38,7 +43,7 @@ from django.utils.translation import gettext as _
 from policlase_gen.grading import grade
 
 from . import images
-from .models import Activity, Answer, Attempt, Upload
+from .models import Activity, Answer, Attempt, Extension, Upload
 
 REVIEW_TYPES = {"open", "image"}
 #: Tope de texto de una respuesta abierta: un párrafo largo, no un documento.
@@ -85,19 +90,25 @@ def state(activity: Activity, student, now=None) -> State:
     submitted = [a for a in attempts if a.submitted_at]
     draft = next((a for a in attempts if not a.submitted_at), None)
     counted = submitted[-1] if submitted else None
-    ok, reason, late = can_answer(activity, len(submitted), now)
+    ok, reason, late = can_answer(activity, len(submitted), now, student)
+    if activity.is_practice:
+        # Un repaso no tiene nota ni revisión que esperar: lo enviado se ve corregido, con las explicaciones.
+        return State(attempts=attempts, draft=draft, counted=counted, can_start=ok and draft is None,
+                     reason=reason, late=False, reveal=bool(counted), solutions=bool(counted))
     exhausted = len(submitted) >= activity.max_attempts
-    past_due, in_review = activity.is_past_due(now), activity.review_open(now)
+    # Con una prórroga, la revisión del estudiante empieza con su propio vencimiento.
+    is_past = past_due(activity, student.pk, now)
+    in_review = activity.review_open(now) and is_past
     if activity.review_mode == Activity.Review.NONE:
         reveal = False
-    elif past_due or activity.is_evaluation:
+    elif is_past or activity.is_evaluation:
         reveal = bool(counted) and in_review
     else:
         reveal = bool(counted) and exhausted
     # Las soluciones, en la revisión: para quien entregó y para quien ya no puede entregar. A quien
     # todavía puede entregar (atrasado), verlas sería responder con las soluciones a la vista.
     solutions = in_review and (bool(counted) or (not ok and draft is None))
-    closed = past_due and not in_review and activity.review_mode != Activity.Review.NONE
+    closed = is_past and not in_review and activity.review_mode != Activity.Review.NONE
     if activity.is_evaluation and not activity.published_at:
         closed = False                                 # la revisión ni siquiera empezó
     return State(attempts=attempts, draft=draft, counted=counted, can_start=ok and draft is None,
@@ -109,26 +120,79 @@ def _when(moment) -> str:
     return date_format(timezone.localtime(moment), "D d M, H:i")
 
 
-def can_answer(activity: Activity, submitted: int, now) -> tuple[bool, str, bool]:
-    """(¿puede responder?, motivo si no, ¿sería atrasado?)"""
+# ------------------------------------------------------------------------ prórrogas y tiempo adicional
+
+
+def window(activity: Activity, student_id) -> tuple:
+    """(apertura, vencimiento) para este estudiante: los de la actividad o los de su prórroga.
+    Las prórrogas de la actividad se leen una vez y quedan en el objeto."""
+    if not hasattr(activity, "_extensions"):
+        activity._extensions = {e.student_id: e for e in Extension.objects.filter(activity=activity)}
+    ext = activity._extensions.get(getattr(student_id, "pk", student_id))
+    if ext is None:
+        return activity.opens_at, activity.due_at
+    return (ext.opens_at or activity.opens_at), ext.due_at
+
+
+def extra_pct(activity: Activity, student_id) -> int:
+    """El tiempo adicional (en %) del estudiante en el curso de la actividad (adecuación)."""
+    if not hasattr(activity, "_extra"):
+        from apps.courses.models import Enrollment
+
+        activity._extra = dict(Enrollment.objects.filter(course_id=activity.course_id, extra_time_pct__gt=0)
+                               .values_list("student_id", "extra_time_pct"))
+    return activity._extra.get(getattr(student_id, "pk", student_id), 0)
+
+
+def past_due(activity: Activity, student_id, now=None) -> bool:
+    _opens, due = window(activity, student_id)
+    return bool(due) and (now or timezone.now()) > due
+
+
+def deadline(attempt: Attempt):
+    """Hasta cuándo puede responder este intento. En una actividad, su vencimiento (o el de su
+    prórroga). En una evaluación, lo primero entre el cierre y la duración contada desde que
+    empezó; con tiempo adicional, la duración y el cierre se alargan en esa proporción."""
+    activity = attempt.activity
+    opens, due = window(activity, attempt.student_id)
+    if not activity.is_evaluation:
+        return due
+    factor = extra_pct(activity, attempt.student_id) / 100
+    if due and opens and factor:
+        due = due + (timedelta(minutes=activity.duration_min) if activity.duration_min else due - opens) * factor
+    if activity.duration_min and attempt.started_at:
+        own = attempt.started_at + timedelta(minutes=activity.duration_min * (1 + factor))
+        return min(own, due) if due else own
+    return due
+
+
+def can_answer(activity: Activity, submitted: int, now, student=None) -> tuple[bool, str, bool]:
+    """(¿puede responder?, motivo si no, ¿sería atrasado?). Con `student`, según su prórroga."""
+    opens, due = window(activity, student.pk) if student is not None else (activity.opens_at, activity.due_at)
+    if activity.is_practice:
+        if not activity.is_visible(now):
+            return False, _("El repaso todavía no está disponible."), False
+        if due and now > due:
+            return False, _("El repaso se cerró el %(when)s.") % {"when": _when(due)}, False
+        return True, "", False
     if activity.is_evaluation:
         # Una evaluación se rinde en su horario y una sola vez; no hay entregas atrasadas.
         if not activity.published:
             return False, _("La evaluación todavía no está disponible."), False
         if submitted >= activity.max_attempts:
             return False, _("Ya rindió esta evaluación."), False
-        if not (activity.opens_at and activity.due_at):
+        if not (opens and due):
             return False, _("La evaluación todavía no tiene horario."), False
-        if now < activity.opens_at:
-            return False, _("La evaluación comienza el %(when)s.") % {"when": _when(activity.opens_at)}, False
-        if now > activity.due_at:
-            return False, _("La evaluación se cerró el %(when)s.") % {"when": _when(activity.due_at)}, False
+        if now < opens:
+            return False, _("La evaluación comienza el %(when)s.") % {"when": _when(opens)}, False
+        if now > due:
+            return False, _("La evaluación se cerró el %(when)s.") % {"when": _when(due)}, False
         return True, "", False
     if not activity.is_visible(now):
         return False, _("La actividad todavía no está disponible."), False
     if submitted >= activity.max_attempts:
         return False, _("Ya usó todos sus intentos."), False
-    if not activity.is_past_due(now):
+    if not due or now <= due:
         return True, "", False
     if activity.late_policy == Activity.Late.BLOCK:
         return False, _("La fecha de entrega ya pasó."), False
@@ -200,6 +264,15 @@ def parse_answers(questions: list[dict], post) -> dict:
     return answers
 
 
+def parse_reasons(questions: list[dict], post) -> dict:
+    """Las justificaciones de las preguntas de debate que llegaron en el formulario. Una que no
+    llegó (la pregunta con tiempo ya cerrada, por ejemplo) no se deja en blanco."""
+    from .debate import MAX_REASON
+
+    return {q["key"]: post.get(f"w-{q['key']}", "").strip()[:MAX_REASON]
+            for q in questions if q.get("debate") and f"w-{q['key']}" in post}
+
+
 def _cell_count(question: dict) -> int:
     count = 1
     for dim in question.get("shape") or [1]:
@@ -222,25 +295,39 @@ def blank(value) -> bool:
 class Timer:
     state: str                 # "locked" (sin abrir) · "open" · "closed"
     remaining_ms: int = 0
+    limit_s: int = 0           # el del estudiante, con su tiempo adicional
 
     @property
     def remaining_s(self) -> int:
         return max(0, -(-self.remaining_ms // 1000))
 
+    @property
+    def overtime(self) -> bool:
+        """Se acabó su tiempo: la pregunta sigue abierta, pero lo que responda vale menos."""
+        return self.state == "open" and self.remaining_ms < -TIMER_GRACE_S * 1000
+
+
+def limit_s(attempt: Attempt, question: dict) -> int | None:
+    """El tiempo de una pregunta para este estudiante: el del segmento, más su tiempo adicional."""
+    limit = question.get("time_limit_s")
+    if not limit:
+        return None
+    return round(limit * (1 + extra_pct(attempt.activity, attempt.student_id) / 100))
+
 
 def timer(attempt: Attempt, question: dict, now=None) -> Timer | None:
-    """Dónde está el reloj de una pregunta con tiempo; None si la pregunta no tiene tiempo."""
-    limit = question.get("time_limit_s")
+    """Dónde está el reloj de una pregunta con tiempo; None si la pregunta no tiene tiempo. Abierta,
+    no se cierra sola al acabarse el tiempo: se cierra al responderla o al enviar el intento."""
+    limit = limit_s(attempt, question)
     if not limit:
         return None
     entry = (attempt.timers or {}).get(question["key"])
     if not entry:
-        return Timer("locked")
+        return Timer("locked", limit_s=limit)
     if entry.get("closed") or attempt.submitted_at:
-        return Timer("closed")
+        return Timer("closed", limit_s=limit)
     left = datetime.fromisoformat(entry["opened"]) + timedelta(seconds=limit) - (now or timezone.now())
-    ms = int(left.total_seconds() * 1000)
-    return Timer("open", ms) if ms > -TIMER_GRACE_S * 1000 else Timer("closed")
+    return Timer("open", int(left.total_seconds() * 1000), limit_s=limit)
 
 
 def check_time(attempt: Attempt, now=None) -> None:
@@ -249,8 +336,8 @@ def check_time(attempt: Attempt, now=None) -> None:
     activity = attempt.activity
     if not activity.is_evaluation:
         return
-    deadline = activity.deadline(attempt)
-    if deadline and (now or timezone.now()) > deadline + EVALUATION_GRACE:
+    limit = deadline(attempt)
+    if limit and (now or timezone.now()) > limit + EVALUATION_GRACE:
         raise ActionError(_("Se acabó el tiempo de la evaluación; se conserva lo que se guardó hasta ese momento."))
 
 
@@ -258,17 +345,26 @@ def remaining_ms(attempt: Attempt, now=None) -> int | None:
     """Milisegundos que le quedan a un intento de evaluación (None si no hay límite)."""
     if not attempt.activity.is_evaluation:
         return None
-    deadline = attempt.activity.deadline(attempt)
-    if not deadline:
+    limit = deadline(attempt)
+    if not limit:
         return None
-    return max(0, int((deadline - (now or timezone.now())).total_seconds() * 1000))
+    return max(0, int((limit - (now or timezone.now())).total_seconds() * 1000))
 
 
 def _accepts(attempt: Attempt, question: dict, now) -> bool:
-    """¿Se guarda ahora lo que llegue para esta pregunta? Sin tiempo, siempre; con tiempo, solo
-    mientras su reloj corre (con la gracia)."""
+    """¿Se guarda ahora lo que llegue para esta pregunta? Sin tiempo, siempre; con tiempo, mientras
+    está abierta (también pasado su tiempo, con penalización)."""
     current = timer(attempt, question, now)
     return current is None or current.state == "open"
+
+
+def _mark_late(attempt: Attempt, key: str, value, now) -> None:
+    """Una pregunta con tiempo que cambia de respuesta pasado su límite queda marcada: al enviar,
+    vale con la penalización por atraso."""
+    question = next((q for q in attempt.questions if q["key"] == key), None)
+    current = timer(attempt, question, now) if question else None
+    if current and current.overtime and value != attempt.answers.get(key):
+        attempt.timers = {**attempt.timers, key: {**attempt.timers[key], "late": True}}
 
 
 @transaction.atomic
@@ -301,6 +397,7 @@ def close_timer(attempt: Attempt, key: str, answers: dict | None = None, now=Non
     if not question.get("time_limit_s") or key not in (attempt.timers or {}):
         raise ActionError(_("Esa pregunta no está abierta."))
     if answers and key in answers and _accepts(attempt, question, now):
+        _mark_late(attempt, key, answers[key], now)
         attempt.answers = {**attempt.answers, key: answers[key]}
     entry = dict(attempt.timers[key])
     entry.setdefault("closed", now.isoformat())
@@ -311,7 +408,7 @@ def close_timer(attempt: Attempt, key: str, answers: dict | None = None, now=Non
 
 
 def save_draft(attempt: Attempt, answers: dict, telemetry: dict | None = None, now=None,
-               marked: list[str] | None = None) -> Attempt:
+               marked: list[str] | None = None, reasons: dict | None = None) -> Attempt:
     if attempt.submitted_at:
         raise ActionError(_("Este intento ya se envió."))
     now = now or timezone.now()
@@ -323,11 +420,17 @@ def save_draft(attempt: Attempt, answers: dict, telemetry: dict | None = None, n
     # entera no las abre ni les da más tiempo.
     timed = {q["key"]: q for q in attempt.questions if q.get("time_limit_s")}
     answers = {k: v for k, v in answers.items() if k not in timed or _accepts(attempt, timed[k], now)}
+    # En un repaso, lo ya comprobado no cambia en este intento.
+    answers = {k: v for k, v in answers.items() if k not in (attempt.checked or {})}
+    for key in timed.keys() & answers.keys():
+        _mark_late(attempt, key, answers[key], now)
     attempt.answers = {**attempt.answers, **answers}
+    if reasons:
+        attempt.reasons = {**(attempt.reasons or {}), **reasons}
     if telemetry:
         attempt.telemetry = merge_telemetry(attempt.telemetry, telemetry)
     attempt.saved_at = now
-    attempt.save(update_fields=["answers", "saved_at", "telemetry", "marked"])
+    attempt.save(update_fields=["answers", "saved_at", "telemetry", "marked", "timers", "reasons"])
     return attempt
 
 
@@ -361,6 +464,8 @@ def add_upload(attempt: Attempt, key: str, upload) -> Upload:
     question = _question(attempt, key)
     if question["type"] != "image":
         raise ActionError(_("Esa pregunta no admite imágenes."))
+    if key in (attempt.checked or {}):
+        raise ActionError(_("Esa pregunta ya se comprobó en este intento."))
     if not _accepts(attempt, question, timezone.now()):
         raise ActionError(_("Esa pregunta tiene límite de tiempo y no está abierta."))
     limit = int(question.get("max_files") or 1)
@@ -384,8 +489,44 @@ def remove_upload(attempt: Attempt, upload_pk: int) -> None:
         raise ActionError(_("Este intento ya se envió."))
     check_time(attempt)
     row = attempt.uploads.filter(pk=upload_pk).first()
-    if row:
+    if row and row.key not in (attempt.checked or {}):
         row.delete()
+
+
+# ------------------------------------------------------------------------ repaso
+
+
+@transaction.atomic
+def check(attempt: Attempt, key: str, answers: dict, now=None) -> Attempt:
+    """Repaso: comprobar una pregunta. Se guarda lo respondido y se califica al momento; la pregunta
+    queda cerrada en este intento, con su corrección a la vista. Comprobarla de nuevo no hace nada."""
+    attempt = Attempt.objects.select_for_update().get(pk=attempt.pk)
+    if attempt.submitted_at:
+        raise ActionError(_("Este intento ya se envió."))
+    if not attempt.activity.is_practice:
+        raise ActionError(_("Las preguntas se comprueban una a una solo en un repaso."))
+    found = _records(attempt.content).get(key)
+    if found is None:
+        raise ActionError(_("Esa pregunta no existe."))
+    if key in (attempt.checked or {}):
+        return attempt
+    _item, question, record = found
+    if question["type"] == "image":
+        value = list(attempt.uploads.filter(key=key).values_list("pk", flat=True))
+    else:
+        value = answers.get(key, attempt.answers.get(key))
+    if blank(value):
+        raise ActionError(_("Responda la pregunta antes de comprobarla."))
+    result = grade(question, value, solution=record)
+    if not result.gradable:
+        raise ActionError(" ".join(result.format_errors))
+    if question["type"] != "image":
+        attempt.answers = {**attempt.answers, key: value}
+    attempt.checked = {**(attempt.checked or {}), key: {
+        "fraction": result.fraction, "correct": result.correct, "review": result.needs_review}}
+    attempt.saved_at = now or timezone.now()
+    attempt.save(update_fields=["answers", "checked", "saved_at"])
+    return attempt
 
 
 # ------------------------------------------------------------------------ enviar
@@ -428,10 +569,10 @@ def submit(attempt: Attempt, now=None, auto: bool = False) -> Attempt:
                                       submitted_at__isnull=False).count()
     if activity.is_evaluation:
         # Pasado su límite, el intento cuenta como enviado en ese momento (nada se guardó después).
-        deadline = activity.deadline(attempt)
-        if deadline and now > deadline:
-            now = deadline
-    ok, reason, late = can_answer(activity, previous, now)
+        limit = deadline(attempt)
+        if limit and now > limit:
+            now = limit
+    ok, reason, late = can_answer(activity, previous, now, attempt.student)
     if not ok:
         raise ActionError(reason)
     if not auto and format_errors(attempt):
@@ -441,16 +582,20 @@ def submit(attempt: Attempt, now=None, auto: bool = False) -> Attempt:
     for row in attempt.uploads.all():
         files.setdefault(row.key, []).append(row.pk)
 
+    keep = (100 - activity.late_penalty) / 100
     for key, (item, q, record) in _records(attempt.content).items():
         value = files.get(key, []) if q["type"] == "image" else attempt.answers.get(key)
+        overtime = bool((attempt.timers or {}).get(key, {}).get("late")) and not blank(value)
         if blank(value):
             points, fraction, correct, review = 0.0, 0.0, False, False
         else:
             result = grade(q, value, solution=record)
             points, fraction, correct, review = result.points, result.fraction, result.correct, result.needs_review
+            if overtime:                # respondida pasado el tiempo de la pregunta
+                points, fraction = round(points * keep, 6), fraction * keep
         Answer.objects.create(
             attempt=attempt, key=key, item_id=item["item_id"], item_version=item["item_version"],
-            value=value, fraction=fraction, points=points, correct=correct,
+            value=value, fraction=fraction, points=points, correct=correct, late=overtime,
             auto_points=None if review else points, auto_correct=None if review else correct,
             needs_review=review,
         )
@@ -475,19 +620,21 @@ def finalize_overdue(activity: Activity, now=None, student=None) -> int:
         return 0
     grace = EVALUATION_GRACE if activity.is_evaluation else AUTO_SUBMIT_GRACE
     timed = activity.is_evaluation and activity.duration_min
-    if not timed and now <= activity.due_at + grace:
-        return 0
-    drafts = Attempt.objects.filter(activity=activity, submitted_at=None, started_at__lte=activity.due_at)
+    if not timed and now <= activity.due_at + grace and not Extension.objects.filter(activity=activity).exists():
+        return 0                                       # nadie venció todavía
+    drafts = Attempt.objects.filter(activity=activity, submitted_at=None)
     if student is not None:
         drafts = drafts.filter(student=student)
     sent = 0
     for draft in drafts:
         draft.activity = activity
-        deadline = activity.deadline(draft)
-        if now <= deadline + grace:
+        limit = deadline(draft)
+        _opens, due = window(activity, draft.student_id)
+        # Solo lo empezado a tiempo; un intento atrasado lo envía el estudiante.
+        if not limit or not due or draft.started_at > due or now <= limit + grace:
             continue
         try:
-            submit(draft, now=deadline, auto=True)
+            submit(draft, now=limit, auto=True)
         except ActionError:
             continue
         sent += 1
@@ -498,10 +645,10 @@ def finish_on_time(attempt: Attempt, now=None) -> Attempt:
     """Se acabó el tiempo de una evaluación (la página lo pide al llegar a cero): se envía tal como
     está, con la hora del límite."""
     now = now or timezone.now()
-    deadline = attempt.activity.deadline(attempt)
-    if not attempt.activity.is_evaluation or not deadline or now < deadline - timedelta(seconds=5):
+    limit = deadline(attempt)
+    if not attempt.activity.is_evaluation or not limit or now < limit - timedelta(seconds=5):
         raise ActionError(_("Todavía queda tiempo."))
-    return submit(attempt, now=min(now, deadline), auto=True)
+    return submit(attempt, now=min(now, limit), auto=True)
 
 
 def publish(activity: Activity, now=None) -> None:
@@ -540,6 +687,25 @@ def reopen_auto_submitted(activity: Activity, now=None) -> int:
             attempt.save(update_fields=["submitted_at", "auto_submitted", "points", "pending", "late", "penalty"])
         reopened += 1
     return reopened
+
+
+def grant_extension(activity: Activity, student, due_at, opens_at=None, note: str = "") -> Extension:
+    """Una prórroga para un estudiante. En una actividad, si su intento se envió solo al vencer la
+    fecha general, vuelve a quedar abierto (salvo que el docente ya lo haya calificado a mano)."""
+    ext, _created = Extension.objects.update_or_create(
+        activity=activity, student=student, defaults={"due_at": due_at, "opens_at": opens_at, "note": note[:200]})
+    activity.__dict__.pop("_extensions", None)
+    if not activity.is_evaluation and due_at > timezone.now():
+        for attempt in Attempt.objects.filter(activity=activity, student=student, auto_submitted=True):
+            later = Attempt.objects.filter(activity=activity, student=student, number__gt=attempt.number).exists()
+            if later or attempt.answer_rows.filter(graded_by__isnull=False).exists():
+                continue
+            with transaction.atomic():
+                attempt.answer_rows.all().delete()
+                attempt.submitted_at, attempt.auto_submitted = None, False
+                attempt.points, attempt.pending, attempt.late, attempt.penalty = None, 0, False, 0
+                attempt.save(update_fields=["submitted_at", "auto_submitted", "points", "pending", "late", "penalty"])
+    return ext
 
 
 def visible_questions(attempt: Attempt) -> list[dict]:
@@ -655,7 +821,8 @@ def answer_rows(attempt: Attempt) -> list[dict]:
         row = {"key": key, "item": item, "question": q, "record": record,
                "answer": rows.get(key), "draft": attempt.answers.get(key), "uploads": uploads.get(key, []),
                "timer": timer(attempt, q), "blank": blank(given), "marked": key in (attempt.marked or []),
-               "disabled": item["item_id"] in skip,
+               "disabled": item["item_id"] in skip, "reason": (attempt.reasons or {}).get(key, ""),
+               "check": (attempt.checked or {}).get(key),
                "value": rows[key].value if key in rows else attempt.answers.get(key)}
         if q["type"] == "numeric_list":
             given = row["draft"] if isinstance(row["draft"], list) else []

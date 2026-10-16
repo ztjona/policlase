@@ -2,19 +2,19 @@
 {% load static i18n policlase %}
 {% block title %}{{ activity.title }}{% endblock %}
 {% block main %}
-<div class="muted small"><a href="{% if activity.is_evaluation %}{% url 'activity_dates' course.pk %}{% else %}{% url 'course_activities' course.pk %}{% endif %}">← {{ course.name }}</a></div>
+<div class="muted small"><a href="{% if activity.is_evaluation or activity.is_practice %}{% url 'activity_dates' course.pk %}{% else %}{% url 'course_activities' course.pk %}{% endif %}">← {{ course.name }}</a></div>
 <div class="course-head">
   <h1>{{ activity.title }}</h1>
   <a class="icon-btn" href="{% url 'activity_edit' course.pk activity.pk %}" title="{% translate 'Editar contenido' %}" aria-label="{% translate 'Editar contenido' %}">{% icon "edit" 20 %}</a>
   {% if not activity.is_evaluation %}<a class="icon-btn primary" href="{% url 'activity_present' course.pk activity.pk %}" title="{% translate 'Presentar en clase. Los estudiantes pueden seguir su avance o continuar a su propio ritmo.' %}" aria-label="{% translate 'Presentar en clase' %}">{% icon "play" 20 %}</a>{% endif %}
-  {% if activity.is_evaluation %}<span class="chip">{% translate "Evaluación" %}</span>{% endif %}
+  {% if activity.is_evaluation %}<span class="chip">{% translate "Evaluación" %}</span>{% elif activity.is_practice %}<span class="chip">{% translate "Repaso" %}</span>{% endif %}
   {% if not activity.published %}<span class="chip warn">{% translate "Borrador" %}</span>{% endif %}
   {% if activity.uses_ai %}<span class="chip" title="{% translate 'Tiene preguntas marcadas para calificación con IA (función aún no disponible; las califica usted)' %}">IA</span>{% endif %}
 </div>
 <p class="muted small">{% blocktranslate with n=activity.questions|length p=activity.points|floatformat:"-2" %}{{ n }} preguntas · {{ p }} puntos{% endblocktranslate %}{% if disabled %} ({% blocktranslate with p=full_points|floatformat:"-2" %}de un total de {{ p }}, porque hay secciones deshabilitadas{% endblocktranslate %}){% endif %}{% if activity.github_path %} · <span class="mono">{{ activity.github_path }}</span>{% endif %}</p>
 
 <div class="grid two">
-  {% if activity.is_evaluation %}{% include "activities/_evaluation_settings.html" %}{% else %}{% include "activities/_activity_settings.html" %}{% endif %}
+  {% if activity.is_evaluation %}{% include "activities/_evaluation_settings.html" %}{% elif activity.is_practice %}{% include "activities/_practice_settings.html" %}{% else %}{% include "activities/_activity_settings.html" %}{% endif %}
 
   <section class="card stack">
     <h2>{% translate "Contenido" %}</h2>
@@ -43,6 +43,17 @@
         </div>
       </div>
     {% endfor %}
+    {% if activity.debate_keys %}
+      <div class="row debate-summary">
+        <span class="chip debate">{% icon "forum" 14 %} {% translate "Debate" %}</span>
+        <span class="small">{% blocktranslate count n=activity.debate_keys|length %}{{ n }} pregunta de debate{% plural %}{{ n }} preguntas de debate{% endblocktranslate %} ·
+          {% if not activity.due_at %}{% translate "se abre al vencer la fecha de entrega, que todavía no está definida" %}
+          {% elif activity.debate_closed %}{% blocktranslate with when=activity.debate_until|date:"D d M, H:i" %}cerrado el {{ when }}{% endblocktranslate %}
+          {% elif not activity.is_past_due %}{% blocktranslate with when=activity.due_at|date:"D d M, H:i" %}se abre el {{ when }}{% endblocktranslate %}
+          {% else %}{% translate "abierto" %}{% endif %}</span>
+        <a class="btn secondary small" href="{% url 'debate_teacher' course.pk activity.pk %}">{% translate "Abrir el debate" %}</a>
+      </div>
+    {% endif %}
     {% if parts %}
       <form method="post" action="{% url 'activity_parts' course.pk activity.pk %}" class="stack parts-form" id="parts" data-dirty>
         {% csrf_token %}
@@ -70,6 +81,37 @@
     </form>
   </section>
 </div>
+
+{% if not activity.is_practice %}
+<section class="card stack" id="extensions">
+  <h2 style="margin:0">{% translate "Prórrogas" %}</h2>
+  <span class="helptext" style="margin:0">{% if activity.is_evaluation %}{% translate "Un horario propio para un estudiante, por ejemplo si rinde la evaluación otro día. El tiempo adicional por adecuación se define en la lista de inscritos y vale para todas las evaluaciones." %}{% else %}{% translate "Una fecha de entrega propia para un estudiante. Si su intento ya se había enviado automáticamente, vuelve a quedar abierto. El tiempo adicional por adecuación se define en la lista de inscritos." %}{% endif %}</span>
+  {% if extensions %}
+    <ul class="plain">
+      {% for x in extensions %}
+        <li class="row">
+          <strong>{{ x.student.display_name }}</strong>
+          <span class="small">{% if x.opens_at %}{{ x.opens_at|date:"D d M, H:i" }} – {% endif %}{{ x.due_at|date:"D d M Y, H:i" }}</span>
+          {% if x.note %}<span class="small muted">{{ x.note }}</span>{% endif %}
+          <form method="post" action="{% url 'activity_extension' course.pk activity.pk %}" style="margin:0">{% csrf_token %}
+            <input type="hidden" name="extension" value="{{ x.pk }}">
+            <button name="action" value="remove" class="icon-btn danger" title="{% translate 'Quitar la prórroga' %}" aria-label="{% translate 'Quitar la prórroga' %}">{% icon "trash" 16 %}</button></form>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+  <form method="post" action="{% url 'activity_extension' course.pk activity.pk %}" class="row inline-form">{% csrf_token %}
+    <select name="student" class="compact" required aria-label="{% translate 'Estudiante' %}">
+      <option value="">{% translate "— Elija un estudiante —" %}</option>
+      {% for st in students %}<option value="{{ st.pk }}">{{ st.last_name }}, {{ st.first_name }}</option>{% endfor %}
+    </select>
+    {% if activity.is_evaluation %}<label class="small" style="margin:0">{% translate "Abre" %} <input type="datetime-local" name="opens_at"></label>{% endif %}
+    <label class="small" style="margin:0">{% if activity.is_evaluation %}{% translate "Cierra" %}{% else %}{% translate "Nueva fecha de entrega" %}{% endif %} <input type="datetime-local" name="due_at" required></label>
+    <input type="text" name="note" maxlength="200" placeholder="{% translate 'Motivo (opcional)' %}" class="compact-input">
+    <button class="secondary small">{% translate "Agregar prórroga" %}</button>
+  </form>
+</section>
+{% endif %}
 
 <h2>{% translate "Entregas" %} <span class="chip">{{ submitted }} / {{ rows|length }}</span></h2>
 {% if rows %}

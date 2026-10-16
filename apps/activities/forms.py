@@ -285,3 +285,60 @@ class EvaluationSettingsForm(ReviewMixin, PeriodRowMixin, forms.ModelForm):
         if commit:
             activity.save()
         return activity
+
+
+class PracticeSettingsForm(forms.ModelForm):
+    """Un repaso: cuándo abre (unos días antes de una fecha clave, o desde una fecha fija) y, si se
+    quiere, cuándo se cierra. No tiene ponderación, intentos ni atrasos: no cuenta para la nota."""
+
+    OPEN_MILESTONE, OPEN_FIXED = "milestone", "fixed"
+    open_mode = forms.ChoiceField(label=_("Disponible"), widget=forms.RadioSelect,
+                                  choices=[(OPEN_MILESTONE, _("Unos días antes de una fecha clave")),
+                                           (OPEN_FIXED, _("Desde una fecha fija"))])
+    days_before = forms.IntegerField(label=_("días antes de"), min_value=0, max_value=60, initial=7, required=False,
+                                     widget=forms.NumberInput(attrs={"min": "0", "max": "60"}))
+
+    class Meta:
+        model = Activity
+        fields = ["published", "due_milestone", "opens_at", "due_at"]
+        widgets = {"opens_at": DATETIME, "due_at": DATETIME, "due_milestone": forms.Select(attrs={"class": "compact"})}
+        labels = {"due_at": _("Se cierra (opcional)")}
+
+    def __init__(self, *args, course, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["due_milestone"].queryset = Milestone.objects.filter(course=course)
+        self.fields["due_milestone"].empty_label = _("— Elija una fecha clave —")
+        self.fields["due_milestone"].label = _("Fecha clave")
+        self.fields["opens_at"].label = _("Disponible desde")
+        self.fields["due_at"].help_text = _("Si se deja vacío, el repaso sigue disponible.")
+        instance = self.instance
+        if not self.is_bound:
+            self.initial["open_mode"] = self.OPEN_FIXED if instance.opens_at and not instance.due_milestone_id \
+                else self.OPEN_MILESTONE
+            if instance.due_milestone_id:
+                self.initial["days_before"] = -instance.due_offset_days
+
+    def clean(self):
+        data = super().clean()
+        if data.get("open_mode") == self.OPEN_MILESTONE:
+            if not data.get("due_milestone"):
+                self.add_error("due_milestone", _("Elija la fecha clave."))
+            if data.get("days_before") is None:
+                self.add_error("days_before", _("Indique cuántos días antes."))
+        else:
+            data["due_milestone"] = None
+            if not data.get("opens_at"):
+                self.add_error("opens_at", _("Indique desde cuándo está disponible."))
+        return data
+
+    def save(self, commit=True):
+        activity = super().save(commit=False)
+        activity.kind, activity.category, activity.due_from_opening = Activity.Kind.PRACTICE, None, False
+        if activity.due_milestone_id:
+            activity.due_offset_days = -int(self.cleaned_data.get("days_before") or 0)
+            activity.compute_due()
+        opens, closes = activity.opens_at, activity.due_at
+        self.closes_before = bool(opens and closes and closes <= opens)
+        if commit:
+            activity.save()
+        return activity

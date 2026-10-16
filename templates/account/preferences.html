@@ -15,13 +15,11 @@
     {{ form.timezone }}
     <span class="helptext">{% translate "Se detectó automáticamente desde su navegador. Las horas de clases y solicitudes se muestran en esta zona." %}</span>
   </div>
-  {% if "theme" in form.fields %}
   <div>
     <label for="{{ form.theme.id_for_label }}">{{ form.theme.label }}</label>
     {{ form.theme }}
     <span class="helptext">{{ form.theme.help_text }}</span>
   </div>
-  {% endif %}
   <button type="submit">{% translate "Guardar" %}</button>
 </form>
 {% endblock %}

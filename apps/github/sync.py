@@ -31,7 +31,7 @@ from django.utils.text import slugify
 from django.utils.translation import gettext as _
 from policlase_gen import document as content_format
 
-from apps.activities.models import Activity
+from apps.activities.models import WORK_USES, Activity
 from apps.live.models import Deck, Section
 
 from . import images
@@ -137,14 +137,13 @@ def pull(link: CourseRepo) -> PullResult:
             skipped[path] = sha
             result.issues.append({"path": path, "diagnostics": _diagnostics(report)})
             continue
-        if activity and activity.attempts.exists() and (use == "evaluation") != activity.is_evaluation \
-                and use in ("activity", "evaluation"):
+        if activity and activity.attempts.exists() and use in WORK_USES and Activity.kind_for(use) != activity.kind:
             skipped[path] = sha
             result.issues.append({"path": path, "diagnostics": [], "note": _(
-                "cambió de actividad a evaluación (o al revés) en GitHub y ya tiene entregas; no se actualizó. "
+                "cambió de tipo (actividad, evaluación o repaso) en GitHub y ya tiene entregas; no se actualizó. "
                 "Para usar el otro tipo, cree un archivo nuevo.")})
             continue
-        if (use in ("activity", "evaluation") and deck) or (use == "class" and activity):
+        if (use in WORK_USES and deck) or (use == "class" and activity):
             # Cambió de tipo en GitHub: lo que ya existe (con sus clases o entregas) no se convierte.
             skipped[path] = sha
             result.issues.append({"path": path, "diagnostics": [], "note": _(
@@ -153,7 +152,7 @@ def pull(link: CourseRepo) -> PullResult:
         compiled, missing = images.rewrite(content_format.compile_content(document), path, link.prefix, found_images)
         if missing:
             result.issues.append(_missing_images_issue(path, missing))
-        if use in ("activity", "evaluation"):
+        if use in WORK_USES:
             if activity is None:
                 activity = Activity(course=link.course, title=compiled["title"], source=source, compiled=compiled,
                                     github_path=path, github_sha=sha)
@@ -168,7 +167,8 @@ def pull(link: CourseRepo) -> PullResult:
                 was = activity.kind
                 activity.set_kind(use)
                 if activity.kind != was:                 # sin entregas: el tipo puede cambiar
-                    fields += ["kind", "max_attempts", "late_policy", "auto_submit", "require_code", "access_code"]
+                    fields += ["kind", "max_attempts", "late_policy", "auto_submit", "require_code", "access_code",
+                               "category", "review_mode"]
                 activity.save(update_fields=fields)
                 result.updated.append(path)
             continue

@@ -213,10 +213,43 @@ Reglas de interacción:
   nombre de ese parcial (`gradebook.rebind`); si no la hay, se avisa. En los formularios, el parcial
   se elige aparte de la fila y viene propuesto por la fecha.
 - **Preguntas con tiempo:** el reloj es del servidor (`Attempt.timers`, `engine.timer`). La pregunta
-  no se ve hasta que el estudiante la abre, se guarda solo mientras corre (más una gracia corta) y se
-  cierra para el resto del intento; el navegador solo muestra la cuenta regresiva y envía al llegar a
-  cero. **Encuestas** (`grading.mode: survey`): se registran, no tienen correcta ni puntos, y en
-  ninguna pantalla se muestran como correctas o incorrectas.
+  no se ve hasta que el estudiante la abre. **No hay cuenta regresiva a la vista**, porque la presión
+  del tiempo genera ansiedad: el límite se dice al abrirla, 10 s antes del final el marco cambia y, al
+  acabarse, sigue abierta con el aviso de que lo que responda vale con la penalización por atraso
+  (`Answer.late`). Se cierra al pulsar «Responder» o al enviar el intento. **Encuestas**
+  (`grading.mode: survey`): se registran, no tienen correcta ni puntos, y en ninguna pantalla se
+  muestran como correctas o incorrectas.
+- **En vivo**, lo mismo: ni el proyector ni los teléfonos muestran la cuenta regresiva (el docente la
+  ve pequeña en sus controles). Al acabarse, la pregunta sigue abierta hasta que el docente la cierra o
+  responden todos; lo que llega después vale con `live.engine.LATE_PENALTY` (`Response.late`). Con
+  bono por rapidez, una sola mención al empezar invita a responder pronto.
+- **Evaluaciones:** el reloj del intento está oculto; se consulta con «Ver tiempo restante» y avisa a
+  los 10 y a los 2 minutos del final.
+- **Tiempo adicional y prórrogas:** el tiempo adicional por adecuación vive en la inscripción
+  (`Enrollment.extra_time_pct`) y alarga las preguntas con tiempo, en vivo y en las actividades, y la
+  duración (y el cierre) de las evaluaciones. Una prórroga (`Extension`) da a un estudiante su propia
+  fecha en una actividad, o su propio horario en una evaluación. El motor la consulta con
+  `engine.window` y `engine.deadline`; nada lee `due_at` directamente para un estudiante.
+- **Nombres entre compañeros:** el nombre preferido (`Enrollment.preferred_name`, por omisión el
+  primer nombre) y el primer apellido (`courses.models.short_name`), en el marcador y en lo que ven
+  los compañeros. El docente lo ajusta en la lista de inscritos. La marca de agua conserva el nombre
+  completo y la cédula.
+- **Explicaciones:** una diapositiva `solution` explica el ítem que la precede
+  (`outline.with_explanations`). En la revisión no se muestra de entrada: el estudiante ve primero su
+  corrección y la abre con «Ver la explicación» (`_explanation.html`).
+- **Debate** (`apps/activities/debate.py`, `debate: true` en una pregunta): la justificación va con la
+  respuesta (`Attempt.reasons`); el foro abre al vencer la fecha y se cierra cuando el docente lo
+  decide (`Activity.debate_until`). Reglas que no se negocian: primero se publica y después se lee;
+  no lee quien todavía puede entregar con nota; la respuesta revisada no cambia la nota; la corrección
+  y la explicación de esas preguntas esperan al cierre (`debate.in_debate`, `debate.hidden_items`).
+  El foro se muestra junto a su pregunta en la revisión (`_debate.html`), funciona sin JavaScript y
+  `debate.js` solo hace que el «me gusta» muestre el número al momento. Lo oculto por el docente lo
+  ve su autor, con el aviso.
+- **Repasos** (`Activity.Kind.PRACTICE`, `use: practice`): sin nota (nunca entran en
+  `gradebook`), sin tiempo y con intentos ilimitados. «Comprobar» (`engine.check`) califica una
+  pregunta al momento y la deja cerrada en ese intento (`Attempt.checked`); la explicación del ítem
+  aparece cuando se comprobaron todas sus preguntas. Abren unos días antes de una fecha clave
+  (`due_offset_days` negativo sobre `opens_at`) y se listan en la pestaña Evaluaciones.
 - **Notas fuera de policlase:** registros manuales (`ManualRecord`) que cuentan como una actividad
   (o una clase) más de su fila. Pegar una lista solo rellena: nada se guarda sin que el docente lo
   revise, y lo que no coincide queda «sin asignar» para cuando el estudiante se inscriba. Cada nota

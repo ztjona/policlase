@@ -230,24 +230,23 @@
     });
   }
 
+  // Sin cuenta regresiva a la vista: 10 s antes del final, el marco cambia (una señal discreta) y,
+  // al acabarse, aparece el aviso de que todavía puede responder con penalización. La pregunta
+  // sigue abierta hasta que el estudiante pulsa «Responder» o envía el intento.
   function startTimer(block) {
     if (!block || !block.dataset || block.dataset.remainingMs === undefined) return;
-    var deadline = Date.now() + Number(block.dataset.remainingMs);
-    var count = block.querySelector("[data-timer-count]");
-    var close = block.querySelector("[data-timer-close]");
+    var end = Date.now() + Number(block.dataset.remainingMs);
+    var note = block.querySelector("[data-overtime-note]");
     function tick() {
       if (!block.isConnected) return;
-      var left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
-      if (count) {
-        count.textContent = interpolate(gettext("%s s"), [left]);
-        count.classList.toggle("urgent", left <= 5);
-      }
+      var left = end - Date.now();
+      block.classList.toggle("ending", left > 0 && left <= 10000);
       if (left <= 0) {
-        block.querySelectorAll("input, textarea").forEach(function (el) { el.readOnly = true; });
-        if (close) timerAction(block, close.getAttribute("formaction"));
+        block.classList.add("overtime");
+        if (note) note.hidden = false;
         return;
       }
-      setTimeout(tick, 250);
+      setTimeout(tick, 500);
     }
     tick();
   }
@@ -259,6 +258,44 @@
     if (!button) return;
     e.preventDefault();
     timerAction(button.closest("[data-timed]"), button.getAttribute("formaction"));
+  });
+
+  // ------------------------------------------------------------------ repaso
+  // «Comprobar»: viaja el formulario entero; el servidor califica esa pregunta y devuelve su
+  // corrección y, si ya se comprobó todo el ejercicio, su explicación.
+  function checkAction(block, url) {
+    if (block.dataset.busy) return;
+    block.dataset.busy = "1";
+    var sent = JSON.parse(JSON.stringify(delta));
+    fetch(url, {
+      method: "POST", credentials: "same-origin", body: payload(),
+      headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" },
+    }).then(function (r) { return r.json(); }).then(function (res) {
+      if (!res.html) { delete block.dataset.busy; if (res.error) say(res.error); return; }
+      resetDelta(sent);
+      var holder = document.createElement("div");
+      holder.innerHTML = res.html;
+      var fresh = holder.firstElementChild, section = block.closest("[data-item]");
+      block.replaceWith(fresh);
+      if (window.policlaseMath) window.policlaseMath(fresh);
+      if (res.explanation && section && !section.querySelector(".explain")) {
+        holder.innerHTML = res.explanation;
+        var explain = holder.firstElementChild;
+        section.appendChild(explain);
+        if (window.policlaseMath) window.policlaseMath(explain);
+      }
+      if (window.policlaseAttemptRefresh) window.policlaseAttemptRefresh();
+    }).catch(function () {
+      delete block.dataset.busy;
+      say(gettext("Sin conexión: no se pudo comprobar. Inténtelo de nuevo."));
+    });
+  }
+
+  form.addEventListener("click", function (e) {
+    var button = e.target.closest("[data-check]");
+    if (!button) return;
+    e.preventDefault();
+    checkAction(button.closest("[data-q]"), button.getAttribute("formaction"));
   });
 
   // Enviar o guardar con el botón: viajan también las señales pendientes.
@@ -393,14 +430,36 @@
   if (form.dataset.remainingMs !== undefined) {
     var end = Date.now() + Number(form.dataset.remainingMs);
     var clock = form.querySelector("[data-clock]"), value = form.querySelector("[data-clock-value]");
+    var toggleClock = form.querySelector("[data-clock-toggle]");
+    var reminder = document.querySelector("[data-clock-reminder]"), reminded = {};
     var pad = function (n) { return String(n).padStart(2, "0"); };
     var finished = false;
+    // Oculto por omisión (sin presión a la vista); este navegador recuerda si se prefiere verlo.
+    var showClock = function (on) {
+      clock.hidden = !on;
+      toggleClock.textContent = on ? toggleClock.dataset.hide : toggleClock.dataset.show;
+      toggleClock.setAttribute("aria-expanded", on ? "true" : "false");
+      try { sessionStorage.setItem("policlase.clock", on ? "1" : "0"); } catch (e) {}
+    };
+    toggleClock.addEventListener("click", function () { showClock(clock.hidden); });
+    try { if (sessionStorage.getItem("policlase.clock") === "1") showClock(true); } catch (e) {}
+    var remind = function (left) {
+      [[600, gettext("Quedan 10 minutos de evaluación.")], [120, gettext("Quedan 2 minutos de evaluación.")]].forEach(function (r) {
+        if (left <= r[0] && left > r[0] - 60 && !reminded[r[0]]) {
+          reminded[r[0]] = true;
+          reminder.textContent = r[1];
+          reminder.hidden = false;
+          setTimeout(function () { reminder.hidden = true; }, 12000);
+        }
+      });
+    };
     var tickClock = function () {
       var left = Math.max(0, Math.ceil((end - Date.now()) / 1000));
       var h = Math.floor(left / 3600), m = Math.floor((left % 3600) / 60), sec = left % 60;
       value.textContent = (h ? h + ":" + pad(m) : m) + ":" + pad(sec);
       clock.classList.toggle("low", left <= 300);
       clock.classList.toggle("urgent", left <= 60);
+      remind(left);
       if (left <= 0 && !finished) {
         finished = true;
         say(gettext("Se acabó el tiempo. Se está enviando la evaluación…"));

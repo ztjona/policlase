@@ -30,26 +30,31 @@
     el.textContent = text;
   }
 
-  // Cuenta regresiva basada en la hora del servidor: el reloj del teléfono puede estar mal.
+  // El tiempo de la pregunta, con la hora del servidor (el reloj del teléfono puede estar mal). Al
+  // acabarse, la pregunta sigue abierta: el docente la cierra. En el proyector se ve pequeño en los
+  // controles; en el teléfono no se ve (data-quiet): 10 s antes cambia el marco y, al acabarse,
+  // aparece el aviso de que todavía se puede responder con penalización.
   var timerHandle = null;
-  function startTimers(stage, onZero) {
+  function startTimers(stage) {
     if (timerHandle) clearInterval(timerHandle);
     var el = stage.querySelector("[data-closes-at]");
     if (!el || !el.dataset.closesAt) return;
-    var closes = Date.parse(el.dataset.closesAt);
+    var closes = Date.parse(el.dataset.closesAt) + Number(el.dataset.extraMs || 0);
     var offset = Date.parse(el.dataset.serverNow) - Date.now();
-    var fired = false;
+    var quiet = el.hasAttribute("data-quiet");
+    var box = stage.querySelector(".phone") || stage;
+    var note = stage.querySelector("[data-overtime-note]");
     function tick() {
       var left = Math.max(0, Math.ceil((closes - (Date.now() + offset)) / 1000));
-      el.textContent = left + " s";
-      el.classList.toggle("low", left <= 5);
-      if (left === 0 && !fired) {
-        fired = true;
-        clearInterval(timerHandle);
-        // El servidor cierra la pregunta al vencer; el SSE lo avisará, pero se pide ya
-        // para no depender de la latencia del sondeo.
-        setTimeout(onZero, 400);
+      if (quiet) {
+        box.classList.toggle("ending", left > 0 && left <= 10);
+        box.classList.toggle("overtime", left === 0);
+        if (note) note.hidden = left > 0;
+      } else {
+        el.textContent = left ? left + " s" : (el.dataset.doneText || "0 s");
+        el.classList.toggle("low", left <= 5);
       }
+      if (left === 0) clearInterval(timerHandle);
     }
     tick();
     timerHandle = setInterval(tick, 250);
@@ -163,7 +168,7 @@
       restoreForm(stage, kept);
       carried = stage.querySelector("[data-answer-form]") ? null : kept;
       if (window.policlaseMath) window.policlaseMath(stage);
-      startTimers(stage, refresh);
+      startTimers(stage);
       if (opts.afterSwap) opts.afterSwap(stage, refresh);
     }
 

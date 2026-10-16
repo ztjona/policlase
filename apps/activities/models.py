@@ -14,6 +14,10 @@ from apps.grades.models import Category, Milestone
 from apps.live.models import Section
 
 
+#: Los `use` del formato que son una `Activity` (lo demás, `class`, es una presentación).
+WORK_USES = ("activity", "evaluation", "practice")
+
+
 def course_tz(course) -> ZoneInfo:
     """Las horas de entrega («21:59») se entienden en la zona del docente del curso."""
     name = getattr(course.owner, "timezone", "") or settings.TIME_ZONE
@@ -41,6 +45,9 @@ class Activity(models.Model):
     class Kind(models.TextChoices):
         ACTIVITY = "activity", _("Actividad")
         EVALUATION = "evaluation", _("Evaluación")
+        #: Un repaso: sin nota, sin tiempo y con intentos ilimitados; cada pregunta se comprueba al
+        #: momento, con su corrección y su explicación. Abre unos días antes de una fecha clave.
+        PRACTICE = "practice", _("Repaso")
 
     class Review(models.TextChoices):
         ALWAYS = "always", _("Sin límite")
@@ -107,6 +114,10 @@ class Activity(models.Model):
     #: si las había, se conservan y reaparecen al habilitarlos. Vale para todos los intentos, también
     #: los ya enviados. (El nombre de la columna es de cuando solo dejaban de calificarse.)
     ungraded_items = models.JSONField(default=list, db_default=[], blank=True)
+    #: Preguntas de debate (`debate: true`): el foro abre al vencer la fecha de entrega y se cierra
+    #: aquí; vacío, sigue abierto hasta que el docente lo cierra («Cerrar el debate» lo fija en ese
+    #: momento). Al cerrarse se muestran la corrección y la explicación de esas preguntas.
+    debate_until = models.DateTimeField(_("debate hasta"), null=True, blank=True)
     #: Dónde está el docente al presentar la actividad en clase: el bloque (`at` del contenido) y,
     #: si es un ítem, su `item_id`. `presenting_at` es la última señal de la página del proyector:
     #: sin señal reciente, no se está presentando.
@@ -171,6 +182,12 @@ class Activity(models.Model):
         """Recalcula `due_at` (y el fin de la revisión) desde su fecha de referencia. No guarda. Una
         evaluación relativa a una fecha clave abre ese día a las `opens_time`."""
         tz = course_tz(self.course)
+        if self.is_practice:
+            # Un repaso abre unos días antes de su fecha clave (`due_offset_days`, negativo) y no vence.
+            if self.due_milestone_id:
+                day = self.due_milestone.on + timedelta(days=self.due_offset_days)
+                self.opens_at = datetime.combine(day, time(0, 0), tzinfo=tz)
+            return
         if self.due_milestone_id:
             day = self.due_milestone.on + timedelta(days=self.due_offset_days)
             self.due_at = datetime.combine(day, self.due_time, tzinfo=tz)
@@ -199,6 +216,24 @@ class Activity(models.Model):
         return _("hasta el %(when)s") % {"when": date_format(timezone.localtime(self.review_until, course_tz(self.course)),
                                                            "D d M, H:i")}
 
+    @property
+    def debate_keys(self) -> list[str]:
+        """Las preguntas de debate de la versión actual, sin las de ítems deshabilitados."""
+        if self.kind != self.Kind.ACTIVITY:
+            return []
+        skip = self.disabled
+        return [q["key"] for item in self.compiled.get("items", []) if item.get("kind", "item") == "item"
+                and item.get("item_id") not in skip for q in item["questions"] if q.get("debate")]
+
+    def debate_open(self, now=None) -> bool:
+        """El foro está abierto: desde el vencimiento hasta su cierre."""
+        now = now or timezone.now()
+        return (bool(self.debate_keys) and self.is_past_due(now)
+                and (self.debate_until is None or now <= self.debate_until))
+
+    def debate_closed(self, now=None) -> bool:
+        return bool(self.debate_until) and (now or timezone.now()) > self.debate_until
+
     def review_open(self, now=None) -> bool:
         """¿Está abierta la revisión? Desde que vence la fecha hasta `review_until`; en una evaluación,
         además, solo con las notas publicadas."""
@@ -213,10 +248,30 @@ class Activity(models.Model):
     def is_evaluation(self) -> bool:
         return self.kind == self.Kind.EVALUATION
 
+    @property
+    def is_practice(self) -> bool:
+        return self.kind == self.Kind.PRACTICE
+
+    @property
+    def days_before(self) -> int:
+        """Repaso: cuántos días antes de su fecha clave abre."""
+        return -self.due_offset_days if self.due_milestone_id else 0
+
+    @classmethod
+    def kind_for(cls, use: str) -> str:
+        """El tipo según el `use` del documento."""
+        return {"evaluation": cls.Kind.EVALUATION, "practice": cls.Kind.PRACTICE}.get(use, cls.Kind.ACTIVITY)
+
+    def refresh_from_db(self, *args, **kwargs):
+        super().refresh_from_db(*args, **kwargs)
+        # Las prórrogas y los tiempos adicionales que el motor guardó en el objeto se vuelven a leer.
+        for name in ("_extensions", "_extra"):
+            self.__dict__.pop(name, None)
+
     def set_kind(self, use: str) -> None:
         """El tipo según el `use` del documento. Una evaluación nueva parte de lo habitual: un solo
         intento, sin atrasos, envío automático y código de acceso. No guarda."""
-        kind = self.Kind.EVALUATION if use == "evaluation" else self.Kind.ACTIVITY
+        kind = self.kind_for(use)
         if kind == self.kind and self.pk:
             return
         self.kind = kind
@@ -224,14 +279,10 @@ class Activity(models.Model):
             self.max_attempts, self.late_policy, self.auto_submit = 1, self.Late.BLOCK, True
             self.require_code = True
             self.access_code = self.access_code or new_access_code()
-
-    def deadline(self, attempt) -> datetime | None:
-        """Hasta cuándo puede responder este intento: el cierre o, en una evaluación con duración,
-        lo que llegue primero entre el cierre y la duración contada desde que empezó."""
-        if self.is_evaluation and self.duration_min and attempt.started_at:
-            own = attempt.started_at + timedelta(minutes=self.duration_min)
-            return min(own, self.due_at) if self.due_at else own
-        return self.due_at
+        elif kind == self.Kind.PRACTICE:
+            # Sin nota: no cuenta en ninguna fila, no vence y se repite cuantas veces se quiera.
+            self.max_attempts, self.late_policy, self.auto_submit = PRACTICE_ATTEMPTS, self.Late.BLOCK, False
+            self.category, self.review_mode = None, self.Review.ALWAYS
 
     def window_open(self, now=None) -> bool:
         """Evaluación: dentro del horario (de la apertura al cierre)."""
@@ -262,6 +313,9 @@ class Activity(models.Model):
     def is_past_due(self, now=None) -> bool:
         return bool(self.due_at) and (now or timezone.now()) > self.due_at
 
+
+#: Un repaso no limita los intentos; este tope solo evita un número sin fin de filas.
+PRACTICE_ATTEMPTS = 200
 
 #: Sin señal de la página del proyector durante este tiempo, la presentación se da por terminada.
 PRESENTING_TTL = timedelta(seconds=90)
@@ -321,6 +375,11 @@ class Attempt(models.Model):
     auto_submitted = models.BooleanField(default=False, db_default=False)
     #: Comentario general del docente sobre la entrega (los de cada pregunta van en `Answer.comment`).
     feedback = models.TextField(blank=True, default="", db_default="")
+    #: Justificaciones de las preguntas de debate, {clave: texto}; las ven los compañeros en el foro.
+    reasons = models.JSONField(default=dict, db_default={}, blank=True)
+    #: Repaso: las preguntas ya comprobadas, {clave: {"fraction", "correct", "review"}}. Una pregunta
+    #: comprobada ya no cambia en ese intento; para volver a intentarla, se empieza otro.
+    checked = models.JSONField(default=dict, db_default={}, blank=True)
 
     class Meta:
         ordering = ["activity", "student", "number"]
@@ -353,6 +412,84 @@ class Attempt(models.Model):
         self.save(update_fields=["points", "max_points", "pending"])
 
 
+class Extension(models.Model):
+    """Una prórroga para un estudiante: su propia fecha de entrega en una actividad, o su propio
+    horario en una evaluación (por ejemplo, la rinde otro día por enfermedad). El tiempo adicional
+    por adecuación es otra cosa: vive en la inscripción (`Enrollment.extra_time_pct`)."""
+
+    activity = models.ForeignKey(Activity, on_delete=models.CASCADE, related_name="extensions")
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
+    opens_at = models.DateTimeField(_("disponible desde"), null=True, blank=True)
+    due_at = models.DateTimeField(_("nueva fecha"))
+    note = models.CharField(_("motivo"), max_length=200, blank=True, default="", db_default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["due_at"]
+        constraints = [models.UniqueConstraint(fields=["activity", "student"], name="one_extension_per_student")]
+
+
+class DebateEntry(models.Model):
+    """La postura de un estudiante en una pregunta de debate: su respuesta y su justificación, que
+    sus compañeros ven desde la fecha de entrega. `value` y `reason` son los del intento que cuenta
+    (`debate.sync` los mantiene al día); `revised_*`, lo que publicó durante el debate, sin nota.
+    Quien no entregó y se suma al debate solo tiene lo revisado."""
+
+    activity = models.ForeignKey(Activity, on_delete=models.CASCADE, related_name="debate_entries")
+    key = models.CharField(max_length=250)
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
+    value = models.JSONField(null=True, blank=True)
+    reason = models.TextField(blank=True, default="")
+    revised_value = models.JSONField(null=True, blank=True)
+    revised_reason = models.TextField(blank=True, default="")
+    revised_at = models.DateTimeField(null=True, blank=True)
+    #: El docente la ocultó: sus compañeros no la ven; el autor, sí, con el aviso.
+    hidden = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "pk"]
+        constraints = [models.UniqueConstraint(fields=["activity", "key", "student"], name="one_debate_entry")]
+
+    @property
+    def shown_value(self):
+        return self.revised_value if self.revised_at else self.value
+
+    @property
+    def shown_reason(self) -> str:
+        return self.revised_reason if self.revised_at else self.reason
+
+
+class DebateReply(models.Model):
+    """Un comentario sobre una postura (un solo nivel: no hay respuestas a comentarios)."""
+
+    entry = models.ForeignKey(DebateEntry, on_delete=models.CASCADE, related_name="replies")
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
+    body = models.TextField()
+    hidden = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "pk"]
+
+
+class DebateLike(models.Model):
+    """Un «me gusta», público, en una postura o en un comentario."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
+    entry = models.ForeignKey(DebateEntry, on_delete=models.CASCADE, null=True, blank=True, related_name="likes")
+    reply = models.ForeignKey(DebateReply, on_delete=models.CASCADE, null=True, blank=True, related_name="likes")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["user", "entry"], condition=models.Q(entry__isnull=False), name="one_like_per_entry"),
+            models.UniqueConstraint(fields=["user", "reply"], condition=models.Q(reply__isnull=False), name="one_like_per_reply"),
+            models.CheckConstraint(condition=models.Q(entry__isnull=False, reply__isnull=True)
+                                   | models.Q(entry__isnull=True, reply__isnull=False), name="like_one_target"),
+        ]
+
+
 class Answer(models.Model):
     """Una respuesta calificada (capa 3): una fila por pregunta de un intento enviado."""
 
@@ -368,6 +505,8 @@ class Answer(models.Model):
     auto_points = models.FloatField(null=True, blank=True)
     auto_correct = models.BooleanField(null=True, blank=True)
     needs_review = models.BooleanField(default=False)
+    #: Pregunta con tiempo respondida después de su límite: vale con la penalización por atraso.
+    late = models.BooleanField(default=False, db_default=False)
     comment = models.TextField(blank=True)
     graded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
                                   blank=True, related_name="+")

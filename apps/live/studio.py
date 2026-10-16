@@ -22,6 +22,7 @@ from django.views.decorators.http import require_POST
 from policlase_gen import deck_text, loader
 from policlase_gen import document as content_format
 
+from apps.activities.models import WORK_USES
 from apps.courses.access import owned_course, teacher_required
 from apps.github import images
 
@@ -104,7 +105,7 @@ instructions: |
   Resuelva de forma individual. La fecha, el horario, la duración y el código de acceso se
   configuran en policlase, no en este archivo.
 
-# El LaTeX va entre comillas simples: en las dobles, 	, , … son escapes de YAML.
+# El LaTeX va entre comillas simples: en las dobles, \t, \f, \b… son escapes de YAML.
 slides:
   - item:
       id: P01-ejemplo
@@ -130,10 +131,33 @@ slides:
       $\sqrt{2} \approx 1.4142$.
 """
 
+PRACTICE_TEMPLATE = r"""schema: policlase/v1
+title: 'Repaso para la Prueba 1'
+use: practice               # sin nota ni tiempo; cada pregunta se comprueba al momento
+instructions: |
+  Practique antes de la prueba. Compruebe cada pregunta para ver si acertó y lea la explicación.
+  Puede repetir el repaso cuantas veces quiera; no cuenta para la nota.
+
+# El LaTeX va entre comillas simples: en las dobles, \t, \f, \b… son escapes de YAML.
+slides:
+  - item:
+      id: R01-ejemplo
+      questions:
+        - id: q1
+          type: numeric
+          prompt: 'Calcule $\sqrt{2}$ con cuatro decimales.'
+          solution: 1.4142
+          grading: { atol: 0.0001 }
+
+  - solution: |             # la explicación del ítem anterior: se abre al comprobarlo
+      ## Explicación
+      $\sqrt{2} \approx 1.4142$: basta aplicar dos iteraciones de Newton desde $x_0 = 1{,}5$.
+"""
+
 TEMPLATES = {DECK: DECK_TEMPLATE, ACTIVITY: ACTIVITY_TEMPLATE}
 #: `use` del formato → tipo de la plataforma. Una evaluación se edita y se guarda como una actividad
 #: (`Activity.kind` la distingue).
-KINDS = {"class": DECK, "activity": ACTIVITY, "evaluation": ACTIVITY}
+KINDS = {"class": DECK, "activity": ACTIVITY, "evaluation": ACTIVITY, "practice": ACTIVITY}
 
 
 def _diagnostics(report) -> list[dict]:
@@ -174,9 +198,11 @@ def editor(request, course_pk, kind=DECK, pk=None):
     model = Activity if kind == ACTIVITY else Deck
     content = get_object_or_404(model, pk=pk, course=course) if pk else None
     evaluation = content is None and request.GET.get("tipo") == "evaluacion"
-    if content is None and (evaluation or request.GET.get("tipo") in ("actividad", ACTIVITY)):
+    practice = content is None and request.GET.get("tipo") == "repaso"
+    if content is None and (evaluation or practice or request.GET.get("tipo") in ("actividad", ACTIVITY)):
         kind = ACTIVITY
-    source = content.source if content else EVALUATION_TEMPLATE if evaluation else TEMPLATES[kind]
+    source = (content.source if content else EVALUATION_TEMPLATE if evaluation else PRACTICE_TEMPLATE if practice
+              else TEMPLATES[kind])
     diagnostics = []
     sections = list(Section.objects.filter(course=course))
     wanted = request.POST.get("section") if request.method == "POST" else request.GET.get("seccion")
@@ -197,9 +223,9 @@ def editor(request, course_pk, kind=DECK, pk=None):
         document, report, found = _load(source)
         found = found or kind
         use = content_format.kind_of(document) if document is not None else None
-        if content is not None and kind == ACTIVITY and use in ("activity", "evaluation") \
-                and (use == "evaluation") != content.is_evaluation and content.attempts.exists():
-            messages.error(request, _("No se guardó: el documento cambió de actividad a evaluación, o al revés, y "
+        if content is not None and kind == ACTIVITY and use in WORK_USES \
+                and content.kind_for(use) != content.kind and content.attempts.exists():
+            messages.error(request, _("No se guardó: el documento cambió de tipo (actividad, evaluación o repaso) y "
                                       "ya tiene entregas. Para usar el otro tipo, cree un documento nuevo."))
         elif content is not None and found != kind:
             messages.error(request, _("No se guardó: el documento es una presentación y el texto corresponde a una "
@@ -307,7 +333,7 @@ def preview(request, course_pk):
                                           "message": _("Este documento se guardó con otro tipo, que no puede "
                                                        "cambiarse desde el texto.")})
         return JsonResponse(payload)
-    if document is not None and not report.errors and found in (DECK, ACTIVITY, "evaluation"):
+    if document is not None and not report.errors and found in (DECK, ACTIVITY):
         compiled = content_format.compile_content(document)
         compiled = _preview_images(request, course, compiled, payload["diagnostics"])
         if found == DECK:

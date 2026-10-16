@@ -71,6 +71,12 @@ class Enrollment(models.Model):
                                    null=True, blank=True, related_name="+")
     #: El estudiante cerró el aviso de rechazo; vuelve a False si el docente decide de nuevo.
     dismissed = models.BooleanField(default=False)
+    #: Cómo lo llaman en el curso (lo que ven sus compañeros, con su primer apellido): por omisión,
+    #: su primer nombre; «María del Cisne», «Majo» o un segundo nombre si así lo prefiere.
+    preferred_name = models.CharField(_("nombre preferido"), max_length=60, blank=True, default="", db_default="")
+    #: Adecuación: tiempo adicional en las evaluaciones y en las preguntas con tiempo (en %).
+    extra_time_pct = models.PositiveSmallIntegerField(_("tiempo adicional"), default=0, db_default=0,
+                                                      choices=[(0, "—"), (25, "+25 %"), (50, "+50 %"), (100, "+100 %")])
 
     class Meta:
         ordering = ["student__last_name", "student__first_name"]
@@ -84,3 +90,32 @@ class Enrollment(models.Model):
         self.decided_by = by
         self.dismissed = False
         self.save(update_fields=["status", "decided_at", "decided_by", "dismissed"])
+
+    @property
+    def short_name(self) -> str:
+        return short_name(self.student, self.preferred_name)
+
+    @property
+    def first_given_name(self) -> str:
+        return (str(self.student.first_name or "").split() or [""])[0]
+
+
+#: Partículas que forman parte del primer apellido: «De la Torre», «Del Pozo», «San Martín».
+SURNAME_PARTICLES = {"de", "del", "la", "las", "los", "san", "santa", "da", "das", "do", "dos", "van", "von", "y"}
+
+
+def first_surname(last_name: str) -> str:
+    """El primer apellido, con sus partículas: «De la Torre Vega» → «De la Torre»."""
+    words, out = str(last_name or "").split(), []
+    for word in words:
+        out.append(word)
+        if word.lower() not in SURNAME_PARTICLES:
+            break
+    return " ".join(out)
+
+
+def short_name(user, preferred: str = "") -> str:
+    """Nombre corto para que lo vean los compañeros: el preferido (o el primer nombre) y el primer
+    apellido. «María José Pérez Gómez» → «María Pérez»; con «Majo» → «Majo Pérez»."""
+    given = (preferred or "").strip() or (str(user.first_name or "").split() or [""])[0]
+    return " ".join(p for p in (given, first_surname(user.last_name)) if p) or user.username

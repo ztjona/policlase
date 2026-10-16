@@ -15,5 +15,6 @@ urlpatterns = [
     path("docente/cursos/<int:pk>/inscripciones/", views.enrollment_decide, name="enrollment_decide"),
     path("docente/cursos/<int:pk>/inscripciones/<int:enrollment_pk>/retirar/",
          views.enrollment_remove, name="enrollment_remove"),
+    path("docente/cursos/<int:pk>/inscripciones/datos/", views.enrollment_details, name="enrollment_details"),
     path("docente/cursos/<int:pk>/codigo/", views.join_code_action, name="join_code_action"),
 ]

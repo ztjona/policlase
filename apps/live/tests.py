@@ -130,13 +130,12 @@ class StateMachineTests(LiveBase):
         session = engine.apply(session.pk, "start")
         self.assertEqual(session.state_version, before + 1)
 
-    def test_cierre_automatico_al_vencer(self):
+    def test_al_acabarse_el_tiempo_sigue_abierta(self):
         session = engine.apply(self.goto_first_question(self.start()).pk, "open")
         LiveSession.objects.filter(pk=session.pk).update(closes_at=timezone.now() - timedelta(seconds=1))
-        self.assertTrue(engine.expire_if_due(session.pk))
-        self.assertFalse(engine.expire_if_due(session.pk))  # idempotente
         session.refresh_from_db()
-        self.assertEqual(session.phase, Phase.CLOSED)
+        self.assertEqual(session.phase, Phase.OPEN)                          # la cierra el docente
+        self.assertEqual(engine.apply(session.pk, "close").phase, Phase.CLOSED)
 
     def test_accion_principal_la_decide_el_servidor(self):
         """Dos pulsaciones rápidas de espacio deben avanzar dos pasos, no repetir el primero."""
@@ -193,11 +192,23 @@ class AnswerTests(LiveBase):
         self.assertContains(response, "Ya respondió")
         self.assertEqual(Response.objects.get(student=self.ana).points, 0)
 
-    def test_no_se_responde_fuera_de_tiempo(self):
+    def test_fuera_de_tiempo_se_responde_con_penalizacion(self):
         session = self.open_question()
-        LiveSession.objects.filter(pk=session.pk).update(closes_at=timezone.now() - timedelta(seconds=1))
+        LiveSession.objects.filter(pk=session.pk).update(closes_at=timezone.now() - timedelta(seconds=10))
         self.answer(self.ana, session, choice=self.right_key(session))
-        self.assertFalse(Response.objects.exists())
+        response = Response.objects.get()
+        self.assertTrue(response.late and response.correct)
+        self.assertAlmostEqual(response.points, response.auto_points)
+        self.assertLess(response.points, 1)                                # vale un 30 % menos
+
+    def test_el_tiempo_adicional_evita_la_penalizacion(self):
+        from apps.courses.models import Enrollment
+
+        Enrollment.objects.filter(student=self.ana).update(extra_time_pct=100)
+        session = self.open_question()
+        LiveSession.objects.filter(pk=session.pk).update(closes_at=timezone.now() - timedelta(seconds=10))
+        self.answer(self.ana, session, choice=self.right_key(session))
+        self.assertFalse(Response.objects.get().late)                       # 30 s + 100 %: aún a tiempo
 
     def test_no_se_responde_si_la_pregunta_no_esta_abierta(self):
         session = self.goto_first_question(self.start())
@@ -473,7 +484,6 @@ class PauseExtendTests(LiveBase):
         session = engine.apply(session.pk, "pause")
         self.assertEqual((session.status, session.closes_at), (Status.PAUSED, None))
         self.assertAlmostEqual(session.paused_remaining_ms / 1000, 12, delta=1)
-        self.assertFalse(engine.expire_if_due(session.pk))           # en pausa no vence
         with self.assertRaises(engine.ActionError):
             engine.submit(session.pk, self.ana, self.right_key(session))
         with self.assertRaises(engine.ActionError):
@@ -1021,7 +1031,6 @@ class UnlimitedTimeTests(LiveBase):
         session = self.open_q()
         self.assertIsNone(session.closes_at)
         LiveSession.objects.filter(pk=session.pk).update(opened_at=timezone.now() - timedelta(hours=1))
-        self.assertFalse(engine.expire_if_due(session.pk))
         engine.submit(session.pk, self.ana, self.right_key(session))
         self.assertEqual(Response.objects.get(student=self.ana).score, 1000)        # sin bono: no hay contra qué medir
         engine.submit(session.pk, self.bruno, self.right_key(session))

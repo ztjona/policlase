@@ -10,10 +10,14 @@ sesión en un estado imposible.
                      paused ──end──▶ ended
 
     en una diapositiva de contenido:  content
-    en una pregunta:                   ready ──open──▶ open ──close/tiempo/todos──▶ closed ──reveal──▶ results
+    en una pregunta:                   ready ──open──▶ open ──close/todos──▶ closed ──reveal──▶ results
                                                        ▲ extend                     │ extend (reabre)
                                                        └────────────────────────────┘
     retroalimentación final:           content (se responde mientras está en pantalla o tras terminar)
+
+Al acabarse el tiempo de una pregunta, sigue abierta: lo que llegue después (pasado también el tiempo
+adicional del estudiante) vale con `LATE_PENALTY`. La cierra el docente, o se cierra sola cuando
+respondieron todos los conectados.
 """
 
 from __future__ import annotations
@@ -39,6 +43,10 @@ CONNECTED_WINDOW = timedelta(seconds=40)
 TOUCH_EVERY_S = 10
 EXTEND_S = 15
 FEEDBACK_MIN_SHOWN = 3
+#: Penalización (en %) de una respuesta que llega pasado el tiempo de la pregunta.
+LATE_PENALTY = 30
+#: Lo que tarda en llegar una respuesta enviada justo al final.
+LATE_GRACE_S = 2
 
 
 def _tf(value) -> str:
@@ -225,16 +233,16 @@ def apply(session_id: int, action: str, index: int | None = None) -> LiveSession
     return session
 
 
-def expire_if_due(session_id: int) -> bool:
-    """Cierra la pregunta si se acabó el tiempo. Idempotente y sin carreras.
+def extra_ms(session: LiveSession, student) -> int:
+    """El tiempo adicional del estudiante en esta pregunta (adecuación de su inscripción), en ms."""
+    from apps.courses.models import Enrollment
 
-    Lo llaman el flujo SSE y el envío de respuestas: no hace falta un proceso aparte que
-    vigile los relojes, y el cierre ocurre aunque el docente no toque nada.
-    """
-    return bool(
-        LiveSession.objects.filter(pk=session_id, phase=Phase.OPEN, closes_at__lte=timezone.now())
-        .update(phase=Phase.CLOSED, state_version=F("state_version") + 1)
-    )
+    limit = (session.slide or {}).get("time_limit_s")
+    if not limit or getattr(student, "is_guest", False):
+        return 0
+    pct = (Enrollment.objects.filter(course_id=session.course_id, student=student)
+           .values_list("extra_time_pct", flat=True).first() or 0)
+    return int(limit * 1000 * pct / 100)
 
 
 def join(session: LiveSession, student) -> None:
@@ -248,8 +256,8 @@ def join(session: LiveSession, student) -> None:
 
 
 def submit(session_id: int, student, answer) -> Response:
-    """Registra y califica una respuesta. La primera respuesta es la que cuenta."""
-    expire_if_due(session_id)
+    """Registra y califica una respuesta. La primera respuesta es la que cuenta. Pasado el tiempo
+    (y el adicional del estudiante), vale con `LATE_PENALTY`."""
     session = LiveSession.objects.get(pk=session_id)
     now = timezone.now()
 
@@ -257,8 +265,8 @@ def submit(session_id: int, student, answer) -> Response:
         raise ActionError(_("La clase está en pausa."))
     if session.status != Status.LIVE or session.phase != Phase.OPEN or not session.is_question:
         raise ActionError(_("La pregunta ya no recibe respuestas."))
-    if session.closes_at and now > session.closes_at:
-        raise ActionError(_("Se acabó el tiempo."))
+    late = bool(session.closes_at) and now > (session.closes_at + timedelta(seconds=LATE_GRACE_S)
+                                              + timedelta(milliseconds=extra_ms(session, student)))
 
     join(session, student)          # quien responde está conectado, aunque su SSE aún no lo dijera
     slide = session.slide
@@ -267,13 +275,15 @@ def submit(session_id: int, student, answer) -> Response:
         raise ActionError(" ".join(result.format_errors))
 
     elapsed = int((now - session.opened_at).total_seconds() * 1000) if session.opened_at else 0
+    keep = (100 - LATE_PENALTY) / 100 if late else 1.0
+    points = round(result.points * keep, 6)
     try:
         with transaction.atomic():
             response = Response.objects.create(
                 session=session, slide_index=session.index, student=student,
                 item_id=slide["item_id"], item_version=slide["item_version"],
-                answer=answer, correct=result.correct, fraction=result.fraction,
-                points=result.points, auto_points=result.points, auto_correct=result.correct,
+                answer=answer, correct=result.correct, fraction=result.fraction * keep,
+                points=points, auto_points=points, auto_correct=result.correct, late=late,
                 elapsed_ms=max(elapsed, 0),
                 score=game_score(result.points, elapsed, slide.get("time_limit_s"), session.speed_bonus),
             )
@@ -482,15 +492,21 @@ def question_stats(session: LiveSession, index: int) -> dict:
 
 
 def leaderboard(session: LiveSession, limit: int | None = 5) -> list[dict]:
-    rows = (Response.objects.filter(session=session)
-            .values("student", "student__first_name", "student__last_name", "student__username")
-            .annotate(total=Sum("score"), time=Sum("elapsed_ms"))
-            .order_by("-total", "time"))
+    """Los mejores puntajes, con el nombre corto que el curso usa entre compañeros (el preferido y el
+    primer apellido)."""
+    from apps.accounts.models import User
+    from apps.courses.models import Enrollment, short_name
+
+    rows = list(Response.objects.filter(session=session).values("student")
+                .annotate(total=Sum("score"), time=Sum("elapsed_ms")).order_by("-total", "time"))
     if limit:
         rows = rows[:limit]
-    return [{"name": (f"{r['student__first_name']} {r['student__last_name']}".strip()
-                      or r["student__username"]),
-             "total": r["total"] or 0, "student": r["student"]} for r in rows]
+    ids = [r["student"] for r in rows]
+    users = User.objects.in_bulk(ids)
+    preferred = dict(Enrollment.objects.filter(course_id=session.course_id, student_id__in=ids)
+                     .values_list("student_id", "preferred_name"))
+    return [{"name": short_name(users[r["student"]], preferred.get(r["student"], "")),
+             "total": r["total"] or 0, "student": r["student"]} for r in rows if r["student"] in users]
 
 
 # ---------------------------------------------------------------------- presentación

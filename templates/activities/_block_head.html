@@ -14,7 +14,7 @@
       {% if item.title %}<h2>{{ item.title|md_inline }}</h2>{% endif %}
       {% if item.instructions %}<div>{{ item.instructions|md }}</div>{% endif %}
       {% if item.time_limit_s %}
-        <p class="small timed-rule">{% blocktranslate with s=item.time_limit_s %}Estas preguntas tienen límite de tiempo. Cada una se abre cuando usted lo decide y, desde ese momento, dispone de {{ s }} segundos para responderla. El tiempo sigue corriendo aunque salga de la página, y cada pregunta solo puede responderse una vez.{% endblocktranslate %}{% if item.block_paste %} {% translate "No se puede pegar texto." %}{% endif %}</p>
+        <p class="small timed-rule">{% blocktranslate with s=item.time_limit_s %}Estas preguntas tienen límite de tiempo. Cada una se abre cuando usted lo decide y, desde ese momento, dispone de {{ s }} segundos para responderla; pasado ese tiempo todavía puede responderla, con una penalización. El tiempo sigue corriendo aunque salga de la página, y cada pregunta solo puede responderse una vez.{% endblocktranslate %}{% if item.block_paste %} {% translate "No se puede pegar texto." %}{% endif %}</p>
       {% elif item.block_paste %}<p class="small muted">{% translate "No se puede pegar texto." %}</p>
       {% elif index is not None %}<p class="small muted">{% translate "Segmento: se restablece la configuración del documento." %}</p>{% endif %}
     </div>

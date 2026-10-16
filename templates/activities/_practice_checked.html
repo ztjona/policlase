@@ -1,0 +1,6 @@
+{% load i18n policlase %}
+{# Repaso: una pregunta ya comprobada, con su corrección. Queda así en este intento. #}
+<div class="checked-q" id="q-{{ row.key }}" data-q="{{ row.key }}" data-done="1">
+  {% include "activities/_answer.html" with row=row reveal=True %}
+  {% if row.check.review %}<p class="small muted" style="margin:0">{% translate "Esta pregunta no se corrige automáticamente: compare su respuesta con la explicación." %}</p>{% endif %}
+</div>

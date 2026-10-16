@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load i18n %}
+{% load i18n policlase %}
 {% block title %}{{ course.name }}{% endblock %}
 {% block main %}
 <div class="muted small mono">{{ course.code }}</div>
@@ -55,11 +55,14 @@
               {% if a.category %}<div class="small muted">{{ a.category.name }}{% if a.category.optional %} · {% translate "opcional" %}{% endif %}</div>{% endif %}</td>
             <td class="small">{% if a.due_at %}{{ a.due_at|date:"D d M, H:i" }}{% else %}<span class="muted">{% translate "sin fecha" %}</span>{% endif %}</td>
             <td class="small">
-              {% if st.draft %}<span class="chip warn">{% translate "en curso" %}</span>
+              {% if a.is_practice %}<span class="chip">{% translate "Repaso" %}</span>
+                {% if st.draft %}<span class="chip warn">{% translate "en curso" %}</span>{% elif st.counted %}{% blocktranslate count n=st.used %}{{ n }} intento{% plural %}{{ n }} intentos{% endblocktranslate %}{% else %}<span class="muted">{% translate "sin nota" %}</span>{% endif %}
+              {% elif st.draft %}<span class="chip warn">{% translate "en curso" %}</span>
               {% elif st.counted %}<span class="chip ok">{% translate "entregada" %}</span>{% if st.counted.points is not None %} {{ st.counted.points|floatformat:"-2" }}/{{ st.counted.max_points|floatformat:"-2" }}{% endif %}
               {% elif r.todo and st.late %}<span class="chip danger">{% translate "atrasada" %}</span>
               {% elif r.todo %}<span class="chip">{% translate "pendiente" %}</span>
               {% else %}<span class="muted">{% translate "cerrada" %}</span>{% endif %}
+              {% if a.debate_open %}<span class="chip debate" title="{% translate 'Puede leer y comentar las respuestas de sus compañeros en las preguntas de debate.' %}">{% icon "forum" 14 %} {% translate "debate abierto" %}</span>{% endif %}
             </td>
           </tr>
         {% endwith %}{% endfor %}

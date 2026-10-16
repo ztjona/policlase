@@ -2,11 +2,7 @@
 {% load i18n %}
 {% block title %}{% translate "Mis cursos" %}{% endblock %}
 {% block main %}
-<div class="spread">
-  <h1>{% translate "Mis cursos" %}</h1>
-  {# El tema, a la vista y con un solo botón, como en el proyector (core/_theme_toggle.html). #}
-  {% include "core/_theme_toggle.html" %}
-</div>
+<h1>{% translate "Mis cursos" %}</h1>
 
 {% if unconfirmed %}
   <div class="notice small" role="status">

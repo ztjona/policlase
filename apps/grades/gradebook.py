@@ -282,6 +282,7 @@ def course_grades(course, students, now=None, published_only=False) -> list[Stud
     from apps.activities import engine
 
     activities = list(Activity.objects.filter(course=course, published=True, category__isnull=False)
+                      .exclude(kind=Activity.Kind.PRACTICE)                 # un repaso no tiene nota
                       .select_related("course__owner"))
     for activity in activities:
         engine.finalize_overdue(activity, now)
@@ -346,7 +347,7 @@ def course_grades(course, students, now=None, published_only=False) -> list[Stud
                             cell.pending += 1 if attempt.pending else 0
                             cell.items.append(Item("activity", activity.title, day, attempt.points or 0.0,
                                                    attempt.max_points, _("por revisar") if attempt.pending else ""))
-                        elif activity.is_past_due(now):
+                        elif engine.past_due(activity, student.pk, now):      # con su prórroga, si la tiene
                             values.append(0.0)
                             cell.items.append(Item("activity", activity.title, day, 0.0, activity.points,
                                                    _("sin entrega")))

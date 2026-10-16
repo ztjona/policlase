@@ -29,6 +29,7 @@
   <header class="topbar">
     <a class="brand" href="{% url 'home' %}"><img src="{% static 'img/icon.svg' %}" alt="" width="26" height="26">poli<span>clase</span></a>
     <nav aria-label="{% translate 'principal' %}">
+      {% include "core/_theme_toggle.html" %}
       {% if user.is_authenticated %}
         {% if not user.is_guest %}<a href="{% url 'home' %}">{% translate "Mis cursos" %}</a>{% endif %}
         <details class="usermenu">

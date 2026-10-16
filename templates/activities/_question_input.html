@@ -1,32 +1,35 @@
 {% load i18n policlase %}
 {% comment %} Una pregunta del intento en curso, con lo guardado en el borrador. `row` viene de engine.answer_rows.
-   Con tiempo (row.timer): sin abrir no se ve el enunciado; abierta, lleva su cuenta regresiva; cerrada,
+   Con tiempo (row.timer): sin abrir no se ve el enunciado; abierta, sin cuenta regresiva a la vista (una señal discreta
+   10 s antes y, al acabarse, el aviso de que todavía puede responder con penalización); cerrada,
    solo se lee lo respondido. Los botones usan formaction: sin JavaScript también funcionan. {% endcomment %}
 {% with q=row.question value=row.draft key=row.key timer=row.timer %}
-<fieldset class="q-block{% if q.follow_up %} follow-up{% endif %}{% if error %} has-error{% endif %}{% if timer %} timed timed-{{ timer.state }}{% endif %}" id="q-{{ key }}"
+<fieldset class="q-block{% if q.follow_up %} follow-up{% endif %}{% if error %} has-error{% endif %}{% if timer %} timed timed-{{ timer.state }}{% if timer.overtime %} overtime{% endif %}{% endif %}" id="q-{{ key }}"
           data-q="{{ key }}"{% if timer.state == "closed" %} data-done="{% if row.blank %}0{% else %}1{% endif %}"{% endif %}
           {% if timer %}data-timed="{{ key }}"{% if timer.state == "open" %} data-remaining-ms="{{ timer.remaining_ms }}"{% endif %}{% endif %}>
+  {% if bare %}<legend class="small"><strong>{% translate "Su respuesta para el debate" %}</strong></legend>{% else %}
   <legend class="q-head">
     <span class="chip">{% if q.survey %}{% translate "Encuesta" %}{% else %}{{ q.points|floatformat:"-2" }} {% translate "pts" %}{% endif %}</span>
     <span class="small muted">{% include "activities/_type_label.html" %}</span>
-    {% if timer %}<span class="chip warn">{% blocktranslate with s=q.time_limit_s %}{{ s }} s{% endblocktranslate %}</span>{% endif %}
-  </legend>
+    {% if timer %}<span class="chip warn">{% blocktranslate with s=timer.limit_s %}{{ s }} s{% endblocktranslate %}</span>{% endif %}
+    {% if q.debate %}<span class="chip debate">{% icon "forum" 14 %} {% translate "Debate" %}</span>{% endif %}
+  </legend>{% endif %}
   {# Marcar para revisar: una bandera discreta que aparece al pasar el puntero o al responder; marcada, queda a la vista. Es una casilla: sin JavaScript también se guarda. #}
-  {% if timer.state != "closed" %}<label class="mark-toggle" title="{% translate 'Revisar después' %}">
+  {% if timer.state != "closed" and not bare %}<label class="mark-toggle" title="{% translate 'Revisar después' %}">
     <input type="checkbox" name="mark" value="{{ key }}"{% if row.marked %} checked{% endif %} aria-label="{% translate 'Marcar para revisar después' %}">
     <span class="off">{% icon "flag_outline" 18 %}</span><span class="on">{% icon "flag" 18 %}</span></label>{% endif %}
 {% if timer.state == "locked" %}
   {# La regla completa está al comienzo de la parte (_block_head.html); aquí, solo un recordatorio. #}
   <div class="row timed-lock">
-    <button type="submit" class="secondary" formaction="{% url 'attempt_timer' course.pk activity.pk key 'abrir' %}" data-timer-open>{% blocktranslate with s=q.time_limit_s %}Abrir la pregunta ({{ s }} s){% endblocktranslate %}</button>
-    <span class="tip muted" tabindex="0" role="note" aria-label="{% blocktranslate with s=q.time_limit_s %}Al abrirla dispone de {{ s }} segundos para responder. El tiempo sigue corriendo aunque salga de la página, y solo puede responderse una vez.{% endblocktranslate %}"
-          data-tip="{% blocktranslate with s=q.time_limit_s %}Al abrirla dispone de {{ s }} segundos para responder. El tiempo sigue corriendo aunque salga de la página, y solo puede responderse una vez.{% endblocktranslate %}">{% icon "info" 18 %}</span>
+    <button type="submit" class="secondary" formaction="{% url 'attempt_timer' course.pk activity.pk key 'abrir' %}" data-timer-open>{% blocktranslate with s=timer.limit_s %}Abrir la pregunta ({{ s }} s){% endblocktranslate %}</button>
+    {% blocktranslate with s=timer.limit_s p=activity.late_penalty asvar rule %}Al abrirla dispone de {{ s }} segundos para responder; después todavía puede responderla, con un {{ p }} % menos. El tiempo sigue corriendo aunque salga de la página, y solo puede responderse una vez.{% endblocktranslate %}
+    <span class="tip muted" tabindex="0" role="note" aria-label="{{ rule }}" data-tip="{{ rule }}">{% icon "info" 18 %}</span>
   </div>
 {% elif timer.state == "closed" %}
   {% if q.prompt %}<div class="prompt">{{ q.prompt|md }}</div>{% endif %}
   <p class="small">{% if row.blank %}<span class="muted">{% translate "Se cerró sin respuesta." %}</span>{% else %}<strong>{% translate "Respondió:" %}</strong> <span class="mono">{% if q.type == "choice" %}{% for o in q.options %}{% if o.key == value %}{{ o.text|md_inline }}{% endif %}{% endfor %}{% elif q.type == "multi_choice" %}{% for o in q.options %}{% if o.key in value %}{{ o.text|md_inline }} {% endif %}{% endfor %}{% elif q.type == "numeric_list" %}{{ value|join:" · " }}{% elif q.type == "true_false" %}{% translate "registrado" %}{% else %}{{ value }}{% endif %}</span>{% endif %}</p>
 {% else %}
-  {% if q.prompt %}<div class="prompt">{{ q.prompt|md }}</div>{% endif %}
+  {% if q.prompt and not bare %}<div class="prompt">{{ q.prompt|md }}</div>{% endif %}
 
   {% if q.type == "choice" or q.type == "multi_choice" %}
     <div class="choice-list" role="{% if q.type == 'choice' %}radiogroup{% else %}group{% endif %}">
@@ -89,10 +92,26 @@
     {% if q.grading.units %}<p class="small muted">{% blocktranslate with u=q.grading.units %}Incluya la unidad: {{ u }}{% endblocktranslate %}</p>{% endif %}
   {% endif %}
 
+  {% if q.debate %}
+    {# Pregunta de debate: la justificación va con la respuesta y, desde la fecha de entrega, la leen los compañeros. #}
+    <div class="debate-reason">
+      <label for="w-{{ key }}">{% translate "Justifique su respuesta" %}</label>
+      <textarea id="w-{{ key }}" name="w-{{ key }}" rows="3" maxlength="3000" data-open {% if q.block_paste %}data-no-paste{% endif %}>{{ row.reason }}</textarea>
+      <div class="open-preview" data-math-preview="w-{{ key }}" aria-live="polite" hidden></div>
+      <p class="small muted">{% if bare %}{% translate "Sus compañeros verán esta respuesta y su justificación, con su nombre. No cambia su nota." %}{% else %}{% translate "Esta pregunta se debate con sus compañeros. Después de la fecha de entrega, ellos verán su respuesta y esta justificación, con su nombre, y podrán comentarlas. La corrección se mostrará cuando se cierre el debate." %}{% endif %}</p>
+    </div>
+  {% endif %}
   {% if q.block_paste %}<p class="small muted">{% translate "En esta pregunta no se puede pegar texto." %}</p>{% endif %}
+  {% if activity.is_practice and not bare %}
+    {# Repaso: se comprueba al momento; después, la pregunta queda con su corrección en este intento. #}
+    <div class="row check-bar">
+      <button type="submit" class="secondary small" formaction="{% url 'attempt_check' course.pk activity.pk key %}" data-check>{% translate "Comprobar" %}</button>
+      <span class="small muted">{% translate "Al comprobarla verá si acertó; ya no podrá cambiarla en este intento." %}</span>
+    </div>
+  {% endif %}
   {% if timer.state == "open" %}
+    <p class="small overtime-note" data-overtime-note role="status"{% if not timer.overtime %} hidden{% endif %}>{% blocktranslate with p=activity.late_penalty %}El tiempo de esta pregunta terminó. Todavía puede responderla, con un {{ p }} % menos.{% endblocktranslate %}</p>
     <div class="timer-bar row">
-      <span class="timer-count" data-timer-count role="timer" aria-live="off">{% blocktranslate with s=timer.remaining_s %}{{ s }} s{% endblocktranslate %}</span>
       <button type="submit" formaction="{% url 'attempt_timer' course.pk activity.pk key 'responder' %}" data-timer-close>{% translate "Responder" %}</button>
     </div>
   {% endif %}

@@ -35,6 +35,30 @@
   <p class="muted small">{% translate "Todavía no hay evaluaciones. Cree una con «Nueva evaluación» o súbala a GitHub con «use: evaluation»." %}</p>
 {% endif %}
 
+<div class="spread"><h2>{% translate "Repasos" %}</h2>
+  <a class="ghost" href="{% url 'activity_new' course.pk %}?tipo=repaso">{% icon "file_add" 16 %} {% translate "Nuevo repaso" %}</a></div>
+{% if practices %}
+  <div class="card table-wrap">
+    <table>
+      <thead><tr><th>{% translate "Repaso" %}</th><th>{% translate "Disponible" %}</th><th class="center">{% translate "Estudiantes que lo hicieron" %}</th></tr></thead>
+      <tbody>
+        {% for a in practices %}
+          <tr>
+            <td><a href="{% url 'activity_detail' course.pk a.pk %}">{{ a.title }}</a>{% if not a.published %} <span class="chip warn">{% translate "Borrador" %}</span>{% endif %}</td>
+            <td class="small">{% if a.opens_at %}{% blocktranslate with when=a.opens_at|date:"D d M Y" %}desde el {{ when }}{% endblocktranslate %}
+                {% if a.due_milestone %}<div class="muted">{% blocktranslate with name=a.due_milestone.name count n=a.days_before %}{{ n }} día antes de «{{ name }}»{% plural %}{{ n }} días antes de «{{ name }}»{% endblocktranslate %}</div>{% endif %}
+                {% if a.due_at %}<div class="muted">{% blocktranslate with when=a.due_at|date:"D d M, H:i" %}hasta el {{ when }}{% endblocktranslate %}</div>{% endif %}
+              {% else %}<span class="muted">{% translate "por definir" %}</span>{% endif %}</td>
+            <td class="center">{{ a.sent }} / {{ enrolled }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p class="muted small">{% translate "Un repaso prepara una prueba. No tiene nota ni tiempo, y muestra la corrección y la explicación de cada pregunta al momento. Cree uno con «Nuevo repaso» o súbalo a GitHub con «use: practice»." %}</p>
+{% endif %}
+
 <h2>{% translate "Fechas clave" %}</h2>
 <div class="card table-wrap">
   <table>

@@ -1,0 +1,8 @@
+{% load i18n policlase %}
+{# La explicación de un ítem (sus diapositivas de solución): después de ver la corrección, a pedido. La de un ítem con una pregunta en debate espera a que se cierre. #}
+{% if item.explanations %}
+  <details class="explain">
+    <summary class="btn secondary small"><span class="when-closed">{% translate "Ver la explicación" %}</span><span class="when-open">{% translate "Ocultar la explicación" %}</span></summary>
+    {% for s in item.explanations %}<div class="explain-body block-content">{{ s.markdown|md }}</div>{% endfor %}
+  </details>
+{% elif item.explanation_waits %}<p class="small muted" style="margin:0">{% translate "La explicación se mostrará cuando se cierre el debate." %}</p>{% endif %}

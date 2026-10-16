@@ -21,6 +21,9 @@
       var review = (settings.querySelector("input[name=review_mode]:checked") || {}).value;
       show(".review-milestone", review === "milestone");
       show(".review-fixed", review === "fixed");
+      var opens = (settings.querySelector("input[name=open_mode]:checked") || {}).value;    // repaso
+      show(".practice-milestone", opens === "milestone");
+      show(".practice-fixed", opens === "fixed");
     };
     settings.addEventListener("change", syncDue);
     syncDue();

@@ -1,0 +1,8 @@
+{% load i18n policlase %}
+{# Una respuesta en el foro del debate, breve: la opción elegida con su letra, los V/F o el valor. #}
+{% if value is None %}<span class="muted">{% translate "sin respuesta" %}</span>
+{% elif q.type == "choice" %}{% for o in q.options %}{% if o.key == value %}<span class="tag">{{ forloop.counter0|letter }}</span> {{ o.text|md_inline }}{% endif %}{% endfor %}
+{% elif q.type == "multi_choice" %}{% for o in q.options %}{% if o.key in value %}<span class="debate-pick"><span class="tag">{{ forloop.counter0|letter }}</span> {{ o.text|md_inline }}</span>{% endif %}{% endfor %}
+{% elif q.type == "true_false" %}{% for s in q.statements %}{% with mark=value|get_item:s.key %}<span class="debate-pick" title="{{ s.text }}">{{ forloop.counter }}: <strong>{% if mark is True %}{% translate "V" context "inicial de verdadero" %}{% elif mark is False %}{% translate "F" context "inicial de falso" %}{% else %}—{% endif %}</strong></span>{% endwith %}{% endfor %}
+{% elif q.type == "numeric_list" %}<span class="mono">{{ value|join:" · " }}</span>
+{% else %}<span class="mono">{{ value }}</span>{% endif %}

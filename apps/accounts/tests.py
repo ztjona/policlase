@@ -181,19 +181,19 @@ class ThemePreferenceTests(TestCase):
         teacher.refresh_from_db()
         self.assertEqual(teacher.theme, "dark")
 
-    def test_el_estudiante_cambia_el_tema_en_mis_cursos(self):
+    def test_el_boton_de_tema_esta_en_todas_las_paginas(self):
         user = User.objects.create_user("ana", "ana@example.ec", PASSWORD)
         self.client.force_login(user)
-        home = self.client.get(reverse("home"))
-        self.assertContains(home, 'name="theme" value="dark"')
-        self.assertNotContains(self.client.get(reverse("account_preferences")), 'name="theme"')
+        for name in ("home", "account_preferences", "course_join"):
+            self.assertContains(self.client.get(reverse(name)), 'class="themeswitch auto"')
         self.client.post(reverse("set_theme"), {"theme": "dark", "next": "/"})
-        self.client.post(reverse("account_preferences"), {"language": "es", "timezone": "America/Guayaquil"})
         user.refresh_from_db()
-        self.assertEqual(user.theme, "dark")                       # Preferencias ya no lo toca
+        self.assertEqual(user.theme, "dark")
         home = self.client.get(reverse("home"))                   # en oscuro, el botón lleva al claro
         self.assertContains(home, 'name="theme" value="light"')
         self.assertNotContains(home, 'name="theme" value="dark"')
+        self.client.logout()
+        self.assertContains(self.client.get(reverse("account_login")), 'name="theme"')   # también sin sesión
 
     def test_tema_invalido_se_ignora(self):
         response = self.client.post(reverse("set_theme"), {"theme": "<script>", "next": "/"})

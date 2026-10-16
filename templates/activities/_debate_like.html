@@ -1,0 +1,12 @@
+{% load i18n policlase %}
+{# El «me gusta» de una respuesta o de un comentario: público, con su número. No se da a lo propio. #}
+{% if teacher or obj.mine or not activity.debate_open %}
+  <span class="like-count small muted" title="{% translate 'Me gusta' %}">{% icon "thumb_up_outline" 16 %} <span class="sr-only">{% translate "Me gusta:" %}</span> {{ obj.n_likes }}</span>
+{% else %}
+  <form method="post" action="{% url 'debate_like' course.pk activity.pk %}" class="inline-form" data-like>{% csrf_token %}
+    <input type="hidden" name="{{ target }}" value="{{ obj.pk }}">
+    <button class="like{% if obj.liked %} on{% endif %}" aria-pressed="{% if obj.liked %}true{% else %}false{% endif %}" title="{% translate 'Me gusta' %}">
+      <span class="off">{% icon "thumb_up_outline" 16 %}</span><span class="on">{% icon "thumb_up" 16 %}</span>
+      <span class="sr-only">{% translate "Me gusta:" %}</span> <span data-count>{{ obj.n_likes }}</span></button>
+  </form>
+{% endif %}

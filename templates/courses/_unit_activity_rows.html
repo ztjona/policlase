@@ -7,11 +7,13 @@
     <div class="deck-info">
       <a href="{% url 'activity_detail' course.pk a.pk %}"><strong>{{ a.title }}</strong></a>
       {% if a.category %}<span class="weight-chip c{{ row_colors|get_item:a.category.name }}">{{ a.category.name }}</span>{% endif %}
+      {% if a.is_practice %}<span class="chip">{% translate "Repaso" %}</span>{% endif %}
       {% if not a.published %}<span class="chip warn">{% translate "Borrador" %}</span>{% endif %}
       <div class="small muted">
         {% blocktranslate count n=a.questions|length %}{{ n }} pregunta{% plural %}{{ n }} preguntas{% endblocktranslate %} ·
         {% blocktranslate with p=a.points|floatformat:"-2" %}{{ p }} puntos{% endblocktranslate %} ·
-        {% if a.due_at %}{% blocktranslate with when=a.due_at|date:"D d M, H:i" %}vence {{ when }}{% endblocktranslate %}{% else %}{% translate "sin fecha" %}{% endif %}
+        {% if a.is_practice %}{% translate "sin nota" %}{% if a.opens_at %} · {% blocktranslate with when=a.opens_at|date:"D d M" %}disponible desde el {{ when }}{% endblocktranslate %}{% endif %}
+        {% elif a.due_at %}{% blocktranslate with when=a.due_at|date:"D d M, H:i" %}vence {{ when }}{% endblocktranslate %}{% else %}{% translate "sin fecha" %}{% endif %}
       </div>
     </div>
     <div class="row-actions">

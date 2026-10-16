@@ -155,9 +155,9 @@ def guest_url(request, session: LiveSession) -> str:
 @teacher_required
 def present_fragment(request, pk):
     session = _own_session(request, pk)
-    engine.expire_if_due(session.pk)
     session.refresh_from_db()
     context = {
+        "late_penalty": engine.LATE_PENALTY,
         "session": session,
         "slide": session.slide,
         "participants": session.participants.count(),
@@ -386,7 +386,6 @@ def live_student(request, pk):
 @login_required
 def student_fragment(request, pk):
     session = _student_session(request, pk)
-    engine.expire_if_due(session.pk)
     session.refresh_from_db()
     engine.join(session, request.user)
     return render(request, "live/_student_stage.html", _student_context(session, request.user))
@@ -398,8 +397,9 @@ def rating_choices():
 
 def _student_context(session: LiveSession, user, error: str = "") -> dict:
     context = {"session": session, "slide": session.slide, "error": error, "now": timezone.now(),
-               "rating_choices": rating_choices()}
+               "rating_choices": rating_choices(), "late_penalty": engine.LATE_PENALTY}
     if session.is_question:
+        context["extra_ms"] = engine.extra_ms(session, user)
         mine = Response.objects.filter(session=session, slide_index=session.index, student=user).first()
         context["mine"] = mine
         if mine:
@@ -496,7 +496,6 @@ _authorize_stream = _released(_stream_access)
 
 
 def _snapshot_db(pk) -> dict | None:
-    engine.expire_if_due(pk)
     return (LiveSession.objects.filter(pk=pk)
             .values("state_version", "answers_version", "status", "phase", "index").first())
 

@@ -2,13 +2,14 @@
 {% load static i18n %}
 {% block title %}{{ session.title }}{% endblock %}
 {% block chrome %}
-<div class="live-shell">
+<div class="live-shell phone-shell">
   <div class="live-bar">
     {% if user.is_guest %}<span class="brand"><img src="{% static 'img/icon.svg' %}" alt="" width="22" height="22">poli<span>clase</span></span>{% else %}<a class="brand" href="{% url 'course_detail' course.pk %}"><img src="{% static 'img/icon.svg' %}" alt="" width="22" height="22">poli<span>clase</span></a>{% endif %}
     <span class="muted small">{{ course.code }}</span>
     <span class="spacer"></span>
-    <span class="small">{{ user.display_name }}</span>
+    <span class="small who" title="{{ user.display_name }}">{{ user.display_name }}</span>
     <span class="conn" id="conn">{% translate "conectando…" %}</span>
+    {% include "core/_theme_toggle.html" %}
   </div>
   <div class="stage" id="stage" aria-live="polite"><div class="phone"><p class="muted">{% translate "Cargando…" %}</p></div></div>
 </div>

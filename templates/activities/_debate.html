@@ -1,0 +1,112 @@
+{% load i18n policlase %}
+{% comment %} El foro de una pregunta de debate (apps/activities/debate.py). `panel`: su clave, la pregunta, el acceso del
+   estudiante y, si puede leerlo, el hilo; `teacher`: la vista del docente, que modera. Funciona sin JavaScript;
+   con él (static/js/debate.js), el «me gusta» muestra el número al momento. {% endcomment %}
+{% with q=panel.question access=panel.access thread=panel.thread %}
+<section class="debate-panel" id="debate-{{ panel.key }}">
+  <div class="debate-head">
+    {% icon "forum" 18 %}
+    <h3>{% translate "Debate" %}</h3>
+    {% if thread %}<span class="small muted">{% blocktranslate count n=thread.total %}{{ n }} respuesta{% plural %}{{ n }} respuestas{% endblocktranslate %} · {% blocktranslate count n=thread.replies %}{{ n }} comentario{% plural %}{{ n }} comentarios{% endblocktranslate %}</span>{% endif %}
+    <span class="small muted debate-when">
+      {% if activity.debate_closed %}{% blocktranslate with when=activity.debate_until|date:"D d M, H:i" %}Cerrado el {{ when }}{% endblocktranslate %}
+      {% elif not activity.is_past_due %}{% blocktranslate with when=activity.due_at|date:"D d M, H:i" %}Se abre el {{ when }}{% endblocktranslate %}
+      {% elif activity.debate_until %}{% blocktranslate with when=activity.debate_until|date:"D d M, H:i" %}Abierto hasta el {{ when }}{% endblocktranslate %}
+      {% else %}{% translate "Abierto hasta que el docente lo cierre" %}{% endif %}
+    </span>
+  </div>
+  {% if not teacher %}
+    {% if access.status == "open" or access.status == "join" %}
+      <p class="small muted" style="margin:0">{% translate "Lea las respuestas de sus compañeros, coméntelas y, si cambia de opinión, publique una respuesta revisada. Lo que publique aquí no cambia su nota. La corrección y la explicación se mostrarán cuando se cierre el debate." %}</p>
+    {% endif %}
+    {% if access.message %}<p class="small{% if access.status == 'join' %}{% else %} muted{% endif %}" style="margin:0">{{ access.message }}</p>{% endif %}
+    {% if panel.verdict is True %}<p class="small" style="margin:0"><span class="chip ok">{% translate "correcta" %}</span> {% translate "Su respuesta revisada es correcta (sin nota)." %}</p>
+    {% elif panel.verdict is False %}<p class="small" style="margin:0"><span class="chip danger">{% translate "incorrecta" %}</span> {% translate "Su respuesta revisada no es correcta (sin nota)." %}</p>{% endif %}
+    {% if panel.form_row %}
+      <details class="debate-revise"{% if access.status == "join" %} open{% endif %}>
+        <summary class="btn secondary small">{% if access.status == "join" %}{% translate "Publicar mi respuesta" %}{% elif access.entry.revised_at %}{% translate "Cambiar mi respuesta revisada" %}{% else %}{% translate "Publicar una respuesta revisada" %}{% endif %}</summary>
+        <form method="post" action="{% url 'debate_revise' course.pk activity.pk %}" class="stack">{% csrf_token %}
+          <input type="hidden" name="key" value="{{ panel.key }}">
+          {% include "activities/_question_input.html" with row=panel.form_row bare=True error=None %}
+          <div class="row"><button class="small">{% translate "Publicar en el debate" %}</button></div>
+        </form>
+      </details>
+    {% endif %}
+  {% endif %}
+
+  {% if thread %}
+    <ul class="debate-list">
+      {% for e in thread.entries %}
+        <li class="debate-entry{% if e.mine %} mine{% endif %}{% if e.hidden %} is-hidden{% endif %}" id="entry-{{ e.pk }}">
+          <div class="entry-head">
+            <strong>{{ e.name }}</strong>
+            {% if e.mine %}<span class="chip">{% translate "su respuesta" %}</span>{% endif %}
+            {% if e.revised_at %}<span class="chip" title="{% blocktranslate with when=e.revised_at|date:'D d M, H:i' %}Publicada durante el debate, el {{ when }}. No cambia la nota.{% endblocktranslate %}">{% if e.value is None %}{% translate "publicada en el debate" %}{% else %}{% translate "revisada" %}{% endif %}</span>{% endif %}
+            {% if e.hidden %}<span class="chip warn">{% translate "oculta por el docente" %}</span>{% endif %}
+          </div>
+          <div class="entry-answer">{% include "activities/_debate_value.html" with value=e.shown_value %}</div>
+          {% if e.revised_at and e.value is not None and e.value != e.revised_value %}<p class="small muted entry-original">{% translate "Respuesta original:" %} {% include "activities/_debate_value.html" with value=e.value %}</p>{% endif %}
+          {% if e.preview %}
+            <div class="reason has-more"><p class="reason-preview">{{ e.preview|student_math }}</p>
+              <details><summary class="small">{% translate "Leer completa" %}</summary><div class="reason-full">{{ e.shown_reason|student_math }}</div></details></div>
+          {% elif e.shown_reason %}<div class="reason">{{ e.shown_reason|student_math }}</div>
+          {% else %}<p class="small muted reason">{% translate "Sin justificación." %}</p>{% endif %}
+
+          <div class="entry-actions">
+            {% include "activities/_debate_like.html" with target="entry" obj=e %}
+            {% if teacher %}
+              <form method="post" action="{% url 'debate_teacher_action' course.pk activity.pk %}" class="inline-form">{% csrf_token %}
+                <input type="hidden" name="entry" value="{{ e.pk }}">
+                {% if e.hidden %}<button name="action" value="show" class="link small">{% translate "Mostrar" %}</button>
+                {% else %}<button name="action" value="hide" class="link small">{% translate "Ocultar" %}</button>{% endif %}</form>
+            {% endif %}
+          </div>
+
+          {% if e.reply_list %}
+            <ul class="debate-replies">
+              {% for r in e.reply_list %}
+                <li class="debate-reply{% if r.hidden %} is-hidden{% endif %}{% if r.is_teacher %} by-teacher{% endif %}" id="reply-{{ r.pk }}">
+                  <div class="entry-head">
+                    <strong>{{ r.name }}</strong>{% if r.is_teacher %} <span class="chip">{% translate "docente" %}</span>{% endif %}
+                    <span class="small muted">{{ r.created_at|date:"d M, H:i" }}</span>
+                    {% if r.hidden %}<span class="chip warn">{% translate "oculto por el docente" %}</span>{% endif %}
+                  </div>
+                  <div class="reply-body">{{ r.body|student_math }}</div>
+                  <div class="entry-actions">
+                    {% include "activities/_debate_like.html" with target="reply" obj=r %}
+                    {% if teacher %}
+                      <form method="post" action="{% url 'debate_teacher_action' course.pk activity.pk %}" class="inline-form">{% csrf_token %}
+                        <input type="hidden" name="reply" value="{{ r.pk }}">
+                        {% if r.hidden %}<button name="action" value="show" class="link small">{% translate "Mostrar" %}</button>
+                        {% else %}<button name="action" value="hide" class="link small">{% translate "Ocultar" %}</button>{% endif %}</form>
+                    {% elif r.mine and activity.debate_open %}
+                      <form method="post" action="{% url 'debate_reply_delete' course.pk activity.pk r.pk %}" class="inline-form">{% csrf_token %}
+                        <button class="link small" data-confirm="{% translate '¿Eliminar su comentario?' %}">{% translate "Eliminar" %}</button></form>
+                    {% endif %}
+                  </div>
+                </li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+
+          {% if activity.debate_open and not e.hidden or activity.debate_open and teacher %}
+            <details class="reply-box">
+              <summary class="small">{% icon "comment" 14 %} {% translate "Comentar" %}</summary>
+              <form method="post" action="{% if teacher %}{% url 'debate_teacher_action' course.pk activity.pk %}{% else %}{% url 'debate_reply' course.pk activity.pk %}{% endif %}" class="stack">{% csrf_token %}
+                <input type="hidden" name="entry" value="{{ e.pk }}">
+                {% if teacher %}<input type="hidden" name="action" value="reply">{% endif %}
+                <label class="sr-only" for="body-{{ e.pk }}">{% blocktranslate with name=e.name %}Comentario sobre la respuesta de {{ name }}{% endblocktranslate %}</label>
+                <textarea id="body-{{ e.pk }}" name="body" rows="2" maxlength="2000" required></textarea>
+                <div class="row"><button class="small">{% translate "Publicar el comentario" %}</button>
+                  <span class="small muted">{% translate "Lo verán todos los participantes, con su nombre." %}</span></div>
+              </form>
+            </details>
+          {% endif %}
+        </li>
+      {% empty %}
+        <li class="small muted">{% translate "Todavía nadie ha publicado una respuesta." %}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</section>
+{% endwith %}

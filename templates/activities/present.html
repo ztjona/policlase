@@ -19,6 +19,12 @@
     <span class="small muted" data-progress role="status"></span>
     <span class="conn" id="conn">{% translate "conectando…" %}</span>
     <button type="button" class="secondary small" id="toggle-fullscreen" title="{% translate 'Pantalla completa (F5)' %}">{% icon "fullscreen" 18 %}<span class="sr-only">{% translate "Pantalla completa" %}</span></button>
+    {# Como en el proyector de las clases: claro salvo que se elija oscuro, así que el botón no sigue al sistema. #}
+    <form method="post" action="{% url 'set_theme' %}" class="themeswitch">
+      {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+      {% if theme == "dark" %}<button name="theme" value="light" class="secondary small" title="{% translate 'Tema claro' %}" aria-label="{% translate 'Tema claro' %}">{% icon "light_mode" 18 %}</button>
+      {% else %}<button name="theme" value="dark" class="secondary small" title="{% translate 'Tema oscuro' %}" aria-label="{% translate 'Tema oscuro' %}">{% icon "dark_mode" 18 %}</button>{% endif %}
+    </form>
     <a class="btn secondary small" href="{% url 'activity_detail' course.pk activity.pk %}" data-stop>{% translate "Terminar presentación" %}</a>
   </div>
   {% csrf_token %}

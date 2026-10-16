@@ -129,7 +129,8 @@ def _student_activities(course, user) -> list[dict]:
         if not activity.is_visible(now):
             continue
         state = engine.state(activity, user, now)
-        todo = state.draft is not None or (state.can_start and state.counted is None)
+        # Un repaso no es una tarea pendiente: no tiene nota ni vence.
+        todo = not activity.is_practice and (state.draft is not None or (state.can_start and state.counted is None))
         rows.append({"activity": activity, "state": state, "todo": todo})
     # Lo que falta entregar arriba, por fecha; lo entregado o cerrado después.
     rows.sort(key=lambda r: (not r["todo"], r["activity"].due_at is None, r["activity"].due_at or now))
@@ -348,7 +349,32 @@ def course_settings(request, pk):
         "github_url": reverse("github_account"),
         "approved": [e for e in enrollments if e.status == Status.APPROVED],
         "rejected": [e for e in enrollments if e.status == Status.REJECTED],
+        "extra_choices": Enrollment._meta.get_field("extra_time_pct").choices,
     })
+
+
+@teacher_required
+@require_POST
+def enrollment_details(request, pk):
+    """Nombre preferido y tiempo adicional de los inscritos (la tabla de la configuración del curso)."""
+    course = owned_course(request, pk)
+    allowed = {value for value, _label in Enrollment._meta.get_field("extra_time_pct").choices}
+    changed = 0
+    for e in course.enrollments.filter(status=Status.APPROVED):
+        name = " ".join(request.POST.get(f"name-{e.pk}", e.preferred_name).split())[:60]
+        try:
+            extra = int(request.POST.get(f"extra-{e.pk}", e.extra_time_pct))
+        except ValueError:
+            extra = e.extra_time_pct
+        if extra not in allowed:
+            extra = e.extra_time_pct
+        if (name, extra) != (e.preferred_name, e.extra_time_pct):
+            e.preferred_name, e.extra_time_pct = name, extra
+            e.save(update_fields=["preferred_name", "extra_time_pct"])
+            changed += 1
+    messages.success(request, ngettext("Se actualizó %(n)d inscrito.", "Se actualizaron %(n)d inscritos.", changed)
+                     % {"n": changed})
+    return redirect("course_settings", pk=pk)
 
 
 def _back(request, pk):

@@ -1,11 +1,15 @@
 {% extends "base.html" %}
-{% load i18n policlase %}
+{% load static i18n policlase %}
 {% block title %}{{ activity.title }}{% endblock %}
 {% block main %}
 <div class="muted small"><a href="{% url 'course_detail' course.pk %}">← {{ course.name }}</a></div>
 <h1>{{ activity.title }}</h1>
 <dl class="facts small">
-  {% if activity.is_evaluation %}
+  {% if activity.is_practice %}
+    <div><dt>{% translate "Repaso" %}</dt><dd>{% translate "sin nota y sin tiempo" %}</dd></div>
+    <div><dt>{% translate "Disponible" %}</dt><dd>{% if activity.due_at %}{% blocktranslate with when=activity.due_at|date:"D d M Y, H:i" %}hasta el {{ when }}{% endblocktranslate %}{% else %}{% translate "sin fecha de cierre" %}{% endif %}</dd></div>
+    <div><dt>{% translate "Intentos" %}</dt><dd>{% blocktranslate count n=state.used %}{{ n }} realizado; puede repetirlo cuantas veces quiera{% plural %}{{ n }} realizados; puede repetirlo cuantas veces quiera{% endblocktranslate %}</dd></div>
+  {% elif activity.is_evaluation %}
     <div><dt>{% translate "Fecha" %}</dt><dd>{% if activity.opens_at %}{{ activity.opens_at|date:"D d M Y" }}{% else %}{% translate "por definir" %}{% endif %}</dd></div>
     <div><dt>{% translate "Horario" %}</dt><dd>{% if activity.opens_at and activity.due_at %}{{ activity.opens_at|time:"H:i" }} – {{ activity.due_at|time:"H:i" }}{% else %}{% translate "por definir" %}{% endif %}</dd></div>
     <div><dt>{% translate "Duración" %}</dt><dd>{% if activity.duration_min %}{% blocktranslate count n=activity.duration_min %}{{ n }} minuto desde que empieza{% plural %}{{ n }} minutos desde que empieza{% endblocktranslate %}{% else %}{% translate "hasta la hora de cierre" %}{% endif %}</dd></div>
@@ -15,7 +19,7 @@
     <div><dt>{% translate "Atrasos" %}</dt><dd>{% if activity.late_policy == "block" %}{% translate "no se aceptan" %}{% else %}{% blocktranslate with p=activity.late_penalty %}se aceptan con {{ p }} % menos{% endblocktranslate %}{% endif %}</dd></div>
     <div><dt>{% translate "Intentos" %}</dt><dd>{% blocktranslate with used=state.used max=activity.max_attempts %}{{ used }} de {{ max }}; cuenta el último enviado{% endblocktranslate %}</dd></div>
   {% endif %}
-  <div><dt>{% translate "Puntos" %}</dt><dd>{{ activity.points|floatformat:"-2" }}{% if activity.category %} · {{ activity.category.name }} ({{ activity.category.period.name }}){% endif %}</dd></div>
+  {% if not activity.is_practice %}<div><dt>{% translate "Puntos" %}</dt><dd>{{ activity.points|floatformat:"-2" }}{% if activity.category %} · {{ activity.category.name }} ({{ activity.category.period.name }}){% endif %}</dd></div>{% endif %}
 </dl>
 
 {% if activity.compiled.instructions %}<div class="card">{{ activity.compiled.instructions|md }}</div>{% endif %}
@@ -40,6 +44,12 @@
     </div>
     {% if activity.require_code %}<span class="helptext" id="code-help" style="margin:0">{% translate "Su docente le indicará el código al comenzar la evaluación." %}</span>{% endif %}
   </form>
+{% elif state.can_start and activity.is_practice %}
+  <form method="post" action="{% url 'attempt_start' course.pk activity.pk %}" class="card spread">
+    {% csrf_token %}
+    <span>{% translate "Repase a su ritmo. Compruebe cada pregunta para ver si acertó y lea su explicación. No cuenta para la nota." %}</span>
+    <button>{% if state.counted %}{% translate "Repasar de nuevo" %}{% else %}{% translate "Comenzar el repaso" %}{% endif %}</button>
+  </form>
 {% elif state.can_start %}
   <form method="post" action="{% url 'attempt_start' course.pk activity.pk %}" class="card spread">
     {% csrf_token %}
@@ -53,7 +63,7 @@
 {% if state.reveal or state.solutions %}{% include "activities/_watermark.html" %}{% endif %}
 {% with a=state.counted %}
 {% if a %}
-  <h2>{% translate "Su entrega" %}</h2>
+  <h2>{% if activity.is_practice %}{% translate "Su último repaso" %}{% else %}{% translate "Su entrega" %}{% endif %}</h2>
   {% if not state.show_score %}
   <div class="card stack">
     <p style="margin:0">{% blocktranslate with when=a.submitted_at|date:"D d M, H:i" %}Su evaluación se recibió el {{ when }}.{% endblocktranslate %}
@@ -66,11 +76,12 @@
       <span>{% blocktranslate with n=a.number when=a.submitted_at|date:"D d M, H:i" %}Intento {{ n }}, enviado el {{ when }}{% endblocktranslate %}
         {% if a.auto_submitted %}<span class="chip" title="{% translate 'Se envió automáticamente al vencer la fecha, con lo que tenía guardado.' %}">{% translate "envío automático" %}</span>{% endif %}
         {% if a.late %}<span class="chip warn">{% blocktranslate with p=a.penalty %}atrasado (−{{ p }} %){% endblocktranslate %}</span>{% endif %}</span>
-      <strong class="score">{{ a.points|floatformat:"-2" }} / {{ a.max_points|floatformat:"-2" }}</strong>
+      <strong class="score">{{ a.points|floatformat:"-2" }} / {{ a.max_points|floatformat:"-2" }}{% if activity.is_practice %} <span class="small muted">{% translate "(sin nota)" %}</span>{% endif %}</strong>
     </div>
     {% if a.pending %}<p class="small muted" style="margin:0">{% blocktranslate count n=a.pending %}{{ n }} pregunta espera la nota de su docente.{% plural %}{{ n }} preguntas esperan la nota de su docente.{% endblocktranslate %}</p>{% endif %}
     {% if a.feedback %}<p class="small comment"><strong>{% translate "Comentario del docente:" %}</strong> {{ a.feedback|linebreaksbr }}</p>{% endif %}
-    {% if state.reveal %}
+    {% if activity.is_practice %}
+    {% elif state.reveal %}
       {% if activity.review_until and activity.is_past_due %}<p class="small muted" style="margin:0">{% blocktranslate with when=activity.review_until|date:"D d M, H:i" %}La revisión está disponible hasta el {{ when }}. Después se mostrará solo el puntaje.{% endblocktranslate %}</p>{% endif %}
     {% elif state.review_closed %}
       <p class="small muted" style="margin:0">{% blocktranslate with when=activity.review_until|date:"D d M, H:i" %}La revisión estuvo disponible hasta el {{ when }}; ahora se muestra solo el puntaje.{% endblocktranslate %}</p>
@@ -87,7 +98,12 @@
       {% else %}
         <section class="card stack">
           {% if item.stem %}<div class="stem">{{ item.stem|md }}</div>{% endif %}
-          {% for row in rows %}{% if row.item.item_id == item.item_id %}{% include "activities/_answer.html" with row=row reveal=True %}{% endif %}{% endfor %}
+          {% for row in rows %}{% if row.item.item_id == item.item_id %}
+            {% if row.in_debate %}{% include "activities/_answer.html" with row=row reveal=False debate_hold=True %}
+            {% else %}{% include "activities/_answer.html" with row=row reveal=True %}{% endif %}
+            {% with panel=debates|get_item:row.key %}{% if panel %}{% include "activities/_debate.html" with panel=panel teacher=False %}{% endif %}{% endwith %}
+          {% endif %}{% endfor %}
+          {% include "activities/_explanation.html" %}
         </section>
       {% endif %}
     {% endfor %}
@@ -102,10 +118,31 @@
     {% else %}
       <section class="card stack">
         {% if item.stem %}<div class="stem">{{ item.stem|md }}</div>{% endif %}
-        {% for q in item.questions %}{% with record=item.solutions|get_item:q.id %}{% include "activities/_question_static.html" with q=q record=record reveal=True show_reference=False %}{% endwith %}{% endfor %}
+        {% for q in item.questions %}{% with record=item.solutions|get_item:q.id panel=debates|get_item:q.key %}
+          {% if q.key in held %}{% include "activities/_question_static.html" with q=q record=record reveal=False show_reference=False %}
+          {% else %}{% include "activities/_question_static.html" with q=q record=record reveal=True show_reference=False %}{% endif %}
+          {% if panel %}{% include "activities/_debate.html" with panel=panel teacher=False %}{% endif %}
+        {% endwith %}{% endfor %}
+        {% include "activities/_explanation.html" %}
       </section>
     {% endif %}
   {% endfor %}
 {% endif %}
 {% endwith %}
+
+{% if debates and not debates_inline %}
+  {# Sin la revisión a la vista (por ejemplo, «solo el puntaje»), el debate va en su propia sección. #}
+  <h2>{% translate "Debate" %}</h2>
+  {% for key, panel in debates.items %}
+    <section class="card stack">
+      {% if panel.item.stem %}<div class="stem">{{ panel.item.stem|md }}</div>{% endif %}
+      {% with row=debate_rows|get_item:key %}
+        {% if row %}{% include "activities/_answer.html" with row=row reveal=False debate_hold=row.in_debate %}
+        {% else %}{% include "activities/_question_static.html" with q=panel.question record=panel.record reveal=False show_reference=False %}{% endif %}
+      {% endwith %}
+      {% include "activities/_debate.html" with panel=panel teacher=False %}
+    </section>
+  {% endfor %}
+{% endif %}
 {% endblock %}
+{% block scripts %}{% if debates %}<script defer src="{% static 'js/debate.js' %}"></script>{% endif %}{% endblock %}

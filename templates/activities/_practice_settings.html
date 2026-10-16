@@ -1,0 +1,23 @@
+{% load i18n policlase %}
+{# Configuración de un repaso: cuándo abre y, si se quiere, cuándo se cierra. No cuenta para la nota. #}
+<form method="post" class="card stack" id="settings" data-dirty{% if form.errors %}="1"{% endif %}>
+  {% csrf_token %}
+  <h2>{% translate "Configuración" %}</h2>
+  {% if form.non_field_errors %}<div class="notice">{{ form.non_field_errors }}</div>{% endif %}
+  <label class="check-toggle">{{ form.published }} {% translate "Publicado (los estudiantes lo ven en su curso desde que abre)" %}</label>
+  <p class="small muted" style="margin:0">{% translate "Un repaso no tiene nota ni tiempo, y se puede repetir cuantas veces se quiera. Cada pregunta se comprueba al momento, con su corrección y su explicación." %}</p>
+  <fieldset class="due">
+    <legend>{{ form.open_mode.label }}</legend>
+    {% for choice in form.open_mode %}<label class="radio-row">{{ choice.tag }} {{ choice.choice_label }}</label>{% endfor %}
+    <div class="practice-milestone row">
+      {{ form.days_before }} <span class="small">{{ form.days_before.label }}</span> {{ form.due_milestone }}
+      {% if not milestones %}<span class="helptext">{% translate "Todavía no hay fechas clave:" %} <a href="{% url 'activity_dates' course.pk %}">{% translate "créelas en Evaluaciones" %}</a>.</span>{% endif %}
+      {{ form.due_milestone.errors }}{{ form.days_before.errors }}
+      <span class="helptext">{% translate "Por ejemplo, 7 días antes de la prueba. Si la fecha clave se reprograma, el repaso se mueve con ella." %}</span>
+    </div>
+    <div class="practice-fixed">{{ form.opens_at.label_tag }}{{ form.opens_at }}{{ form.opens_at.errors }}</div>
+  </fieldset>
+  <div>{{ form.due_at.label_tag }}{{ form.due_at }}{{ form.due_at.errors }}<span class="helptext">{{ form.due_at.help_text }}</span></div>
+  <div class="row"><button type="submit" data-dirty-enable>{% translate "Guardar" %}</button>
+    {% if activity.opens_at %}<span class="small muted">{% blocktranslate with when=activity.opens_at|date:"D d M Y, H:i" %}Disponible desde: {{ when }}{% endblocktranslate %}</span>{% endif %}</div>
+</form>

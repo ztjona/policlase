@@ -229,6 +229,9 @@ class Response(models.Model):
     #: (al final del tiempo) y el 100 % (al instante). La nota usa `points`, nunca esto.
     score = models.PositiveIntegerField(default=0)
     elapsed_ms = models.PositiveIntegerField()
+    #: Respondida después del tiempo de la pregunta (la pregunta sigue abierta hasta que el docente
+    #: la cierra): la nota lleva la penalización por atraso (`engine.LATE_PENALTY`).
+    late = models.BooleanField(default=False, db_default=False)
     answered_at = models.DateTimeField(auto_now_add=True)
 
     @property
