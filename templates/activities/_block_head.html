@@ -6,7 +6,11 @@
 {% elif item.kind == "solution" %}
   {# Solo en la vista previa del docente y en la revisión: durante el intento no se muestra. #}
   <section class="card block-content solution{% if index is not None %} item-card{% endif %}"{% if index is not None %} data-index="{{ index }}"{% endif %}>
-    <span class="chip ok">{% if index is not None %}{% translate "Solución (se muestra en la revisión)" %}{% else %}{% translate "Solución" %}{% endif %}</span>
+    {% if index is not None %}
+      {# En el editor: a qué ítem corresponde (el que la precede) y cuándo la ve el estudiante. #}
+      <span class="chip ok">{% if item.explains %}{% blocktranslate with title=item.explains_title|default:item.explains %}Explicación de «{{ title }}»{% endblocktranslate %}{% else %}{% translate "Solución sin un ítem antes" %}{% endif %}</span>
+      <span class="small muted">{% translate "El estudiante la abre con «Ver la explicación», junto al ítem, en la revisión." %}</span>
+    {% else %}<span class="chip ok">{% translate "Solución" %}</span>{% endif %}
     {{ item.markdown|md }}</section>
 {% elif item.kind == "segment" %}
   {% if item.title or item.instructions or item.time_limit_s or item.block_paste or index is not None %}

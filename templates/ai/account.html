@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Inteligencia artificial" %}{% endblock %}
+{% block page_class %}narrow{% endblock %}
+{% block main %}
+{% comment %} La integración con DeepSeek de este docente: la clave (cifrada; nunca se vuelve a mostrar), el modelo y el
+   interruptor. La IA solo propone calificaciones de respuestas abiertas; el docente las revisa antes de guardarlas. {% endcomment %}
+<h1>{% translate "Inteligencia artificial" %}</h1>
+<form method="post" class="card stack">
+  {% csrf_token %}
+  <p style="margin:0">{% if account.ready %}<span class="chip ok">{% translate "habilitada" %}</span>{% elif account.key_encrypted %}<span class="chip">{% translate "deshabilitada" %}</span>{% else %}<span class="chip">{% translate "sin configurar" %}</span>{% endif %}
+    {% translate "La IA propone una calificación y una retroalimentación para cada respuesta abierta; usted la revisa, la corrige si hace falta y la guarda. Nada llega al estudiante sin ese paso." %}</p>
+  <label class="check-toggle"><input type="checkbox" name="enabled"{% if account.enabled %} checked{% endif %}> {% translate "Habilitar la calificación asistida por IA" %}</label>
+  <div>
+    <label for="ai-key">{% translate "Clave de la API de DeepSeek" %}</label>
+    <input type="password" id="ai-key" name="key" autocomplete="off" spellcheck="false"
+           placeholder="{% if account.key_hint %}{% blocktranslate with hint=account.key_hint %}Configurada (termina en …{{ hint }}); escriba otra para reemplazarla{% endblocktranslate %}{% else %}sk-…{% endif %}">
+    <span class="helptext">{% translate "Se obtiene en platform.deepseek.com, en «API keys». Se guarda cifrada y no se vuelve a mostrar." %}</span>
+  </div>
+  <div>
+    <label for="ai-model">{% translate "Modelo" %}</label>
+    <select id="ai-model" name="model">{% for value, label in models %}<option value="{{ value }}"{% if account.model == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+  </div>
+  <div class="row">
+    <button type="submit" name="action" value="save">{% translate "Guardar" %}</button>
+    <button type="submit" name="action" value="test" class="secondary">{% translate "Guardar y probar la conexión" %}</button>
+    {% if account.key_encrypted %}<button type="submit" name="action" value="remove" class="danger small"
+       data-confirm="{% translate '¿Quitar la clave de DeepSeek? La integración quedará deshabilitada.' %}">{% translate "Quitar la clave" %}</button>{% endif %}
+  </div>
+</form>
+<div class="card small stack">
+  <p style="margin:0"><strong>{% translate "Qué se envía a DeepSeek" %}</strong></p>
+  <p style="margin:0">{% translate "Por cada respuesta abierta, el nombre de la materia, de la unidad y de la actividad, el enunciado, la rúbrica, la respuesta de referencia y la respuesta del estudiante. Nunca su nombre, su cédula ni su correo." %}</p>
+  <p style="margin:0">{% translate "Cada respuesta se califica en una consulta aparte, para que la IA no compare a los estudiantes entre sí. Las consultas de una misma pregunta comparten el comienzo, que DeepSeek guarda en caché y cobra a una fracción del precio. Las imágenes no se envían, porque DeepSeek solo lee texto." %}</p>
+</div>
+{% endblock %}
+{% block scripts %}<script>document.addEventListener("click", function (e) { var b = e.target.closest("button[data-confirm]"); if (b && !window.confirm(b.dataset.confirm)) e.preventDefault(); });</script>{% endblock %}

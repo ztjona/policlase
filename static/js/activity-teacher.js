@@ -21,12 +21,90 @@
       var review = (settings.querySelector("input[name=review_mode]:checked") || {}).value;
       show(".review-milestone", review === "milestone");
       show(".review-fixed", review === "fixed");
+      var debate = (settings.querySelector("input[name=debate_mode]:checked") || {}).value;
+      show(".debate-fixed", debate === "fixed");
       var opens = (settings.querySelector("input[name=open_mode]:checked") || {}).value;    // repaso
       show(".practice-milestone", opens === "milestone");
       show(".practice-fixed", opens === "fixed");
     };
     settings.addEventListener("change", syncDue);
     syncDue();
+  }
+
+  // ------------------------------------------------------------------ calificación asistida por IA
+  // En la actividad: se piden las respuestas por calificar y luego una propuesta por cada una, de a
+  // tres a la vez, mostrando el avance. En «Revisar por pregunta»: una propuesta llena el formulario
+  // de nota de su respuesta, que el docente revisa y guarda.
+  function postForm(url, data) {
+    return fetch(url, { method: "POST", body: data, credentials: "same-origin",
+                        headers: { "X-Requested-With": "fetch" } })
+      .then(function (r) { return r.json().then(function (res) { return { ok: r.ok, res: res }; }); });
+  }
+  var batch = document.querySelector("form[data-ai-batch]");
+  if (batch) batch.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var button = batch.querySelector("button"), status = batch.querySelector("[data-ai-status]");
+    var token = batch.querySelector("input[name=csrfmiddlewaretoken]").value;
+    button.disabled = true;
+    status.textContent = gettext("Buscando las respuestas por calificar…");
+    postForm(batch.getAttribute("action"), new FormData(batch)).then(function (answer) {
+      var ids = answer.res.answers || [], total = ids.length, next = 0, done = 0, failed = 0, error = "";
+      if (!total) { status.textContent = gettext("No hay respuestas que esperen una propuesta."); button.disabled = false; return; }
+      function show() {
+        status.textContent = interpolate(gettext("%s de %s propuestas generadas"), [done, total]) +
+          (failed ? " · " + interpolate(gettext("%s con error"), [failed]) + (error ? ": " + error : "") : "");
+      }
+      function worker() {
+        if (next >= total) return Promise.resolve();
+        var id = ids[next++], data = new FormData();
+        data.set("csrfmiddlewaretoken", token);
+        return postForm(batch.dataset.proposeUrl.replace(/\/0\/$/, "/" + id + "/"), data)
+          .then(function (r) { if (r.ok) done += 1; else { failed += 1; error = r.res.error || error; } })
+          .catch(function () { failed += 1; })
+          .then(function () { show(); return worker(); });
+      }
+      show();
+      Promise.all([worker(), worker(), worker()]).then(function () {
+        status.textContent += " · " + gettext("Listo. Revíselas en «Revisar por pregunta».");
+        button.disabled = false;
+        setTimeout(function () { location.hash = "ai"; location.reload(); }, 2500);
+      });
+    }).catch(function () { status.textContent = gettext("Sin conexión. Inténtelo de nuevo."); button.disabled = false; });
+  });
+
+  document.addEventListener("submit", function (e) {
+    var form = e.target.closest("form[data-ai-propose]");
+    if (!form) return;
+    e.preventDefault();
+    var card = form.closest("section"), status = form.querySelector("[data-ai-status]"), button = form.querySelector("button");
+    button.disabled = true;
+    status.textContent = gettext("Consultando a la IA…");
+    postForm(form.getAttribute("action"), new FormData(form)).then(function (r) {
+      button.disabled = false;
+      if (!r.ok) { status.textContent = r.res.error || gettext("No se pudo generar la propuesta."); return; }
+      var grade = card.querySelector("[data-grade-form]");
+      grade.querySelector("input[name=points]").value = r.res.points;
+      grade.querySelector("[name=comment]").value = r.res.feedback;
+      var list = card.querySelector("[data-ai-criteria]");
+      list.textContent = "";
+      (r.res.criteria || []).forEach(function (c) {
+        var li = document.createElement("li"), strong = document.createElement("strong");
+        strong.textContent = c.points + " / " + c.max;
+        li.appendChild(strong);
+        li.appendChild(document.createTextNode(" · " + c.criterion + (c.reason ? " — " + c.reason : "")));
+        list.appendChild(li);
+      });
+      status.textContent = gettext("La propuesta está lista. Revise la nota y el comentario, y guárdelos.");
+    }).catch(function () { button.disabled = false; status.textContent = gettext("Sin conexión. Inténtelo de nuevo."); });
+  });
+
+  // Revisar imágenes: «Ver las imágenes completas» se recuerda en este navegador.
+  var fullImages = document.querySelector("[data-full-images]");
+  if (fullImages) {
+    try { fullImages.checked = localStorage.getItem("policlase.fullImages") === "1"; } catch (e) {}
+    fullImages.addEventListener("change", function () {
+      try { localStorage.setItem("policlase.fullImages", fullImages.checked ? "1" : "0"); } catch (e) {}
+    });
   }
 
   // Secciones de la actividad: la casilla del título habilita o deshabilita todos sus ítems.

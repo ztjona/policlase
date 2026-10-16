@@ -1,0 +1,6 @@
+{% load i18n %}
+{# La vista previa de un texto con markdown y LaTeX (justificación, comentario): la hace el servidor, con el mismo markdown que verán los demás. #}
+<div class="md-preview" data-md-box="{{ prefix }}{{ ident }}" aria-live="polite" hidden>
+  <span class="small muted">{% translate "Vista previa" %}</span>
+  <div class="md-preview-body" data-md-html></div>
+</div>

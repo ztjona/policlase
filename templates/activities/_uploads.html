@@ -1,9 +1,18 @@
 {% load i18n policlase %}
-{# Imágenes de una pregunta `image`. Con `editable`, se pueden quitar y agregar (intento en curso). #}
+{% comment %} Imágenes de una pregunta `image`. Con `editable`, se pueden quitar y agregar (intento en curso). Para revisar: un clic
+   en la miniatura la amplía en la página (una casilla oculta: funciona sin JavaScript) y otro la reduce; el ícono la
+   abre en otra pestaña. {% endcomment %}
 <div class="upload-grid">
   {% for u in uploads %}
-    <figure class="upload">
-      <a href="{% url 'upload_file' u.pk %}" target="_blank" rel="noopener"><img src="{% url 'upload_file' u.pk %}" alt="{% blocktranslate with n=forloop.counter %}Imagen {{ n }}{% endblocktranslate %}" loading="lazy"></a>
+    <figure class="upload{% if not editable %} zoomable{% endif %}">
+      {% if editable %}
+        <a href="{% url 'upload_file' u.pk %}" target="_blank" rel="noopener"><img src="{% url 'upload_file' u.pk %}" alt="{% blocktranslate with n=forloop.counter %}Imagen {{ n }}{% endblocktranslate %}" loading="lazy"></a>
+      {% else %}
+        <input type="checkbox" class="zoom-toggle" id="zoom-{{ u.pk }}">
+        <label for="zoom-{{ u.pk }}" title="{% translate 'Ampliar o reducir la imagen' %}"><img src="{% url 'upload_file' u.pk %}" alt="{% blocktranslate with n=forloop.counter %}Imagen {{ n }}{% endblocktranslate %}" loading="lazy"></label>
+        <a class="icon-btn upload-open" href="{% url 'upload_file' u.pk %}" target="_blank" rel="noopener"
+           title="{% translate 'Abrir la imagen en otra pestaña' %}" aria-label="{% translate 'Abrir la imagen en otra pestaña' %}">{% icon "open_in_new" 16 %}</a>
+      {% endif %}
       {% if editable %}
         <button type="submit" class="icon-btn danger" formaction="{% url 'attempt_upload_remove' course.pk activity.pk u.pk %}"
                 formnovalidate data-remove-upload title="{% translate 'Quitar imagen' %}" aria-label="{% translate 'Quitar imagen' %}">{% icon "close" %}</button>

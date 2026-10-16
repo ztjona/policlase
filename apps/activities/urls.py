@@ -41,4 +41,5 @@ urlpatterns = [
     path(S + "debate/me-gusta/", debate_views.debate_like, name="debate_like"),
     # ambos
     path("entregas/<int:upload_pk>/", views.upload_file, name="upload_file"),
+    path("vista-previa/", views.student_preview, name="student_preview"),
 ]

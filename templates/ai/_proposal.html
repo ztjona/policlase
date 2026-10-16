@@ -1,0 +1,22 @@
+{% load i18n %}
+{% comment %} La propuesta de la IA para una respuesta abierta, encima de su formulario de nota (que ya viene lleno con ella).
+   El docente la revisa y la guarda como su nota; mientras no la guarde, el estudiante no ve nada. {% endcomment %}
+{% if ai_ready or p %}
+<div class="ai-proposal" data-ai-box>
+  {% if p and not a.graded_at %}
+    <p class="small" style="margin:0"><span class="chip">{% translate "Propuesta de la IA" %}</span>
+      {% translate "La nota y el comentario de abajo vienen de esta propuesta. Revíselos antes de guardar." %}
+      {% if p.confidence == "alta" %}<span class="muted">· {% translate "confianza alta" %}</span>{% elif p.confidence == "media" %}<span class="muted">· {% translate "confianza media" %}</span>{% elif p.confidence == "baja" %}<span class="muted">· {% translate "confianza baja" %}</span>{% endif %}</p>
+  {% elif p %}
+    <p class="small muted" style="margin:0">{% blocktranslate with when=p.created_at|date:"d M, H:i" %}Hubo una propuesta de la IA el {{ when }}; la nota guardada es la suya.{% endblocktranslate %}</p>
+  {% endif %}
+  <ul class="small ai-criteria" data-ai-criteria>{% if p and not a.graded_at %}{% for c in p.criteria %}<li><strong>{{ c.points|floatformat:"-2" }} / {{ c.max|floatformat:"-2" }}</strong> · {{ c.criterion }}{% if c.reason %} <span class="muted">— {{ c.reason }}</span>{% endif %}</li>{% endfor %}{% endif %}</ul>
+  {% if ai_ready %}
+    <form method="post" action="{% url 'ai_propose' course.pk activity.pk a.pk %}" style="margin:0" data-ai-propose>
+      {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <button class="secondary small">{% if p %}{% translate "Volver a generar con IA" %}{% else %}{% translate "Generar propuesta con IA" %}{% endif %}</button>
+      <span class="small muted" data-ai-status role="status"></span>
+    </form>
+  {% endif %}
+</div>
+{% endif %}

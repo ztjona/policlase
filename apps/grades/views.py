@@ -121,11 +121,42 @@ def course_gradebook(request, pk):
     # Un parcial a la vez: con dos parciales de seis componentes, todo junto no cabe en pantalla.
     chosen = next((p for p in periods if str(p.pk) == request.GET.get("parcial")), None)
     index = periods.index(chosen) if chosen else None
+    rows = [(g, g.periods[index]) for g in grades] if chosen else [(g, None) for g in grades]
+    # Cada columna numérica: qué valor da en una fila (None si todavía no hay nota).
+    if chosen:
+        header = grades[0].periods[index].cells if grades else []
+        columns = [(lambda g, pg, i=i: pg.cells[i].points if pg.cells[i].fraction is not None else None)
+                   for i in range(len(header))] + [lambda g, pg: pg.total]
+    else:
+        header = []
+        columns = [(lambda g, pg, i=i: g.periods[i].total) for i in range(len(periods))] + [lambda g, pg: g.total]
+    # Orden: por apellido (por omisión, A→Z) o por una columna (de la nota más alta a la más baja); un
+    # segundo clic en el mismo encabezado invierte el sentido. Sin nota todavía, al final.
+    order = request.GET.get("orden", "")
+    order = order if order.isdigit() and int(order) < len(columns) else "nombre"
+    descending = request.GET.get("dir", "asc" if order == "nombre" else "desc") == "desc"
+    if order == "nombre":
+        rows = rows[::-1] if descending else rows
+    else:
+        pick = columns[int(order)]
+        rows = sorted([r for r in rows if pick(*r) is not None], key=lambda r: float(pick(*r)), reverse=descending) \
+            + [r for r in rows if pick(*r) is None]
+    averages = []
+    for pick in columns:
+        values = [float(pick(*r)) for r in rows if pick(*r) is not None]
+        averages.append(sum(values) / len(values) if values else None)
+    base = f"?parcial={chosen.pk}&" if chosen else "?"
+    sort_links = []
+    for key in ["nombre", *map(str, range(len(columns)))]:
+        active = key == order
+        first = "asc" if key == "nombre" else "desc"
+        flip = "asc" if descending else "desc"
+        sort_links.append({"url": f"{base}orden={key}&dir={flip if active else first}", "active": active,
+                           "descending": descending})
     return render(request, "grades/gradebook.html", {
         "course": course, "grades": grades, "rules": course.grading_rules, "periods": periods,
-        "chosen": chosen,
-        "detail": [(g, g.periods[index]) for g in grades] if chosen else [],
-        "header": grades[0].periods[index].cells if grades and chosen else [],
+        "chosen": chosen, "rows": rows, "header": header, "averages": averages,
+        "name_sort": sort_links[0], "sorts": sort_links[1:],
     })
 
 

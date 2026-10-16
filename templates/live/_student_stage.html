@@ -36,10 +36,9 @@
 
   {% else %}
     {% if session.phase == "open" and not mine and session.closes_at %}
-      {# Sin cuenta regresiva: 10 s antes, una señal discreta; al acabarse, el aviso de que todavía se puede responder. #}
+      {# Sin cuenta regresiva ni aviso al acabarse: solo una señal discreta 10 s antes. #}
       <span class="phone-clock" data-closes-at="{{ session.closes_at|date:'c' }}" data-server-now="{{ now|date:'c' }}"
-            data-extra-ms="{{ extra_ms }}" data-quiet hidden></span>
-      <p class="small overtime-note" data-overtime-note hidden>{% blocktranslate with p=late_penalty %}Se acabó el tiempo. Todavía puedes responder, con un {{ p }} % menos.{% endblocktranslate %}</p>
+            data-quiet hidden></span>
     {% endif %}
     {% if slide.stem %}<div>{{ slide.stem|md }}</div>{% endif %}
     <div class="prompt">{{ slide.question.prompt|md }}</div>

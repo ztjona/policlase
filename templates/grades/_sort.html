@@ -1,0 +1,4 @@
+{% load i18n policlase %}
+{# Un encabezado que ordena la tabla: clic para ordenar por esta columna; otro clic invierte el sentido. #}
+<a class="sort-link{% if link.active %} active{% endif %}" href="{{ link.url }}"
+   title="{% translate 'Ordenar por esta columna' %}">{{ label }}{% if link.active %}{% if link.descending %}{% icon "arrow_down" 14 %}{% else %}{% icon "arrow_up" 14 %}{% endif %}{% endif %}</a>

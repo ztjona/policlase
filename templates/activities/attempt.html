@@ -55,6 +55,9 @@
           {% if not activity.is_evaluation %}data-pointer-url="{% url 'attempt_pointer' course.pk activity.pk %}"{% endif %}
           {% if remaining_ms is not None %}data-remaining-ms="{{ remaining_ms }}"{% endif %} data-autosave>
       {% csrf_token %}
+      {# El botón por omisión del formulario (Enter en un campo de texto): guarda. Sin él, Enter pulsaría el primer botón
+         de la página, que puede ser «Responder» o «Abrir la pregunta» de una pregunta con tiempo. #}
+      <button type="submit" name="action" value="save" class="sr-only" tabindex="-1" aria-hidden="true">{% translate "Guardar borrador" %}</button>
       <input type="hidden" name="form" value="attempt">
       <input type="hidden" name="telemetry" value="">
       {% for item in attempt.content.items %}

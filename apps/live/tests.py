@@ -201,15 +201,6 @@ class AnswerTests(LiveBase):
         self.assertAlmostEqual(response.points, response.auto_points)
         self.assertLess(response.points, 1)                                # vale un 30 % menos
 
-    def test_el_tiempo_adicional_evita_la_penalizacion(self):
-        from apps.courses.models import Enrollment
-
-        Enrollment.objects.filter(student=self.ana).update(extra_time_pct=100)
-        session = self.open_question()
-        LiveSession.objects.filter(pk=session.pk).update(closes_at=timezone.now() - timedelta(seconds=10))
-        self.answer(self.ana, session, choice=self.right_key(session))
-        self.assertFalse(Response.objects.get().late)                       # 30 s + 100 %: aún a tiempo
-
     def test_no_se_responde_si_la_pregunta_no_esta_abierta(self):
         session = self.goto_first_question(self.start())
         self.answer(self.ana, session, choice=self.right_key(session))

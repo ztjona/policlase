@@ -62,6 +62,7 @@ INSTALLED_APPS = [
     "apps.github",
     "apps.grades",
     "apps.activities",
+    "apps.ai",
 ]
 
 MIDDLEWARE = [

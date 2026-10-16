@@ -201,7 +201,24 @@ def activity_detail(request, course_pk, pk):
         "now": timezone.now(),
         "extensions": Extension.objects.filter(activity=activity).select_related("student"),
         "students": students,
+        "ai": _ai_panel(request, activity),
     })
+
+
+def _ai_panel(request, activity) -> dict | None:
+    """Las preguntas abiertas con cuántas respuestas esperan nota y cuántas tienen propuesta de la IA."""
+    from apps.ai import grading as ai_grading
+    from apps.ai.views import account_for, pending_answers
+
+    questions = [q for q in activity.questions if q["type"] == "open"
+                 and q["key"].rsplit(".", 1)[0] not in activity.disabled]          # clave: <ítem>.<pregunta>
+    if not questions:
+        return None
+    waiting = pending_answers(activity, [q["key"] for q in questions], regenerate=True)
+    proposed = ai_grading.latest(waiting)
+    rows = [{"question": q, "pending": sum(1 for a in waiting if a.key == q["key"]),
+             "proposed": sum(1 for a in waiting if a.key == q["key"] and a.pk in proposed)} for q in questions]
+    return {"account": account_for(request.user), "rows": rows}
 
 
 @teacher_required
@@ -225,13 +242,19 @@ def activity_extension(request, course_pk, pk):
         return timezone.make_aware(value, tz) if value and timezone.is_naive(value) else value
 
     due, opens = when("due_at"), when("opens_at")
+    try:
+        minutes = int(request.POST.get("duration_min") or 0) or None
+    except ValueError:
+        minutes = None
     if student is None or due is None:
         messages.error(request, _("Elija el estudiante e indique la nueva fecha."))
     elif opens and opens >= due:
         messages.error(request, _("La apertura debe ser anterior al cierre."))
+    elif minutes is not None and not 5 <= minutes <= 900:
+        messages.error(request, _("La duración propia debe estar entre 5 y 900 minutos."))
     else:
         engine.grant_extension(activity, student, due, opens if activity.is_evaluation else None,
-                               request.POST.get("note", "").strip())
+                               request.POST.get("note", "").strip(), duration_min=minutes)
         messages.success(request, _("Prórroga guardada para %(name)s.") % {"name": student.display_name})
     return redirect(back)
 
@@ -435,7 +458,7 @@ def activity_present_action(request, course_pk, pk):
 @teacher_required
 def question_review(request, course_pk, pk, key):
     """Calificar por pregunta, no por estudiante: todas las respuestas a la misma pregunta
-    seguidas, con la rúbrica y la referencia a la vista (docs/schema.md §8)."""
+    seguidas, con la rúbrica y la referencia a la vista (policlase-gen/docs/schema/03-items-y-preguntas.md)."""
     course, activity = _own_activity(request, course_pk, pk)
     counted = engine.counted_attempts(activity)
     answers = {a.attempt_id: a for a in Answer.objects.filter(attempt__in=counted.values(), key=key)}
@@ -456,9 +479,15 @@ def question_review(request, course_pk, pk, key):
             rows.append({"student": student, "attempt": attempt, "answer": answers[attempt.pk],
                          "uploads": uploads.get(attempt.pk, [])})
     rows.sort(key=lambda r: (not r["answer"].needs_review, r["student"].last_name))
+    from apps.ai import grading as ai_grading
+    from apps.ai.views import account_for
+
+    account = account_for(request.user)
     return render(request, "activities/question_review.html", {
         "course": course, "activity": activity, "question": question, "record": record, "rows": rows,
         "pending": sum(1 for r in rows if r["answer"].needs_review),
+        "proposals": ai_grading.latest([r["answer"] for r in rows]) if question["type"] == "open" else {},
+        "ai_ready": bool(account and account.ready),
     })
 
 
@@ -480,6 +509,9 @@ def answer_grade(request, course_pk, pk, answer_pk):
         error = str(exc)
     else:
         error = ""
+        from apps.ai.grading import mark_applied
+
+        mark_applied(answer)                     # la propuesta de la IA, si la hubo, ya es la nota del docente
     if request.headers.get("X-Requested-With") == "fetch":
         if error:
             return JsonResponse({"error": error}, status=400)
@@ -644,7 +676,8 @@ def _shift(activities, days: int) -> int:
         if activity.review_mode == Activity.Review.FIXED and activity.review_until:
             activity.review_until += delta
             fields.append("review_until")
-        if activity.debate_until and activity.debate_until > timezone.now():
+        if activity.debate_mode == Activity.DebateClose.FIXED and activity.debate_until \
+                and activity.debate_until > timezone.now():
             activity.debate_until += delta
             fields.append("debate_until")
         if periods is None:
@@ -733,6 +766,17 @@ def _cells(question: dict, value) -> list:
     count = engine._cell_count(question)
     given = value if isinstance(value, list) else []
     return [given[i] if i < len(given) else "" for i in range(count)]
+
+
+@login_required
+@require_POST
+def student_preview(request):
+    """La vista previa de una justificación o de un comentario: el mismo markdown con el que la
+    verán los demás."""
+    from apps.core import markdown
+
+    text = request.POST.get("text", "")[:6000]
+    return JsonResponse({"html": markdown.render_student(text)})
 
 
 @login_required

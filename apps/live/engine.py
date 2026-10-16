@@ -233,18 +233,6 @@ def apply(session_id: int, action: str, index: int | None = None) -> LiveSession
     return session
 
 
-def extra_ms(session: LiveSession, student) -> int:
-    """El tiempo adicional del estudiante en esta pregunta (adecuación de su inscripción), en ms."""
-    from apps.courses.models import Enrollment
-
-    limit = (session.slide or {}).get("time_limit_s")
-    if not limit or getattr(student, "is_guest", False):
-        return 0
-    pct = (Enrollment.objects.filter(course_id=session.course_id, student=student)
-           .values_list("extra_time_pct", flat=True).first() or 0)
-    return int(limit * 1000 * pct / 100)
-
-
 def join(session: LiveSession, student) -> None:
     _, created = Participant.objects.get_or_create(session=session, student=student)
     if created:
@@ -256,8 +244,8 @@ def join(session: LiveSession, student) -> None:
 
 
 def submit(session_id: int, student, answer) -> Response:
-    """Registra y califica una respuesta. La primera respuesta es la que cuenta. Pasado el tiempo
-    (y el adicional del estudiante), vale con `LATE_PENALTY`."""
+    """Registra y califica una respuesta. La primera respuesta es la que cuenta. Pasado el tiempo,
+    vale con `LATE_PENALTY`."""
     session = LiveSession.objects.get(pk=session_id)
     now = timezone.now()
 
@@ -265,8 +253,7 @@ def submit(session_id: int, student, answer) -> Response:
         raise ActionError(_("La clase está en pausa."))
     if session.status != Status.LIVE or session.phase != Phase.OPEN or not session.is_question:
         raise ActionError(_("La pregunta ya no recibe respuestas."))
-    late = bool(session.closes_at) and now > (session.closes_at + timedelta(seconds=LATE_GRACE_S)
-                                              + timedelta(milliseconds=extra_ms(session, student)))
+    late = bool(session.closes_at) and now > session.closes_at + timedelta(seconds=LATE_GRACE_S)
 
     join(session, student)          # quien responde está conectado, aunque su SSE aún no lo dijera
     slide = session.slide

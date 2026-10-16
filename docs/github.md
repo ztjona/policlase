@@ -2,8 +2,8 @@
 
 Referencia de cómo policlase lee y escribe las presentaciones y actividades de un curso en un
 repositorio de GitHub. El formato de cada archivo (`policlase.deck/v1`, `policlase.activity/v1`)
-está en [`policlase-gen/docs/schema.md`](../../policlase-gen/docs/schema.md) §9 (formato único `policlase/v1`,
-con segmentos) y §10; aquí se documenta lo que hace la plataforma con esos archivos. Implementación: `apps/github/` (`sync.py`, `client.py`,
+está en [`policlase-gen/docs/schema.md`](../../policlase-gen/docs/schema.md), sobre todo en la
+[parte 5](../../policlase-gen/docs/schema/05-documentos.md) (formato único `policlase/v1`, con segmentos); aquí se documenta lo que hace la plataforma con esos archivos. Implementación: `apps/github/` (`sync.py`, `client.py`,
 `views.py`), con pruebas en `apps/github/tests.py`.
 
 **Principio: GitHub es la fuente de verdad.** Lo que se empuja a GitHub aparece en policlase; lo

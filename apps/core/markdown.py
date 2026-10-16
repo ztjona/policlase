@@ -56,6 +56,28 @@ def render(text: str) -> str:
     return _clean(_parser().render(text or ""))
 
 
+#: Lo que escribe un estudiante (justificaciones y comentarios del debate): markdown con
+#: matemáticas, tablas y saltos de línea tal como los escribió, pero sin enlaces ni imágenes.
+_STUDENT_TAGS = _ALLOWED_TAGS - {"a", "img"}
+
+
+@lru_cache(maxsize=1)
+def _student_parser() -> MarkdownIt:
+    return (
+        MarkdownIt("commonmark", {"html": False, "linkify": False, "typographer": False, "breaks": True})
+        .enable("table")
+        .enable("strikethrough")
+        .use(dollarmath_plugin, allow_space=True, double_inline=True)
+    )
+
+
+@lru_cache(maxsize=2048)
+def render_student(text: str) -> str:
+    html = _student_parser().render(text or "")
+    return nh3.clean(html, tags=_STUDENT_TAGS, attributes={k: v for k, v in _ALLOWED_ATTRIBUTES.items()
+                                                           if k in _STUDENT_TAGS})
+
+
 @lru_cache(maxsize=2048)
 def render_inline(text: str) -> str:
     """Para opciones y afirmaciones: sin el `<p>` que envuelve un párrafo."""

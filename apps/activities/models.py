@@ -42,6 +42,11 @@ class Activity(models.Model):
         PENALTY = "penalty", _("Se aceptan con penalización")
         BLOCK = "block", _("No se aceptan")
 
+    class DebateClose(models.TextChoices):
+        REVIEW = "review", _("Al cerrar la revisión")
+        FIXED = "fixed", _("En una fecha fija")
+        MANUAL = "manual", _("Hasta que usted lo cierre")
+
     class Kind(models.TextChoices):
         ACTIVITY = "activity", _("Actividad")
         EVALUATION = "evaluation", _("Evaluación")
@@ -115,8 +120,11 @@ class Activity(models.Model):
     #: los ya enviados. (El nombre de la columna es de cuando solo dejaban de calificarse.)
     ungraded_items = models.JSONField(default=list, db_default=[], blank=True)
     #: Preguntas de debate (`debate: true`): el foro abre al vencer la fecha de entrega y se cierra
-    #: aquí; vacío, sigue abierto hasta que el docente lo cierra («Cerrar el debate» lo fija en ese
-    #: momento). Al cerrarse se muestran la corrección y la explicación de esas preguntas.
+    #: según `debate_mode`: con la revisión (por omisión), en `debate_until` o cuando el docente lo
+    #: cierra («Cerrar el debate ahora» lo fija en ese momento). Al cerrarse se muestran la
+    #: corrección y la explicación de esas preguntas. `debate_close` dice cuándo.
+    debate_mode = models.CharField(_("cierre del debate"), max_length=8, choices=DebateClose.choices,
+                                   default=DebateClose.REVIEW, db_default=DebateClose.REVIEW)
     debate_until = models.DateTimeField(_("debate hasta"), null=True, blank=True)
     #: Dónde está el docente al presentar la actividad en clase: el bloque (`at` del contenido) y,
     #: si es un ítem, su `item_id`. `presenting_at` es la última señal de la página del proyector:
@@ -225,14 +233,23 @@ class Activity(models.Model):
         return [q["key"] for item in self.compiled.get("items", []) if item.get("kind", "item") == "item"
                 and item.get("item_id") not in skip for q in item["questions"] if q.get("debate")]
 
+    @property
+    def debate_close(self):
+        """Cuándo se cierra el debate; None si sigue abierto hasta que el docente lo cierre (también
+        con «Al cerrar la revisión» si la revisión no tiene fin)."""
+        if self.debate_mode == self.DebateClose.REVIEW:
+            return self.review_until if self.review_mode in (self.Review.MILESTONE, self.Review.FIXED) else None
+        return self.debate_until
+
     def debate_open(self, now=None) -> bool:
         """El foro está abierto: desde el vencimiento hasta su cierre."""
         now = now or timezone.now()
-        return (bool(self.debate_keys) and self.is_past_due(now)
-                and (self.debate_until is None or now <= self.debate_until))
+        close = self.debate_close
+        return bool(self.debate_keys) and self.is_past_due(now) and (close is None or now <= close)
 
     def debate_closed(self, now=None) -> bool:
-        return bool(self.debate_until) and (now or timezone.now()) > self.debate_until
+        close = self.debate_close
+        return bool(close) and (now or timezone.now()) > close
 
     def review_open(self, now=None) -> bool:
         """¿Está abierta la revisión? Desde que vence la fecha hasta `review_until`; en una evaluación,
@@ -264,9 +281,8 @@ class Activity(models.Model):
 
     def refresh_from_db(self, *args, **kwargs):
         super().refresh_from_db(*args, **kwargs)
-        # Las prórrogas y los tiempos adicionales que el motor guardó en el objeto se vuelven a leer.
-        for name in ("_extensions", "_extra"):
-            self.__dict__.pop(name, None)
+        # Las prórrogas que el motor guardó en el objeto se vuelven a leer.
+        self.__dict__.pop("_extensions", None)
 
     def set_kind(self, use: str) -> None:
         """El tipo según el `use` del documento. Una evaluación nueva parte de lo habitual: un solo
@@ -414,14 +430,16 @@ class Attempt(models.Model):
 
 class Extension(models.Model):
     """Una prórroga para un estudiante: su propia fecha de entrega en una actividad, o su propio
-    horario en una evaluación (por ejemplo, la rinde otro día por enfermedad). El tiempo adicional
-    por adecuación es otra cosa: vive en la inscripción (`Enrollment.extra_time_pct`)."""
+    horario en una evaluación (por ejemplo, la rinde otro día por enfermedad) y, si hace falta, su
+    propia duración (una adecuación: más minutos que los demás)."""
 
     activity = models.ForeignKey(Activity, on_delete=models.CASCADE, related_name="extensions")
     student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
     opens_at = models.DateTimeField(_("disponible desde"), null=True, blank=True)
     due_at = models.DateTimeField(_("nueva fecha"))
     note = models.CharField(_("motivo"), max_length=200, blank=True, default="", db_default="")
+    #: Evaluación: minutos para este estudiante, en lugar de `Activity.duration_min`.
+    duration_min = models.PositiveSmallIntegerField(_("duración propia (minutos)"), null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

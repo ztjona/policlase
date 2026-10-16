@@ -46,6 +46,18 @@
     <div class="review-fixed">{{ form.review_until.label_tag }}{{ form.review_until }}{{ form.review_until.errors }}</div>
   </fieldset>
 
+  {% if activity.debate_keys %}
+    <fieldset class="due" id="debate">
+      <legend>{% translate "Cierre del debate" %}</legend>
+      <span class="helptext" style="margin:0">{% translate "Las preguntas de debate se discuten desde la fecha de entrega hasta este cierre. Al cerrarse, los estudiantes ven su corrección y su explicación, mientras dure la revisión." %}</span>
+      {% for choice in form.debate_mode %}<label class="radio-row">{{ choice.tag }} {{ choice.choice_label }}</label>{% endfor %}
+      <div class="debate-fixed">{{ form.debate_until.label_tag }}{{ form.debate_until }}{{ form.debate_until.errors }}</div>
+      {% if activity.debate_mode == "review" and activity.review_mode == "milestone" or activity.debate_mode == "review" and activity.review_mode == "fixed" %}
+        <span class="helptext">{% translate "Con este cierre, la corrección de las preguntas de debate se muestra cuando termina la revisión, es decir, cuando ya no se ve. Si quiere que la vean antes de la prueba, elija una fecha fija anterior o cierre el debate después de discutirlo en clase." %}</span>
+      {% endif %}
+    </fieldset>
+  {% endif %}
+
   <div class="row">
     <div>{{ form.late_policy.label_tag }}{{ form.late_policy }}</div>
     <div>{{ form.late_penalty.label_tag }}{{ form.late_penalty }}{{ form.late_penalty.errors }}</div>

@@ -399,7 +399,6 @@ def _student_context(session: LiveSession, user, error: str = "") -> dict:
     context = {"session": session, "slide": session.slide, "error": error, "now": timezone.now(),
                "rating_choices": rating_choices(), "late_penalty": engine.LATE_PENALTY}
     if session.is_question:
-        context["extra_ms"] = engine.extra_ms(session, user)
         mine = Response.objects.filter(session=session, slide_index=session.index, student=user).first()
         context["mine"] = mine
         if mine:

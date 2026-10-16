@@ -1,0 +1,38 @@
+{% load i18n policlase %}
+{% comment %} Calificación asistida por IA en la página de la actividad: las preguntas abiertas, todas elegidas, y el botón que
+   pide una propuesta por cada respuesta que el docente todavía no calificó (static/js/activity-teacher.js muestra el
+   avance; sin JavaScript se procesan unas pocas por envío). Las propuestas se revisan en «Revisar por pregunta». {% endcomment %}
+<div class="stack ai-panel" id="ai">
+  <h3 style="margin:0">{% translate "Calificación asistida por IA" %}</h3>
+  {% if not ai.account.ready %}
+    <p class="small muted" style="margin:0">{% translate "La IA puede proponer la nota y la retroalimentación de las respuestas abiertas, para que usted las revise." %}
+      <a href="{% url 'ai_account' %}">{% translate "Configure su clave de DeepSeek" %}</a>.</p>
+  {% else %}
+    <form method="post" action="{% url 'ai_pending' course.pk activity.pk %}" class="stack" style="margin:0" data-ai-batch
+          data-propose-url="{% url 'ai_propose' course.pk activity.pk 0 %}">
+      {% csrf_token %}
+      <div class="table-wrap">
+        <table class="compact-table">
+          <thead><tr><th><input type="checkbox" checked data-check-all="key" aria-label="{% translate 'Elegir todas' %}"></th>
+            <th>{% translate "Pregunta" %}</th><th class="num">{% translate "Por calificar" %}</th><th class="num">{% translate "Con propuesta" %}</th></tr></thead>
+          <tbody>
+            {% for r in ai.rows %}
+              <tr>
+                <td><input type="checkbox" name="key" value="{{ r.question.key }}" checked aria-label="{% blocktranslate with key=r.question.key %}Elegir {{ key }}{% endblocktranslate %}"></td>
+                <td class="small"><a href="{% url 'question_review' course.pk activity.pk r.question.key %}">{{ r.question.prompt|truncatechars:90|md_inline }}</a></td>
+                <td class="num">{{ r.pending }}</td>
+                <td class="num">{{ r.proposed }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="row">
+        <button class="small">{% translate "Generar propuestas con IA" %}</button>
+        <label class="small" style="margin:0"><input type="checkbox" name="regenerate" value="1"> {% translate "Volver a generar las que ya tienen una propuesta" %}</label>
+        <span class="small muted" data-ai-status role="status"></span>
+      </div>
+      <span class="helptext" style="margin:0">{% translate "Solo se procesan las respuestas que usted todavía no calificó. Cada propuesta aparece en «Revisar por pregunta», en el formulario de nota de su respuesta, para que la revise, la corrija si hace falta y la guarde." %}</span>
+    </form>
+  {% endif %}
+</div>

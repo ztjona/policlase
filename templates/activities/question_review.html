@@ -5,11 +5,14 @@
 <div class="muted small"><a href="{% url 'activity_detail' course.pk activity.pk %}">← {{ activity.title }}</a></div>
 <h1>{% translate "Revisar por pregunta" %}</h1>
 <p class="small muted">{% blocktranslate count n=pending %}{{ n }} respuesta por revisar{% plural %}{{ n }} respuestas por revisar{% endblocktranslate %} · {% blocktranslate count n=rows|length %}{{ n }} entrega{% plural %}{{ n }} entregas{% endblocktranslate %}</p>
+{% if question.type == "image" %}
+  <label class="check-toggle small full-images-toggle"><input type="checkbox" id="full-images" data-full-images> {% translate "Ver las imágenes completas" %}</label>
+{% endif %}
 
 <div class="review-layout">
   <aside class="card review-aside stack">
     {% include "activities/_question_static.html" with q=question record=record reveal=True show_reference=True %}
-    {% if question.grading.mode == "ai" %}<p class="small muted">{% translate "Marcada para calificación con IA. La propuesta automática aún no está disponible; califique manualmente." %}</p>{% endif %}
+    {% if question.type == "open" and not ai_ready %}<p class="small muted">{% translate "La IA puede proponer la nota y la retroalimentación de cada respuesta." %} <a href="{% url 'ai_account' %}">{% translate "Configure su clave de DeepSeek" %}</a>.</p>{% endif %}
   </aside>
   <div class="stack">
     {% for r in rows %}{% with a=r.answer q=question %}
@@ -23,7 +26,10 @@
         {% else %}
           <p class="mono">{{ a.value|default:"—" }}</p>
         {% endif %}
-        {% include "activities/_grade_form.html" %}
+        {% with p=proposals|get_item:a.pk %}
+          {% if q.type == "open" %}{% include "ai/_proposal.html" %}{% endif %}
+          {% include "activities/_grade_form.html" %}
+        {% endwith %}
       </section>
     {% endwith %}{% empty %}
       <p class="muted">{% translate "Nadie ha respondido esta pregunta todavía." %}</p>

@@ -17,6 +17,7 @@ urlpatterns = [
     path("acerca/", about, name="about"),
     path("i18n/js/", JavaScriptCatalog.as_view(), name="javascript-catalog"),
     path("", include("apps.github.urls")),
+    path("", include("apps.ai.urls")),
     path("cuenta/", include("allauth.urls")),
     path("admin/", admin.site.urls),
     path("", include("apps.courses.urls")),

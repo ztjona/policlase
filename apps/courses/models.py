@@ -74,9 +74,6 @@ class Enrollment(models.Model):
     #: Cómo lo llaman en el curso (lo que ven sus compañeros, con su primer apellido): por omisión,
     #: su primer nombre; «María del Cisne», «Majo» o un segundo nombre si así lo prefiere.
     preferred_name = models.CharField(_("nombre preferido"), max_length=60, blank=True, default="", db_default="")
-    #: Adecuación: tiempo adicional en las evaluaciones y en las preguntas con tiempo (en %).
-    extra_time_pct = models.PositiveSmallIntegerField(_("tiempo adicional"), default=0, db_default=0,
-                                                      choices=[(0, "—"), (25, "+25 %"), (50, "+50 %"), (100, "+100 %")])
 
     class Meta:
         ordering = ["student__last_name", "student__first_name"]

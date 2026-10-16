@@ -213,23 +213,28 @@ Reglas de interacción:
   nombre de ese parcial (`gradebook.rebind`); si no la hay, se avisa. En los formularios, el parcial
   se elige aparte de la fila y viene propuesto por la fecha.
 - **Preguntas con tiempo:** el reloj es del servidor (`Attempt.timers`, `engine.timer`). La pregunta
-  no se ve hasta que el estudiante la abre. **No hay cuenta regresiva a la vista**, porque la presión
-  del tiempo genera ansiedad: el límite se dice al abrirla, 10 s antes del final el marco cambia y, al
-  acabarse, sigue abierta con el aviso de que lo que responda vale con la penalización por atraso
-  (`Answer.late`). Se cierra al pulsar «Responder» o al enviar el intento. **Encuestas**
+  no se ve hasta que el estudiante la abre. **No hay cuenta regresiva a la vista ni aviso al
+  acabarse**, porque la presión del tiempo genera ansiedad y el aviso desanima: el límite se dice
+  antes de abrirla y 10 s antes del final el marco cambia. Al acabarse sigue abierta, y lo que se
+  responda después vale con la penalización por atraso de la actividad (`Answer.late`). Se cierra
+  al pulsar «Responder» (en blanco, pide confirmación) o al enviar el intento. Enter en un campo de
+  texto nunca pulsa un botón de la página (el botón por omisión del formulario es «Guardar»). **Encuestas**
   (`grading.mode: survey`): se registran, no tienen correcta ni puntos, y en ninguna pantalla se
   muestran como correctas o incorrectas.
 - **En vivo**, lo mismo: ni el proyector ni los teléfonos muestran la cuenta regresiva (el docente la
-  ve pequeña en sus controles). Al acabarse, la pregunta sigue abierta hasta que el docente la cierra o
-  responden todos; lo que llega después vale con `live.engine.LATE_PENALTY` (`Response.late`). Con
-  bono por rapidez, una sola mención al empezar invita a responder pronto.
+  ve pequeña en sus controles), y al acabarse no se avisa nada al estudiante. La pregunta sigue
+  abierta hasta que el docente la cierra o responden todos; lo que llega después vale con
+  `live.engine.LATE_PENALTY` (`Response.late`). Con bono por rapidez, una sola mención al empezar
+  invita a responder pronto.
 - **Evaluaciones:** el reloj del intento está oculto; se consulta con «Ver tiempo restante» y avisa a
   los 10 y a los 2 minutos del final.
-- **Tiempo adicional y prórrogas:** el tiempo adicional por adecuación vive en la inscripción
-  (`Enrollment.extra_time_pct`) y alarga las preguntas con tiempo, en vivo y en las actividades, y la
-  duración (y el cierre) de las evaluaciones. Una prórroga (`Extension`) da a un estudiante su propia
-  fecha en una actividad, o su propio horario en una evaluación. El motor la consulta con
-  `engine.window` y `engine.deadline`; nada lee `due_at` directamente para un estudiante.
+- **Prórrogas:** una prórroga (`Extension`) da a un estudiante su propia fecha en una actividad, o
+  su propio horario y, si hace falta, su propia duración en una evaluación (una adecuación). No hay un
+  tiempo adicional general por estudiante: cada caso se decide en su actividad. El motor la consulta
+  con `engine.window` y `engine.deadline`; nada lee `due_at` directamente para un estudiante.
+- **Nombres:** se guardan con mayúscula inicial (`accounts.names.name_case`, en `User.save`): una
+  palabra escrita toda en mayúsculas o en minúsculas se corrige; una mezcla deliberada («McDonald»)
+  se respeta, y las partículas van en minúscula salvo al comienzo («De la Torre»).
 - **Nombres entre compañeros:** el nombre preferido (`Enrollment.preferred_name`, por omisión el
   primer nombre) y el primer apellido (`courses.models.short_name`), en el marcador y en lo que ven
   los compañeros. El docente lo ajusta en la lista de inscritos. La marca de agua conserva el nombre
@@ -238,13 +243,20 @@ Reglas de interacción:
   (`outline.with_explanations`). En la revisión no se muestra de entrada: el estudiante ve primero su
   corrección y la abre con «Ver la explicación» (`_explanation.html`).
 - **Debate** (`apps/activities/debate.py`, `debate: true` en una pregunta): la justificación va con la
-  respuesta (`Attempt.reasons`); el foro abre al vencer la fecha y se cierra cuando el docente lo
-  decide (`Activity.debate_until`). Reglas que no se negocian: primero se publica y después se lee;
+  respuesta (`Attempt.reasons`), con markdown y LaTeX (`student_md`, vista previa del servidor); el
+  foro abre al vencer la fecha y se cierra según `Activity.debate_close` (por omisión, con la
+  revisión; se configura junto a las fechas de la actividad). Reglas que no se negocian: primero se
+  publica y después se lee;
   no lee quien todavía puede entregar con nota; la respuesta revisada no cambia la nota; la corrección
   y la explicación de esas preguntas esperan al cierre (`debate.in_debate`, `debate.hidden_items`).
   El foro se muestra junto a su pregunta en la revisión (`_debate.html`), funciona sin JavaScript y
   `debate.js` solo hace que el «me gusta» muestre el número al momento. Lo oculto por el docente lo
   ve su autor, con el aviso.
+- **Calificación asistida por IA** (`apps/ai`, DeepSeek): la clave de cada docente, cifrada
+  (`AiAccount`, con `github.crypto`); una consulta por respuesta abierta (`ai.grading.propose`), con
+  el contexto común primero (para la caché de DeepSeek) y la respuesta al final, sin datos que
+  identifiquen al estudiante. La propuesta (`AiProposal`) solo llena el formulario de nota: la nota
+  la guarda siempre el docente (`answer_grade` marca la propuesta como aplicada).
 - **Repasos** (`Activity.Kind.PRACTICE`, `use: practice`): sin nota (nunca entran en
   `gradebook`), sin tiempo y con intentos ilimitados. «Comprobar» (`engine.check`) califica una
   pregunta al momento y la deja cerrada en ese intento (`Attempt.checked`); la explicación del ítem
@@ -287,7 +299,7 @@ Reglas de interacción:
 
 - El formato, su validación y su compilación viven en `policlase-gen`; la plataforma lo importa, no
   lo reimplementa.
-- Toda clave nueva: validación con código de diagnóstico, catálogo en `schema.md`, prueba.
+- Toda clave nueva: validación con código de diagnóstico, entrada en el catálogo (`schema/07-validacion.md`, que una prueba compara con `errors.py`) y en la parte del formato que la explica, prueba.
 - Las ediciones automáticas del YAML (panel del editor) tocan solo las líneas necesarias
   (`deck_text.py`), para que el diff en git sea legible.
 - LaTeX entre **comillas simples**; las plantillas del editor ya lo hacen.
@@ -305,7 +317,7 @@ Reglas de interacción:
   posición absoluta dentro (el MathML oculto de KaTeX, `.sr-only`) se ubica respecto de la página y
   la alarga si no.
 - **Un solo formato y un solo editor** (`studio.html` + `studio.js`): clases, actividades y
-  evaluaciones se escriben en `policlase/v1` (schema.md §9), con `use` y **segmentos** que cambian el
+  evaluaciones se escriben en `policlase/v1` ([schema, parte 5](../../policlase-gen/docs/schema/05-documentos.md)), con `use` y **segmentos** que cambian el
   comportamiento de lo que les sigue (tiempo por pregunta, pegar). El tipo lo dice el texto (`use:`;
   el `schema` en los formatos anteriores, que siguen valiendo); lo que es de un solo tipo lleva
   `data-kinds="deck"` o `"activity"`. Las posiciones del panel son las del archivo (`at`), con los

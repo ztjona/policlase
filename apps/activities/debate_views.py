@@ -8,7 +8,6 @@ from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.dateparse import parse_datetime
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
@@ -56,7 +55,7 @@ def debate_revise(request, course_pk, pk):
     except debate.DebateError as exc:
         messages.error(request, str(exc))
     else:
-        messages.success(request, _("Se publicó su respuesta en el debate. No cambia su nota."))
+        messages.success(request, _("Se publicó su respuesta en el debate."))
     return redirect(_back(activity, f"debate-{key}"))
 
 
@@ -142,7 +141,8 @@ def debate_teacher(request, course_pk, pk):
 @teacher_required
 @require_POST
 def debate_teacher_action(request, course_pk, pk):
-    """Cerrar o reabrir el debate, fijar su cierre, comentar y ocultar o mostrar lo publicado."""
+    """Cerrar o reabrir el debate, comentar y ocultar o mostrar lo publicado. Cuándo se cierra solo
+    se configura con las fechas de la actividad."""
     activity = _own(request, course_pk, pk)
     back = reverse("debate_teacher", args=[activity.course_id, activity.pk])
     action = request.POST.get("action", "")
@@ -152,23 +152,6 @@ def debate_teacher_action(request, course_pk, pk):
     elif action == "reopen":
         debate.reopen(activity)
         messages.success(request, _("El debate se reabrió hasta que usted lo cierre."))
-    elif action == "schedule":
-        tz = timezone.get_current_timezone()
-        when = parse_datetime(request.POST.get("debate_until", "") or "")
-        if when and timezone.is_naive(when):
-            when = timezone.make_aware(when, tz)
-        if request.POST.get("mode") == "manual":
-            activity.debate_until = None
-        elif when is None:
-            messages.error(request, _("Indique la fecha y hora de cierre del debate."))
-            return redirect(back)
-        elif activity.due_at and when <= activity.due_at:
-            messages.error(request, _("El cierre del debate debe ser posterior a la fecha de entrega, que es cuando se abre."))
-            return redirect(back)
-        else:
-            activity.debate_until = when
-        activity.save(update_fields=["debate_until"])
-        messages.success(request, _("Se guardó el cierre del debate."))
     elif action in ("hide", "show"):
         target = (_entry(activity, request.POST["entry"]) if request.POST.get("entry")
                   else _reply(activity, request.POST.get("reply")))

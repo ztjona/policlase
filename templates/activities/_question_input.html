@@ -1,10 +1,10 @@
 {% load i18n policlase %}
 {% comment %} Una pregunta del intento en curso, con lo guardado en el borrador. `row` viene de engine.answer_rows.
-   Con tiempo (row.timer): sin abrir no se ve el enunciado; abierta, sin cuenta regresiva a la vista (una señal discreta
-   10 s antes y, al acabarse, el aviso de que todavía puede responder con penalización); cerrada,
+   Con tiempo (row.timer): sin abrir no se ve el enunciado; abierta, sin cuenta regresiva a la vista y sin aviso al
+   acabarse (solo una señal discreta 10 s antes: lo que llegue después vale con la penalización por atraso); cerrada,
    solo se lee lo respondido. Los botones usan formaction: sin JavaScript también funcionan. {% endcomment %}
 {% with q=row.question value=row.draft key=row.key timer=row.timer %}
-<fieldset class="q-block{% if q.follow_up %} follow-up{% endif %}{% if error %} has-error{% endif %}{% if timer %} timed timed-{{ timer.state }}{% if timer.overtime %} overtime{% endif %}{% endif %}" id="q-{{ key }}"
+<fieldset class="q-block{% if q.follow_up %} follow-up{% endif %}{% if error %} has-error{% endif %}{% if timer %} timed timed-{{ timer.state }}{% endif %}" id="q-{{ key }}"
           data-q="{{ key }}"{% if timer.state == "closed" %} data-done="{% if row.blank %}0{% else %}1{% endif %}"{% endif %}
           {% if timer %}data-timed="{{ key }}"{% if timer.state == "open" %} data-remaining-ms="{{ timer.remaining_ms }}"{% endif %}{% endif %}>
   {% if bare %}<legend class="small"><strong>{% translate "Su respuesta para el debate" %}</strong></legend>{% else %}
@@ -95,10 +95,14 @@
   {% if q.debate %}
     {# Pregunta de debate: la justificación va con la respuesta y, desde la fecha de entrega, la leen los compañeros. #}
     <div class="debate-reason">
-      <label for="w-{{ key }}">{% translate "Justifique su respuesta" %}</label>
-      <textarea id="w-{{ key }}" name="w-{{ key }}" rows="3" maxlength="3000" data-open {% if q.block_paste %}data-no-paste{% endif %}>{{ row.reason }}</textarea>
-      <div class="open-preview" data-math-preview="w-{{ key }}" aria-live="polite" hidden></div>
-      <p class="small muted">{% if bare %}{% translate "Sus compañeros verán esta respuesta y su justificación, con su nombre. No cambia su nota." %}{% else %}{% translate "Esta pregunta se debate con sus compañeros. Después de la fecha de entrega, ellos verán su respuesta y esta justificación, con su nombre, y podrán comentarlas. La corrección se mostrará cuando se cierre el debate." %}{% endif %}</p>
+      <div class="debate-reason-head">{% icon "forum" 18 %}
+        <label for="w-{{ key }}">{% if bare %}{% translate "Su justificación" %}{% else %}{% translate "Justifique su respuesta" %}{% endif %}</label>
+        {% translate "Puede usar Markdown y LaTeX, por ejemplo **negrita**, *cursiva*, listas con «-», tablas con «|» y fórmulas entre $…$ o $$…$$." as md_help %}
+        <span class="tip small muted md-hint" tabindex="0" role="note" aria-label="{{ md_help }}" data-tip="{{ md_help }}">{% translate "Markdown y LaTeX" %} {% icon "info" 14 %}</span>
+      </div>
+      <textarea id="w-{{ key }}" name="w-{{ key }}" rows="3" maxlength="3000" data-md-preview="{% url 'student_preview' %}" {% if q.block_paste %}data-no-paste{% endif %}>{{ row.reason }}</textarea>
+      {% include "activities/_md_preview.html" with prefix="w-" ident=key %}
+      <p class="small muted">{% if bare %}{% translate "Sus compañeros verán esta respuesta y su justificación, con su nombre." %}{% else %}{% translate "Esta pregunta se debate con sus compañeros. Después de la fecha de entrega, ellos verán su respuesta y esta justificación, con su nombre, y podrán comentarlas." %}{% endif %}</p>
     </div>
   {% endif %}
   {% if q.block_paste %}<p class="small muted">{% translate "En esta pregunta no se puede pegar texto." %}</p>{% endif %}
@@ -110,7 +114,6 @@
     </div>
   {% endif %}
   {% if timer.state == "open" %}
-    <p class="small overtime-note" data-overtime-note role="status"{% if not timer.overtime %} hidden{% endif %}>{% blocktranslate with p=activity.late_penalty %}El tiempo de esta pregunta terminó. Todavía puede responderla, con un {{ p }} % menos.{% endblocktranslate %}</p>
     <div class="timer-bar row">
       <button type="submit" formaction="{% url 'attempt_timer' course.pk activity.pk key 'responder' %}" data-timer-close>{% translate "Responder" %}</button>
     </div>

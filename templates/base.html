@@ -45,6 +45,7 @@
             {% if user.is_teacher %}
               <a role="menuitem" href="{% url 'course_create' %}">{% translate "Nuevo curso" %}</a>
               <a role="menuitem" href="{% url 'github_account' %}">GitHub</a>
+              <a role="menuitem" href="{% url 'ai_account' %}">{% translate "Inteligencia artificial" %}</a>
             {% else %}
               <a role="menuitem" href="{% url 'live_join' %}">{% translate "Entrar a clase en vivo" %}</a>
               <a role="menuitem" href="{% url 'course_join' %}">{% translate "Inscribirse en un curso" %}</a>

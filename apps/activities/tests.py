@@ -689,17 +689,6 @@ class TimedAndSurveyTests(ActivityBase):
         self.assertTrue(answer.late and answer.correct)
         self.assertAlmostEqual(answer.points, 0.7)
 
-    def test_el_tiempo_adicional_alarga_las_preguntas(self):
-        Enrollment.objects.filter(student=self.ana).update(extra_time_pct=100)
-        attempt = engine.start(self.timed, self.ana)
-        question = next(q for q in attempt.questions if q["key"] == "T-barra.q1")
-        self.assertEqual(engine.timer(attempt, question).limit_s, 30)      # 15 s + 100 %
-        start = timezone.now() - timedelta(seconds=20)
-        attempt = engine.open_timer(attempt, "T-barra.q1", now=start)
-        engine.save_draft(attempt, {"T-barra.q1": "\\"})
-        attempt.refresh_from_db()
-        self.assertNotIn("late", attempt.timers["T-barra.q1"])
-
     def test_responder_cierra_la_pregunta_y_el_autoguardado_no_la_reabre(self):
         attempt = engine.open_timer(engine.start(self.timed, self.ana), "T-barra.q1")
         attempt = engine.close_timer(attempt, "T-barra.q1", {"T-barra.q1": "\\"})
@@ -1073,6 +1062,21 @@ class PresentTests(WorkshopBase):
 
 
 class PanelsAndReviewTests(WorkshopBase):
+    def test_enter_en_un_campo_no_cierra_una_pregunta_con_tiempo(self):
+        """El botón por omisión del formulario (el que pulsa Enter) es «Guardar», no el «Responder» de
+        una pregunta con tiempo abierta."""
+        import re
+
+        attempt = engine.start(self.workshop, self.ana)
+        timed = next(q["key"] for q in attempt.questions if q.get("time_limit_s"))
+        engine.open_timer(attempt, timed)
+        self.client.force_login(self.ana)
+        page = self.client.get(reverse("attempt_form", args=[self.course.pk, self.workshop.pk])).content.decode()
+        form = page[page.index('id="attempt-form"'):]
+        first = re.search(r'<button[^>]*type="submit"[^>]*>', form).group(0)
+        self.assertIn('value="save"', first)
+        self.assertIn("data-timer-close", form)
+
     def test_marcar_para_revisar_se_guarda(self):
         engine.start(self.activity, self.ana)
         self.client.force_login(self.ana)
@@ -1203,9 +1207,11 @@ class EvaluationTests(ActivityBase):
             attempt.refresh_from_db()
         return attempt
 
-    def test_tiempo_adicional_y_prorroga(self):
-        Enrollment.objects.filter(student=self.ana).update(extra_time_pct=50)
-        attempt = self.started(minutes_ago=80)                            # 60 min + 50 % = 90
+    def test_prorroga_con_duracion_propia(self):
+        engine.grant_extension(self.exam, self.ana, self.exam.due_at + timedelta(hours=1), duration_min=90,
+                               note="Adecuación")
+        self.exam.refresh_from_db()
+        attempt = self.started(minutes_ago=80)                            # 90 min propios, no 60
         engine.save_draft(attempt, {"P1-a.q1": "1.4142"})                 # todavía puede
         self.assertEqual(engine.remaining_ms(attempt) // 60_000, 9)
         # Bruno rinde otro día: su propio horario.
@@ -1551,10 +1557,32 @@ class DebateTests(ActivityBase):
         self.assertEqual(DebateReply.objects.filter(author=self.ana).count(), 0)
         self.assertEqual(response.status_code, 302)
         self.client.force_login(self.teacher)
-        self.client.post(action, {"action": "schedule", "mode": "fixed",
-                                  "debate_until": (timezone.localtime() + timedelta(days=3)).strftime("%Y-%m-%dT%H:%M")})
+        self.client.post(action, {"action": "reopen"})
         self.deb.refresh_from_db()
         self.assertTrue(self.deb.debate_open())
+
+    def test_el_debate_se_cierra_con_la_revision_y_se_configura_con_las_fechas(self):
+        prueba = Milestone.objects.create(course=self.course, name="Prueba 1", on=timezone.localdate() + timedelta(days=9))
+        self.client.force_login(self.teacher)
+        url = reverse("activity_detail", args=[self.course.pk, self.deb.pk])
+        self.assertContains(self.client.get(url), 'name="debate_mode"')     # hay preguntas de debate
+        due = timezone.localtime() + timedelta(days=2)
+        data = {"category": self.deberes.pk, "published": "on", "due_mode": "fixed",
+                "due_at": due.strftime("%Y-%m-%dT%H:%M"), "review_mode": "milestone", "review_milestone": prueba.pk,
+                "review_offset_days": "0", "review_time": "07:00", "late_policy": "penalty", "late_penalty": "30",
+                "max_attempts": "3", "auto_submit": "on", "debate_mode": "review"}
+        self.client.post(url, data)
+        self.deb.refresh_from_db()
+        self.assertEqual(self.deb.debate_close, self.deb.review_until)       # por omisión, con la revisión
+        early = (due - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M")
+        response = self.client.post(url, {**data, "debate_mode": "fixed", "debate_until": early})
+        self.assertContains(response, "posterior a la fecha de entrega")
+        later = due + timedelta(days=3)
+        self.client.post(url, {**data, "debate_mode": "fixed", "debate_until": later.strftime("%Y-%m-%dT%H:%M")})
+        self.deb.refresh_from_db()
+        self.assertEqual(timezone.localtime(self.deb.debate_close).date(), later.date())
+        self.assertNotContains(self.client.get(reverse("activity_detail", args=[self.course.pk, self.activity.pk])),
+                               'name="debate_mode"')                           # sin preguntas de debate, no aparece
 
     def test_aislamiento(self):
         self.send(self.ana, self.right, "Newton")

@@ -9,22 +9,22 @@
     <h3>{% translate "Debate" %}</h3>
     {% if thread %}<span class="small muted">{% blocktranslate count n=thread.total %}{{ n }} respuesta{% plural %}{{ n }} respuestas{% endblocktranslate %} · {% blocktranslate count n=thread.replies %}{{ n }} comentario{% plural %}{{ n }} comentarios{% endblocktranslate %}</span>{% endif %}
     <span class="small muted debate-when">
-      {% if activity.debate_closed %}{% blocktranslate with when=activity.debate_until|date:"D d M, H:i" %}Cerrado el {{ when }}{% endblocktranslate %}
+      {% if activity.debate_closed %}{% blocktranslate with when=activity.debate_close|date:"D d M, H:i" %}Cerrado el {{ when }}{% endblocktranslate %}
       {% elif not activity.is_past_due %}{% blocktranslate with when=activity.due_at|date:"D d M, H:i" %}Se abre el {{ when }}{% endblocktranslate %}
-      {% elif activity.debate_until %}{% blocktranslate with when=activity.debate_until|date:"D d M, H:i" %}Abierto hasta el {{ when }}{% endblocktranslate %}
+      {% elif activity.debate_close %}{% blocktranslate with when=activity.debate_close|date:"D d M, H:i" %}Abierto hasta el {{ when }}{% endblocktranslate %}
       {% else %}{% translate "Abierto hasta que el docente lo cierre" %}{% endif %}
     </span>
   </div>
   {% if not teacher %}
     {% if access.status == "open" or access.status == "join" %}
-      <p class="small muted" style="margin:0">{% translate "Lea las respuestas de sus compañeros, coméntelas y, si cambia de opinión, publique una respuesta revisada. Lo que publique aquí no cambia su nota. La corrección y la explicación se mostrarán cuando se cierre el debate." %}</p>
+      <p class="small muted" style="margin:0">{% translate "Lea las respuestas de sus compañeros, coméntelas y actualice su respuesta de ser necesario." %}</p>
     {% endif %}
     {% if access.message %}<p class="small{% if access.status == 'join' %}{% else %} muted{% endif %}" style="margin:0">{{ access.message }}</p>{% endif %}
     {% if panel.verdict is True %}<p class="small" style="margin:0"><span class="chip ok">{% translate "correcta" %}</span> {% translate "Su respuesta revisada es correcta (sin nota)." %}</p>
     {% elif panel.verdict is False %}<p class="small" style="margin:0"><span class="chip danger">{% translate "incorrecta" %}</span> {% translate "Su respuesta revisada no es correcta (sin nota)." %}</p>{% endif %}
     {% if panel.form_row %}
       <details class="debate-revise"{% if access.status == "join" %} open{% endif %}>
-        <summary class="btn secondary small">{% if access.status == "join" %}{% translate "Publicar mi respuesta" %}{% elif access.entry.revised_at %}{% translate "Cambiar mi respuesta revisada" %}{% else %}{% translate "Publicar una respuesta revisada" %}{% endif %}</summary>
+        <summary class="btn secondary small">{% if access.status == "join" %}{% translate "Publicar mi respuesta" %}{% else %}{% translate "Actualizar mi respuesta" %}{% endif %}</summary>
         <form method="post" action="{% url 'debate_revise' course.pk activity.pk %}" class="stack">{% csrf_token %}
           <input type="hidden" name="key" value="{{ panel.key }}">
           {% include "activities/_question_input.html" with row=panel.form_row bare=True error=None %}
@@ -41,15 +41,15 @@
           <div class="entry-head">
             <strong>{{ e.name }}</strong>
             {% if e.mine %}<span class="chip">{% translate "su respuesta" %}</span>{% endif %}
-            {% if e.revised_at %}<span class="chip" title="{% blocktranslate with when=e.revised_at|date:'D d M, H:i' %}Publicada durante el debate, el {{ when }}. No cambia la nota.{% endblocktranslate %}">{% if e.value is None %}{% translate "publicada en el debate" %}{% else %}{% translate "revisada" %}{% endif %}</span>{% endif %}
+            {% if e.revised_at %}<span class="chip" title="{% blocktranslate with when=e.revised_at|date:'D d M, H:i' %}Publicada durante el debate, el {{ when }}.{% endblocktranslate %}">{% if e.value is None %}{% translate "publicada en el debate" %}{% else %}{% translate "revisada" %}{% endif %}</span>{% endif %}
             {% if e.hidden %}<span class="chip warn">{% translate "oculta por el docente" %}</span>{% endif %}
           </div>
           <div class="entry-answer">{% include "activities/_debate_value.html" with value=e.shown_value %}</div>
           {% if e.revised_at and e.value is not None and e.value != e.revised_value %}<p class="small muted entry-original">{% translate "Respuesta original:" %} {% include "activities/_debate_value.html" with value=e.value %}</p>{% endif %}
           {% if e.preview %}
-            <div class="reason has-more"><p class="reason-preview">{{ e.preview|student_math }}</p>
-              <details><summary class="small">{% translate "Leer completa" %}</summary><div class="reason-full">{{ e.shown_reason|student_math }}</div></details></div>
-          {% elif e.shown_reason %}<div class="reason">{{ e.shown_reason|student_math }}</div>
+            <div class="reason has-more"><div class="reason-preview">{{ e.preview|student_md }}</div>
+              <details><summary class="small">{% translate "Leer completa" %}</summary><div class="reason-full">{{ e.shown_reason|student_md }}</div></details></div>
+          {% elif e.shown_reason %}<div class="reason">{{ e.shown_reason|student_md }}</div>
           {% else %}<p class="small muted reason">{% translate "Sin justificación." %}</p>{% endif %}
 
           <div class="entry-actions">
@@ -71,7 +71,7 @@
                     <span class="small muted">{{ r.created_at|date:"d M, H:i" }}</span>
                     {% if r.hidden %}<span class="chip warn">{% translate "oculto por el docente" %}</span>{% endif %}
                   </div>
-                  <div class="reply-body">{{ r.body|student_math }}</div>
+                  <div class="reply-body">{{ r.body|student_md }}</div>
                   <div class="entry-actions">
                     {% include "activities/_debate_like.html" with target="reply" obj=r %}
                     {% if teacher %}
@@ -96,7 +96,9 @@
                 <input type="hidden" name="entry" value="{{ e.pk }}">
                 {% if teacher %}<input type="hidden" name="action" value="reply">{% endif %}
                 <label class="sr-only" for="body-{{ e.pk }}">{% blocktranslate with name=e.name %}Comentario sobre la respuesta de {{ name }}{% endblocktranslate %}</label>
-                <textarea id="body-{{ e.pk }}" name="body" rows="2" maxlength="2000" required></textarea>
+                <textarea id="body-{{ e.pk }}" name="body" rows="2" maxlength="2000" required data-md-preview="{% url 'student_preview' %}"
+                          placeholder="{% translate 'Puede usar Markdown y LaTeX ($…$).' %}"></textarea>
+                {% include "activities/_md_preview.html" with prefix="body-" ident=e.pk %}
                 <div class="row"><button class="small">{% translate "Publicar el comentario" %}</button>
                   <span class="small muted">{% translate "Lo verán todos los participantes, con su nombre." %}</span></div>
               </form>

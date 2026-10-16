@@ -19,12 +19,12 @@
     <table class="gradebook">
       {% if chosen %}
         <thead><tr>
-          <th>{% translate "Estudiante" %}</th>
-          {% for c in header %}<th class="num">{{ c.category.name }}<div class="muted">{{ c.category.weight|floatformat:"-2" }} %{% if c.category.optional %} · {% translate "opcional" %}{% endif %}</div></th>{% endfor %}
-          <th class="num">{% translate "Total" %}</th>
+          <th>{% translate "Estudiante" as label %}{% include "grades/_sort.html" with link=name_sort %}</th>
+          {% for c in header %}{% with link=sorts|get_item:forloop.counter0 %}<th class="num">{% include "grades/_sort.html" with label=c.category.name %}<div class="muted">{{ c.category.weight|floatformat:"-2" }} %{% if c.category.optional %} · {% translate "opcional" %}{% endif %}</div></th>{% endwith %}{% endfor %}
+          <th class="num">{% translate "Total" as label %}{% include "grades/_sort.html" with link=sorts|last %}</th>
         </tr></thead>
         <tbody>
-          {% for g, pg in detail %}
+          {% for g, pg in rows %}
             <tr>
               <td>{% include "activities/_name.html" with s=g.student %}</td>
               {% for c in pg.cells %}<td class="num small">{% if c.fraction is None %}<span class="muted">—</span>{% else %}{{ c.points|floatformat:2 }} <span class="muted">({% widthratio c.fraction 1 100 %} %)</span>{% if c.pending %} <span class="chip warn" title="{% translate 'entregas con preguntas por revisar' %}">{{ c.pending }}</span>{% endif %}{% endif %}</td>{% endfor %}
@@ -34,12 +34,12 @@
         </tbody>
       {% else %}
         <thead><tr>
-          <th>{% translate "Estudiante" %}</th>
-          {% for p in periods %}<th class="num">{{ p.name }}</th>{% endfor %}
-          <th class="num">{% translate "Suma" %}</th><th>{% translate "Estado" %}</th>
+          <th>{% translate "Estudiante" as label %}{% include "grades/_sort.html" with link=name_sort %}</th>
+          {% for p in periods %}{% with link=sorts|get_item:forloop.counter0 %}<th class="num">{% include "grades/_sort.html" with label=p.name %}</th>{% endwith %}{% endfor %}
+          <th class="num">{% translate "Suma" as label %}{% include "grades/_sort.html" with link=sorts|last %}</th><th>{% translate "Estado" %}</th>
         </tr></thead>
         <tbody>
-          {% for g in grades %}
+          {% for g, unused in rows %}
             <tr>
               <td>{% include "activities/_name.html" with s=g.student %}</td>
               {% for pg in g.periods %}<td class="num">{{ pg.total|floatformat:2 }}{% if pg.capped %} <span class="small muted" title="{% translate 'Con los componentes opcionales supera el máximo; se registra el máximo' %}">({{ pg.raw|floatformat:2 }})</span>{% endif %}</td>{% endfor %}
@@ -49,6 +49,12 @@
           {% endfor %}
         </tbody>
       {% endif %}
+      {# El promedio del curso en cada columna, entre quienes ya tienen nota en ella. #}
+      <tfoot><tr class="average-row">
+        <th scope="row">{% translate "Promedio" %}</th>
+        {% for avg in averages %}<td class="num">{% if avg is None %}<span class="muted">—</span>{% elif forloop.last %}<strong>{{ avg|floatformat:2 }}</strong>{% else %}{{ avg|floatformat:2 }}{% endif %}</td>{% endfor %}
+        {% if not chosen %}<td></td>{% endif %}
+      </tr></tfoot>
     </table>
   </div>
   <p class="small muted">{% if chosen %}{% translate "Cada celda: los puntos que aporta el componente al parcial y, entre paréntesis, el porcentaje logrado en él." %}{% else %}{% translate "El estado (aprobado, supletorio, reprobado) se muestra cuando han cerrado todos los parciales." %}{% endif %}</p>

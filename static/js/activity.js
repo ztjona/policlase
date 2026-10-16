@@ -236,17 +236,11 @@
   function startTimer(block) {
     if (!block || !block.dataset || block.dataset.remainingMs === undefined) return;
     var end = Date.now() + Number(block.dataset.remainingMs);
-    var note = block.querySelector("[data-overtime-note]");
     function tick() {
       if (!block.isConnected) return;
       var left = end - Date.now();
       block.classList.toggle("ending", left > 0 && left <= 10000);
-      if (left <= 0) {
-        block.classList.add("overtime");
-        if (note) note.hidden = false;
-        return;
-      }
-      setTimeout(tick, 500);
+      if (left > 0) setTimeout(tick, 500);
     }
     tick();
   }
@@ -257,8 +251,38 @@
     var button = e.target.closest("[data-timer-open], [data-timer-close]");
     if (!button) return;
     e.preventDefault();
-    timerAction(button.closest("[data-timed]"), button.getAttribute("formaction"));
+    var block = button.closest("[data-timed]");
+    if (button.hasAttribute("data-timer-close") && !answered(block) &&
+        !window.confirm(gettext("Todavía no ha respondido esta pregunta. Si la cierra ahora, ya no podrá responderla. ¿Cerrarla?"))) return;
+    timerAction(block, button.getAttribute("formaction"));
   });
+
+
+  // Justificaciones y comentarios del debate: la vista previa la hace el servidor, con el mismo
+  // markdown con que los verán los demás (tablas, negrita, listas y fórmulas).
+  function mdPreview(area) {
+    var box = document.querySelector('[data-md-box="' + CSS.escape(area.id) + '"]');
+    if (!box) return;
+    clearTimeout(area.mdTimer);
+    if (!area.value.trim()) { box.hidden = true; return; }
+    area.mdTimer = setTimeout(function () {
+      var data = new FormData();
+      data.set("text", area.value);
+      fetch(area.dataset.mdPreview, {
+        method: "POST", body: data, credentials: "same-origin",
+        headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" },
+      }).then(function (r) { return r.json(); }).then(function (res) {
+        var html = box.querySelector("[data-md-html]");
+        html.innerHTML = res.html;
+        box.hidden = false;
+        if (window.policlaseMath) window.policlaseMath(html);
+      }).catch(function () {});
+    }, 400);
+  }
+  document.addEventListener("input", function (e) {
+    if (e.target.matches("textarea[data-md-preview]")) mdPreview(e.target);
+  });
+  document.querySelectorAll("textarea[data-md-preview]").forEach(function (area) { if (area.value.trim()) mdPreview(area); });
 
   // ------------------------------------------------------------------ repaso
   // «Comprobar»: viaja el formulario entero; el servidor califica esa pregunta y devuelve su
@@ -298,6 +322,13 @@
     checkAction(button.closest("[data-q]"), button.getAttribute("formaction"));
   });
 
+  // Enter en un campo de texto no envía el formulario: el autoguardado ya guarda, y el envío
+  // implícito pulsaría el primer botón de la página (por ejemplo, «Responder» de otra pregunta).
+  form.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter" || e.target.tagName !== "INPUT") return;
+    if (["submit", "button", "checkbox", "radio", "file"].indexOf(e.target.type) === -1) e.preventDefault();
+  });
+
   // Enviar o guardar con el botón: viajan también las señales pendientes.
   form.addEventListener("submit", function () {
     clearTimeout(timer);
@@ -323,7 +354,7 @@
     if (block.classList.contains("timed-locked")) return false;
     if (block.querySelector(".upload")) return true;
     return Array.from(block.querySelectorAll("input, textarea")).some(function (el) {
-      if (el.name === "mark" || el.type === "file" || el.type === "hidden") return false;
+      if (el.name === "mark" || el.type === "file" || el.type === "hidden" || el.name.indexOf("w-") === 0) return false;
       if (el.type === "radio" || el.type === "checkbox") return el.checked;
       return el.value.trim() !== "";
     });

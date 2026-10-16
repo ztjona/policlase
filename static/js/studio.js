@@ -22,13 +22,13 @@
   var body = document.getElementById("studio-body");
   var TEMPLATES = JSON.parse(document.getElementById("studio-templates").textContent);
   // El tipo según el texto: `use:` en el formato único; el `schema` en los anteriores.
-  var USE = /^use\s*:\s*['"]?(class|activity|evaluation)\b/m;
+  var USE = /^use\s*:\s*['"]?(class|activity|evaluation|practice)\b/m;
   var LEGACY = /^schema\s*:\s*['"]?policlase\.(deck|activity)\//m;
   function declaredKind(text) {
     var legacy = LEGACY.exec(text);
     if (legacy) return legacy[1];
     var use = USE.exec(text);
-    return use ? ({ "class": "deck", activity: "activity" }[use[1]] || null) : null;
+    return use ? ({ "class": "deck", activity: "activity", evaluation: "activity", practice: "activity" }[use[1]] || null) : null;
   }
   function legacyActivity() { var m = LEGACY.exec(ed.get()); return !!m && m[1] === "activity"; }
 
@@ -373,9 +373,11 @@
     return "  - segment:\n      title: " + q(gettext("Con tiempo")) + "\n      time_limit_s: 30\n" +
       (activity() ? "      block_paste: true\n" : "");
   };
-  // Solución: el estudiante la ve en la revisión, al vencer la fecha de entrega.
+  // Solución: explica el ítem que la precede (por eso se inserta justo después del ítem del cursor);
+  // el estudiante la abre con «Ver la explicación» en la revisión.
   SNIPPETS.solution = function () {
-    return "  - solution: |\n      ## " + gettext("Solución") + "\n      " + gettext("Explique aquí el desarrollo o el código de la solución.") + "\n";
+    return "  - solution: |             # " + gettext("explica el ítem anterior") + "\n      ## " + gettext("Explicación") +
+      "\n      " + gettext("Explique aquí el desarrollo o el código de la solución.") + "\n";
   };
   SNIPPETS.image = function () {
     return head("image") + "          prompt: " + q(gettext("Suba la foto de su desarrollo a mano.")) + "\n          max_files: 3\n";
@@ -462,13 +464,16 @@
   function unified(base, isActivity) {
     var out = JSON.parse(JSON.stringify(base));
     out.root = Object.assign({ schema: "Versión del formato: policlase/v1", title: "Título (obligatorio)",
-                               use: "class (clase en vivo) · activity (actividad) · evaluation",
+                               use: "class (clase en vivo) · activity (actividad) · evaluation (evaluación) · practice (repaso)",
                                slides: "Contenido, ítems y segmentos", meta: "Datos libres" }, BEHAVIOR);
     if (isActivity) out.root.instructions = "Indicaciones (markdown), antes de empezar";
     else Object.assign(out.root, { feedback: KEYS.root.feedback, speed_bonus: KEYS.root.speed_bonus });
     out.slides = { markdown: KEYS.slides.markdown, item: "Un ítem", notes: KEYS.slides.notes, hidden: KEYS.slides.hidden,
                    segment: "Cambia el comportamiento desde aquí (time_limit_s, block_paste)" };
-    if (isActivity) out.slides.solution = "Solución (markdown): se muestra en la revisión, al vencer la fecha";
+    if (isActivity) {
+      out.slides.solution = "Explicación del ítem anterior (markdown): en la revisión, con «Ver la explicación»";
+      out.questions.debate = "true: se justifica y se debate con los compañeros (solo en actividades)";
+    }
     out.segment = Object.assign({ title: "Título del segmento (opcional)", instructions: "Indicaciones del segmento" }, BEHAVIOR);
     out.grading.mode = isActivity ? "open/image: manual o ai · choice/multi_choice: survey (encuesta)"
                                   : "choice/multi_choice: survey (encuesta, sin correcta ni puntos)";
@@ -478,7 +483,8 @@
   var U_VALUES = { deck: JSON.parse(JSON.stringify(VALUES)), activity: JSON.parse(JSON.stringify(A_VALUES)) };
   ["deck", "activity"].forEach(function (k) {
     U_VALUES[k].schema = ["policlase/v1"];
-    U_VALUES[k].use = ["class", "activity"];
+    U_VALUES[k].use = k === "activity" ? ["activity", "evaluation", "practice"] : ["class", "activity"];
+    if (k === "activity") U_VALUES[k].debate = ["true", "false"];
     U_VALUES[k].block_paste = ["true", "false"];
     U_VALUES[k].mode = k === "activity" ? ["manual", "ai", "survey"] : ["survey"];
   });

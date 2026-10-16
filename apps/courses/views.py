@@ -349,28 +349,22 @@ def course_settings(request, pk):
         "github_url": reverse("github_account"),
         "approved": [e for e in enrollments if e.status == Status.APPROVED],
         "rejected": [e for e in enrollments if e.status == Status.REJECTED],
-        "extra_choices": Enrollment._meta.get_field("extra_time_pct").choices,
     })
 
 
 @teacher_required
 @require_POST
 def enrollment_details(request, pk):
-    """Nombre preferido y tiempo adicional de los inscritos (la tabla de la configuración del curso)."""
+    """El nombre preferido de los inscritos (la tabla de la configuración del curso)."""
+    from apps.accounts.names import name_case
+
     course = owned_course(request, pk)
-    allowed = {value for value, _label in Enrollment._meta.get_field("extra_time_pct").choices}
     changed = 0
     for e in course.enrollments.filter(status=Status.APPROVED):
-        name = " ".join(request.POST.get(f"name-{e.pk}", e.preferred_name).split())[:60]
-        try:
-            extra = int(request.POST.get(f"extra-{e.pk}", e.extra_time_pct))
-        except ValueError:
-            extra = e.extra_time_pct
-        if extra not in allowed:
-            extra = e.extra_time_pct
-        if (name, extra) != (e.preferred_name, e.extra_time_pct):
-            e.preferred_name, e.extra_time_pct = name, extra
-            e.save(update_fields=["preferred_name", "extra_time_pct"])
+        name = name_case(" ".join(request.POST.get(f"name-{e.pk}", e.preferred_name).split())[:60])
+        if name != e.preferred_name:
+            e.preferred_name = name
+            e.save(update_fields=["preferred_name"])
             changed += 1
     messages.success(request, ngettext("Se actualizó %(n)d inscrito.", "Se actualizaron %(n)d inscritos.", changed)
                      % {"n": changed})

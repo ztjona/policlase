@@ -17,8 +17,7 @@ futura API digan lo mismo:
 - Una pregunta con tiempo (`time_limit_s`, de un segmento) no se ve hasta que el estudiante la
   abre; desde ahí corre el reloj del servidor. Al acabarse el tiempo (más `TIMER_GRACE_S` por la
   conexión) sigue abierta, pero lo que se responda después vale con la penalización por atraso.
-  No se reinicia: cerrar la página no da más tiempo. El tiempo adicional del estudiante
-  (`Enrollment.extra_time_pct`) alarga el de cada pregunta.
+  No se reinicia: cerrar la página no da más tiempo.
 - **Repasos** (`Activity.kind`): sin nota, sin tiempo y con intentos ilimitados. Cada pregunta se
   comprueba al momento (`check`): queda cerrada en ese intento, con su corrección y, cuando se
   comprobó todo el ítem, su explicación.
@@ -134,14 +133,9 @@ def window(activity: Activity, student_id) -> tuple:
     return (ext.opens_at or activity.opens_at), ext.due_at
 
 
-def extra_pct(activity: Activity, student_id) -> int:
-    """El tiempo adicional (en %) del estudiante en el curso de la actividad (adecuación)."""
-    if not hasattr(activity, "_extra"):
-        from apps.courses.models import Enrollment
-
-        activity._extra = dict(Enrollment.objects.filter(course_id=activity.course_id, extra_time_pct__gt=0)
-                               .values_list("student_id", "extra_time_pct"))
-    return activity._extra.get(getattr(student_id, "pk", student_id), 0)
+def extension(activity: Activity, student_id) -> Extension | None:
+    window(activity, student_id)                       # lee las prórrogas de la actividad una vez
+    return activity._extensions.get(getattr(student_id, "pk", student_id))
 
 
 def past_due(activity: Activity, student_id, now=None) -> bool:
@@ -152,16 +146,16 @@ def past_due(activity: Activity, student_id, now=None) -> bool:
 def deadline(attempt: Attempt):
     """Hasta cuándo puede responder este intento. En una actividad, su vencimiento (o el de su
     prórroga). En una evaluación, lo primero entre el cierre y la duración contada desde que
-    empezó; con tiempo adicional, la duración y el cierre se alargan en esa proporción."""
+    empezó; una prórroga puede darle al estudiante su propio horario y su propia duración
+    (adecuación)."""
     activity = attempt.activity
-    opens, due = window(activity, attempt.student_id)
+    _opens, due = window(activity, attempt.student_id)
     if not activity.is_evaluation:
         return due
-    factor = extra_pct(activity, attempt.student_id) / 100
-    if due and opens and factor:
-        due = due + (timedelta(minutes=activity.duration_min) if activity.duration_min else due - opens) * factor
-    if activity.duration_min and attempt.started_at:
-        own = attempt.started_at + timedelta(minutes=activity.duration_min * (1 + factor))
+    ext = extension(activity, attempt.student_id)
+    minutes = (ext.duration_min if ext and ext.duration_min else None) or activity.duration_min
+    if minutes and attempt.started_at:
+        own = attempt.started_at + timedelta(minutes=minutes)
         return min(own, due) if due else own
     return due
 
@@ -308,11 +302,8 @@ class Timer:
 
 
 def limit_s(attempt: Attempt, question: dict) -> int | None:
-    """El tiempo de una pregunta para este estudiante: el del segmento, más su tiempo adicional."""
-    limit = question.get("time_limit_s")
-    if not limit:
-        return None
-    return round(limit * (1 + extra_pct(attempt.activity, attempt.student_id) / 100))
+    """El tiempo de una pregunta (el de su segmento)."""
+    return question.get("time_limit_s") or None
 
 
 def timer(attempt: Attempt, question: dict, now=None) -> Timer | None:
@@ -689,11 +680,14 @@ def reopen_auto_submitted(activity: Activity, now=None) -> int:
     return reopened
 
 
-def grant_extension(activity: Activity, student, due_at, opens_at=None, note: str = "") -> Extension:
+def grant_extension(activity: Activity, student, due_at, opens_at=None, note: str = "",
+                    duration_min: int | None = None) -> Extension:
     """Una prórroga para un estudiante. En una actividad, si su intento se envió solo al vencer la
-    fecha general, vuelve a quedar abierto (salvo que el docente ya lo haya calificado a mano)."""
+    fecha general, vuelve a quedar abierto (salvo que el docente ya lo haya calificado a mano). En
+    una evaluación, puede llevar su propia duración."""
     ext, _created = Extension.objects.update_or_create(
-        activity=activity, student=student, defaults={"due_at": due_at, "opens_at": opens_at, "note": note[:200]})
+        activity=activity, student=student, defaults={"due_at": due_at, "opens_at": opens_at, "note": note[:200],
+                                                      "duration_min": duration_min if activity.is_evaluation else None})
     activity.__dict__.pop("_extensions", None)
     if not activity.is_evaluation and due_at > timezone.now():
         for attempt in Attempt.objects.filter(activity=activity, student=student, auto_submitted=True):

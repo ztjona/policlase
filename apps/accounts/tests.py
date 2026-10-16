@@ -198,3 +198,17 @@ class ThemePreferenceTests(TestCase):
     def test_tema_invalido_se_ignora(self):
         response = self.client.post(reverse("set_theme"), {"theme": "<script>", "next": "/"})
         self.assertNotIn("policlase_theme", response.cookies)
+
+
+class NameCaseTests(TestCase):
+    def test_los_nombres_se_guardan_con_mayuscula_inicial(self):
+        from .names import name_case
+
+        user = User.objects.create_user("danny", "danny@example.ec", "clave-segura-2026",
+                                        first_name="DANNY JAVIER", last_name="CAIZA OÑA")
+        user.refresh_from_db()
+        self.assertEqual((user.first_name, user.last_name), ("Danny Javier", "Caiza Oña"))
+        self.assertEqual(name_case("MARÍA DEL CISNE"), "María del Cisne")
+        self.assertEqual(name_case("DE LA TORRE VEGA"), "De la Torre Vega")
+        self.assertEqual(name_case("McDonald"), "McDonald")                # una mezcla deliberada se respeta
+        self.assertEqual(name_case("Oña A."), "Oña A.")

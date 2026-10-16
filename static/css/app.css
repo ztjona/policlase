@@ -499,11 +499,10 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 }
 .timer.low { background: var(--danger-soft); color: var(--danger); }
 /* El tiempo de la pregunta en vivo: discreto en los controles del proyector; en el teléfono, sin
-   números (10 s antes cambia el marco; al acabarse, el aviso). */
+   números ni aviso al acabarse (solo cambia el marco 10 s antes). */
 .time-left { font-variant-numeric: tabular-nums; font-size: .85rem; color: var(--muted); min-width: 6ch; text-align: center; }
 .time-left.low { color: var(--danger); }
 .phone.ending form { outline: 2px solid var(--danger); outline-offset: 6px; border-radius: var(--radius); }
-.phone.overtime form { outline: 2px dashed var(--danger); outline-offset: 6px; border-radius: var(--radius); }
 
 .options { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: .5em; }
 .option {
@@ -862,14 +861,24 @@ fieldset.part .radio-row input { accent-color: var(--accent); }
 .timer-bar { align-items: center; gap: 12px; }
 /* Sin números: 10 s antes del final, el borde se vuelve más intenso; pasado el tiempo, el aviso. */
 .q-block.timed-open.ending { border-color: var(--danger); transition: border-color .4s; }
-.q-block.timed-open.overtime { border-style: dashed; border-color: var(--danger); }
-.overtime-note { margin: 0; color: var(--danger); }
 .survey-summary { padding-top: 8px; border-top: 1px solid var(--rule); }
 
 /* ------------------------------------------------------------------ debate y explicaciones */
 .chip.debate { background: var(--accent-soft); color: var(--accent); display: inline-flex; align-items: center; gap: 4px; }
-.debate-reason { margin-top: 10px; }
-.debate-reason label { font-weight: 600; }
+/* La justificación de una pregunta de debate: un panel propio, con el color del debate. */
+.debate-reason { margin-top: 12px; padding: 10px 12px; border-left: 3px solid var(--accent); border-radius: var(--radius);
+  background: var(--accent-soft); display: flex; flex-direction: column; gap: 6px; }
+.debate-reason-head { display: flex; align-items: center; gap: 6px; color: var(--accent); flex-wrap: wrap; }
+.debate-reason-head label { font-weight: 600; margin: 0; color: var(--ink); }
+.debate-reason .md-hint { margin-left: auto; display: inline-flex; align-items: center; gap: 2px; }
+.debate-reason textarea { background: var(--surface); }
+.debate-reason > p { margin: 0; }
+.md-preview { border: 1px dashed var(--rule); border-radius: var(--radius); padding: 8px 10px; background: var(--surface); }
+.md-preview-body > :first-child { margin-top: 4px; }
+.md-preview-body > :last-child, .reason > :last-child, .reply-body > :last-child { margin-bottom: 0; }
+.md-preview-body h1, .md-preview-body h2, .reason h1, .reason h2, .reply-body h1, .reply-body h2,
+.reason-given h1, .reason-given h2 { font-size: 1.05rem; margin: .4em 0; }
+.reason table, .reply-body table, .md-preview-body table, .reason-given table { font-size: .9rem; }
 .reason-given { margin: 6px 0 0; }
 /* El foro de una pregunta, dentro de su tarjeta: un panel aparte, con su propio fondo. */
 .debate-panel { border: 1px solid var(--rule); border-radius: var(--radius); background: var(--surface-alt); padding: 14px 16px;
@@ -922,3 +931,26 @@ button.like.on { color: var(--accent); border-color: var(--accent); background: 
   .debate-entry { padding: 8px 10px; }
   .debate-replies { margin-left: 6px; padding-left: 8px; }
 }
+
+/* Calificaciones: encabezados que ordenan la tabla y el promedio al pie. */
+.sort-link { color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 2px; }
+.sort-link:hover, .sort-link.active { color: var(--accent); }
+.gradebook tfoot .average-row th, .gradebook tfoot .average-row td { border-top: 2px solid var(--rule); background: var(--surface-alt); }
+
+/* Revisar imágenes: un clic amplía la miniatura en la página; «Ver las imágenes completas» las amplía todas. */
+.upload.zoomable .zoom-toggle { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.upload.zoomable label { display: block; margin: 0; cursor: zoom-in; }
+.upload.zoomable .zoom-toggle:focus-visible + label img { outline: 2px solid var(--accent); outline-offset: 2px; }
+.upload.zoomable:has(.zoom-toggle:checked), body:has(#full-images:checked) .upload.zoomable { flex-basis: 100%; }
+.upload.zoomable .zoom-toggle:checked + label, body:has(#full-images:checked) .upload.zoomable label { cursor: zoom-out; }
+.upload.zoomable .zoom-toggle:checked + label img, body:has(#full-images:checked) .upload.zoomable img {
+  width: 100%; height: auto; max-height: 90vh; object-fit: contain; }
+.upload.zoomable .upload-open { position: absolute; top: 4px; right: 4px; background: var(--surface); }
+
+/* Calificación asistida por IA: la propuesta, encima del formulario de nota que ya viene lleno con ella. */
+.ai-panel { border-top: 1px solid var(--rule); padding-top: 10px; }
+.ai-proposal { border-left: 3px solid var(--accent); background: var(--accent-soft); border-radius: var(--radius);
+  padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; }
+.ai-criteria { margin: 0; padding-left: 18px; }
+.ai-criteria:empty { display: none; }
+.grade-form textarea.comment-input { flex: 1 1 100%; min-height: 4.8em; resize: vertical; }

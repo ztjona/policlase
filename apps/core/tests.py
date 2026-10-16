@@ -4,6 +4,18 @@ from . import markdown
 
 
 class MarkdownTests(SimpleTestCase):
+    def test_markdown_del_estudiante_sin_enlaces_ni_imagenes(self):
+        html = markdown.render_student("**Porque** $x^2$\nsegunda línea\n\n| a | b |\n|---|---|\n| 1 | 2 |\n"
+                                       "[enlace](http://x) ![foto](http://x/y.png) <script>alert(1)</script>")
+        self.assertIn("<strong>Porque</strong>", html)
+        self.assertIn('<span class="math inline">', html)
+        self.assertIn("<br", html)                                  # el salto de línea se respeta
+        self.assertIn("<table>", html)
+        self.assertNotIn("<a ", html)
+        self.assertNotIn("<img", html)
+        self.assertNotIn("<script", html)
+        self.assertIn("enlace", html)
+
     def test_latex_sobrevive_a_markdown(self):
         html = markdown.render(r"Sea $a_1 * b_2$ y $$\sum_{i=1}^{n} x_i$$")
         self.assertIn('class="math inline"', html)

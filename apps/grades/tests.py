@@ -212,6 +212,24 @@ class GradebookViewTests(GradesBase):
         self.assertContains(detail, "Deberes")
         self.assertContains(detail, "(100 %)")
 
+    def test_ordenar_por_nota_y_promedio(self):
+        User.objects.filter(pk=self.ana.pk).update(last_name="Arias")
+        User.objects.filter(pk=self.bruno.pk).update(last_name="Zambrano")
+        self.deliver(self.activity("d1", self.row(self.p1, "Deberes")), self.bruno)       # Bruno: nota; Ana: cero
+        self.client.force_login(self.teacher)
+        url = reverse("course_gradebook", args=[self.course.pk])
+        by_name = self.client.get(url).content.decode()
+        self.assertLess(by_name.index("Arias"), by_name.index("Zambrano"))                 # por apellido
+        by_total = self.client.get(url + "?orden=2").content.decode()                     # columna «Suma»
+        self.assertLess(by_total.index("Zambrano"), by_total.index("Arias"))              # la nota más alta, primero
+        ascending = self.client.get(url + "?orden=2&dir=asc").content.decode()
+        self.assertLess(ascending.index("Arias"), ascending.index("Zambrano"))
+        response = self.client.get(url)
+        self.assertContains(response, "Promedio")
+        grades = gradebook.course_grades(self.course, [self.ana, self.bruno])
+        expected = sum(float(g.total) for g in grades) / 2
+        self.assertEqual(response.context["averages"][-1], expected)
+
 
 class MatchingTests(TestCase):
     """Los nombres pegados de otra plataforma se emparejan con los inscritos por apellido y nombre."""

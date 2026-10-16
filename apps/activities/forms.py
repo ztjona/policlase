@@ -84,9 +84,11 @@ class ActivitySettingsForm(ReviewMixin, PeriodRowMixin, forms.ModelForm):
     class Meta:
         model = Activity
         fields = ["category", "published", "opens_at", "due_milestone", "due_offset_days", "due_time",
-                  "due_at", *REVIEW_FIELDS, "late_policy", "late_penalty", "max_attempts", "auto_submit"]
+                  "due_at", *REVIEW_FIELDS, "debate_mode", "debate_until",
+                  "late_policy", "late_penalty", "max_attempts", "auto_submit"]
         widgets = {
             "opens_at": DATETIME, "due_at": DATETIME, "due_milestone": TaggedSelect(), "due_time": TIME,
+            "debate_mode": forms.RadioSelect, "debate_until": DATETIME,
             "due_offset_days": forms.NumberInput(attrs={"min": "-60", "max": "60"}),
             "late_penalty": forms.NumberInput(attrs={"min": "0", "max": "100"}),
             "max_attempts": forms.NumberInput(attrs={"min": "1", "max": "20"}),
@@ -107,6 +109,8 @@ class ActivitySettingsForm(ReviewMixin, PeriodRowMixin, forms.ModelForm):
         self.fields["due_milestone"].widget.tags = {str(m.pk): {"data-day": m.on.isoformat()} for m in milestones}
         self.setup_period(course, day_of(self.instance) or timezone.localdate())
         self.fields["due_at"].label = _("Fecha y hora de entrega")
+        self.fields["debate_until"].label = _("Fecha y hora de cierre del debate")
+        self.fields["debate_mode"].required = False             # solo llega si hay preguntas de debate
         instance = self.instance
         if not self.is_bound:
             self.initial["due_mode"] = (self.DUE_MILESTONE if instance.due_milestone_id else
@@ -174,10 +178,27 @@ class ActivitySettingsForm(ReviewMixin, PeriodRowMixin, forms.ModelForm):
             self.add_error("due_at", _("Debe ser posterior a la apertura."))
 
         review = self.clean_review(data)
+        self.clean_debate(data)
         if mode == self.DUE_NONE and review in (Activity.Review.MILESTONE, Activity.Review.FIXED):
             self.add_error("review_mode", _("La revisión comienza al vencer la fecha de entrega. Si la actividad no "
                                             "tiene fecha de entrega, elija «Sin límite» o «Sin revisión»."))
         return self.clean_period_row(data)
+
+    def clean_debate(self, data) -> None:
+        """El cierre del debate: con la revisión, en una fecha fija (posterior al vencimiento, que es
+        cuando se abre) o cuando el docente lo cierre. Sin preguntas de debate, queda como estaba."""
+        if "debate_mode" not in self.data:
+            data["debate_mode"], data["debate_until"] = self.instance.debate_mode, self.instance.debate_until
+            return
+        if data.get("debate_mode") == Activity.DebateClose.FIXED:
+            until, due = data.get("debate_until"), data.get("due_at")
+            if not until:
+                self.add_error("debate_until", _("Indique la fecha y hora de cierre del debate."))
+            elif due and until <= due:
+                self.add_error("debate_until", _("El cierre del debate debe ser posterior a la fecha de entrega, que es cuando se abre."))
+        else:
+            data["debate_until"] = None
+            data["debate_mode"] = data.get("debate_mode") or Activity.DebateClose.REVIEW
 
     def save(self, commit=True):
         from apps.grades.gradebook import rebind

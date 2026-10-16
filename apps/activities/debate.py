@@ -2,7 +2,7 @@
 
 - Se responden con una justificación (`Attempt.reasons`). Nadie ve las de otros antes de la fecha
   de entrega.
-- Desde el vencimiento hasta `Activity.debate_until` (o hasta que el docente lo cierre), cada una
+- Desde el vencimiento hasta `Activity.debate_close` (por omisión, el cierre de la revisión), cada una
   tiene su foro: la postura de cada estudiante (`DebateEntry`: su respuesta y su justificación, con
   su nombre corto), comentarios de un nivel (`DebateReply`) y «me gusta» públicos (`DebateLike`).
 - **Primero se publica, después se lee:** ve el foro de una pregunta quien tiene su postura en ella,
@@ -125,7 +125,7 @@ def access(activity: Activity, student, state: engine.State, key: str, now=None)
         # Todavía puede entregar con nota: leer a los compañeros sería responder con sus respuestas a la vista.
         return Access("wait", entry, _("Para participar en el debate, envíe primero su entrega."))
     if activity.debate_closed(now):
-        return Access("closed", entry, _("El debate se cerró el %(when)s.") % {"when": engine._when(activity.debate_until)})
+        return Access("closed", entry, _("El debate se cerró el %(when)s.") % {"when": engine._when(activity.debate_close)})
     if entry is None:
         return Access("join", None, _("Para leer las respuestas de sus compañeros, publique primero la suya."))
     return Access("open", entry)
@@ -303,10 +303,10 @@ def set_hidden(target, hidden: bool) -> None:
 
 
 def close(activity: Activity, now=None) -> None:
-    activity.debate_until = now or timezone.now()
-    activity.save(update_fields=["debate_until"])
+    activity.debate_mode, activity.debate_until = Activity.DebateClose.FIXED, now or timezone.now()
+    activity.save(update_fields=["debate_mode", "debate_until"])
 
 
 def reopen(activity: Activity) -> None:
-    activity.debate_until = None
-    activity.save(update_fields=["debate_until"])
+    activity.debate_mode, activity.debate_until = Activity.DebateClose.MANUAL, None
+    activity.save(update_fields=["debate_mode", "debate_until"])

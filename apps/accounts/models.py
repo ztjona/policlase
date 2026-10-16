@@ -49,3 +49,10 @@ class User(AbstractUser):
 
     def __str__(self) -> str:
         return self.display_name
+
+    def save(self, *args, **kwargs):
+        from .names import name_case
+
+        # «CAIZA OÑA, DANNY JAVIER» se guarda como «Caiza Oña, Danny Javier», venga de donde venga.
+        self.first_name, self.last_name = name_case(self.first_name), name_case(self.last_name)
+        super().save(*args, **kwargs)

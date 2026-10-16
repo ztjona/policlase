@@ -32,24 +32,21 @@
 
   // El tiempo de la pregunta, con la hora del servidor (el reloj del teléfono puede estar mal). Al
   // acabarse, la pregunta sigue abierta: el docente la cierra. En el proyector se ve pequeño en los
-  // controles; en el teléfono no se ve (data-quiet): 10 s antes cambia el marco y, al acabarse,
-  // aparece el aviso de que todavía se puede responder con penalización.
+  // controles; en el teléfono no se ve (data-quiet): solo cambia el marco 10 s antes. Al acabarse no
+  // se avisa nada al estudiante, para no desanimarlo; lo que responda después vale un poco menos.
   var timerHandle = null;
   function startTimers(stage) {
     if (timerHandle) clearInterval(timerHandle);
     var el = stage.querySelector("[data-closes-at]");
     if (!el || !el.dataset.closesAt) return;
-    var closes = Date.parse(el.dataset.closesAt) + Number(el.dataset.extraMs || 0);
+    var closes = Date.parse(el.dataset.closesAt);
     var offset = Date.parse(el.dataset.serverNow) - Date.now();
     var quiet = el.hasAttribute("data-quiet");
     var box = stage.querySelector(".phone") || stage;
-    var note = stage.querySelector("[data-overtime-note]");
     function tick() {
       var left = Math.max(0, Math.ceil((closes - (Date.now() + offset)) / 1000));
       if (quiet) {
         box.classList.toggle("ending", left > 0 && left <= 10);
-        box.classList.toggle("overtime", left === 0);
-        if (note) note.hidden = left > 0;
       } else {
         el.textContent = left ? left + " s" : (el.dataset.doneText || "0 s");
         el.classList.toggle("low", left <= 5);

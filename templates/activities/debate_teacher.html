@@ -10,19 +10,14 @@
 <section class="card stack" id="debate-settings">
   <p style="margin:0">
     {% if not activity.due_at %}{% translate "El debate se abre al vencer la fecha de entrega, que todavía no está definida." %}
-    {% elif is_closed %}{% blocktranslate with when=activity.debate_until|date:"D d M Y, H:i" %}El debate se cerró el {{ when }}. Los estudiantes ven la corrección y la explicación de estas preguntas.{% endblocktranslate %}
+    {% elif is_closed %}{% blocktranslate with when=activity.debate_close|date:"D d M Y, H:i" %}El debate se cerró el {{ when }}. Los estudiantes ven la corrección y la explicación de estas preguntas.{% endblocktranslate %}
     {% elif not activity.is_past_due %}{% blocktranslate with when=activity.due_at|date:"D d M Y, H:i" %}El debate se abrirá el {{ when }}, al vencer la fecha de entrega.{% endblocktranslate %}
     {% else %}<span class="chip live">{% translate "abierto" %}</span>
-      {% if activity.debate_until %}{% blocktranslate with when=activity.debate_until|date:"D d M Y, H:i" %}Se cierra el {{ when }}.{% endblocktranslate %}{% else %}{% translate "Sigue abierto hasta que usted lo cierre." %}{% endif %}{% endif %}
+      {% if activity.debate_close %}{% blocktranslate with when=activity.debate_close|date:"D d M Y, H:i" %}Se cierra el {{ when }}.{% endblocktranslate %}{% else %}{% translate "Sigue abierto hasta que usted lo cierre." %}{% endif %}{% endif %}
   </p>
   <span class="helptext" style="margin:0">{% translate "Mientras dure el debate, los estudiantes no ven la corrección de estas preguntas ni su explicación; al cerrarlo, las ven como síntesis. Conviene cerrarlo después de discutir las respuestas en clase y antes de la prueba." %}</span>
-  <form method="post" action="{% url 'debate_teacher_action' course.pk activity.pk %}" class="stack" style="margin:0">{% csrf_token %}
-    <input type="hidden" name="action" value="schedule">
-    <label class="radio-row"><input type="radio" name="mode" value="manual"{% if not activity.debate_until or is_closed %} checked{% endif %}> {% translate "Hasta que usted lo cierre" %}</label>
-    <label class="radio-row"><input type="radio" name="mode" value="fixed"{% if activity.debate_until and not is_closed %} checked{% endif %}> {% translate "Hasta una fecha fija" %}
-      <input type="datetime-local" name="debate_until" class="when-input" value="{% if activity.debate_until and not is_closed %}{{ activity.debate_until|date:'Y-m-d\TH:i' }}{% endif %}" aria-label="{% translate 'Fecha y hora de cierre del debate' %}"></label>
-    <div class="row"><button class="secondary small">{% translate "Guardar el cierre" %}</button></div>
-  </form>
+  <p class="small" style="margin:0">{% blocktranslate with rule=activity.get_debate_mode_display %}Cierre: {{ rule }}.{% endblocktranslate %}
+    <a href="{% url 'activity_detail' course.pk activity.pk %}#debate">{% translate "Cambiarlo en la configuración de la actividad" %}</a></p>
   <form method="post" action="{% url 'debate_teacher_action' course.pk activity.pk %}" class="row" style="margin:0">{% csrf_token %}
     {% if is_closed %}<button name="action" value="reopen" class="secondary small">{% translate "Reabrir el debate" %}</button>
     {% elif is_open %}<button name="action" value="close" class="small" data-confirm="{% translate 'Los estudiantes verán la corrección y la explicación de estas preguntas, y ya no podrán publicar ni comentar. ¿Cerrar el debate?' %}">{% translate "Cerrar el debate ahora" %}</button>{% endif %}

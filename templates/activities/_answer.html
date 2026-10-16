@@ -41,7 +41,7 @@
       {% else %}<p class="small"><strong>{% translate "Solución:" %}</strong> <span class="mono">{% if q.type == "numeric_list" %}{{ record.solution|join:" · " }}{% else %}{{ record.solution|unlocalize }}{% endif %}</span></p>{% endif %}
     {% endif %}
   {% endif %}
-  {% if row.reason %}<div class="small reason-given"><strong>{% translate "Justificación:" %}</strong> {{ row.reason|student_math }}</div>{% endif %}
+  {% if row.reason %}<div class="small reason-given"><strong>{% translate "Justificación:" %}</strong> {{ row.reason|student_md }}</div>{% endif %}
   {% if q.rubric %}{% include "activities/_rubric.html" with rubric=q.rubric %}{% endif %}
   {% if a.comment %}<p class="small comment"><strong>{% translate "Comentario del docente:" %}</strong> {{ a.comment|linebreaksbr }}</p>{% endif %}
 </div>
