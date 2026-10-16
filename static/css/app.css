@@ -234,13 +234,14 @@ fieldset.segmented input { position: absolute; opacity: 0; pointer-events: none;
 fieldset.segmented label:has(input:checked) { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
 fieldset.segmented label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 1px; }
 fieldset.segmented:disabled label { cursor: default; }
-/* Botones excluyentes que actúan al instante (el tema en «Mis cursos»); el elegido lleva aria-pressed. */
-.theme-choice { display: flex; align-items: center; gap: 8px; margin: 0; }
-.segmented-buttons { display: inline-flex; }
-.segmented-buttons button { border-radius: 0; margin-left: -1px; }
-.segmented-buttons button:first-child { border-radius: var(--radius) 0 0 var(--radius); margin-left: 0; }
-.segmented-buttons button:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
-.segmented-buttons button[aria-pressed="true"] { background: var(--accent-soft); position: relative; }
+/* El botón de tema (core/_theme_toggle.html): con el tema automático se ve el del tema contrario al del sistema. */
+.themeswitch .icon-btn { padding: 0; }
+.themeswitch .icon-btn svg.i { flex: none; margin: 0; }
+.themeswitch.auto .to-light { display: none; }
+@media (prefers-color-scheme: dark) {
+  .themeswitch.auto .to-light { display: inline-flex; }
+  .themeswitch.auto .to-dark { display: none; }
+}
 fieldset.segmented:disabled label:not(:has(input:checked)) { opacity: .5; }
 #toggle-preview .when-off, #toggle-preview[aria-pressed=false] .when-on { display: none; }
 #toggle-preview[aria-pressed=false] .when-off { display: inline-flex; }

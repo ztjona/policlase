@@ -1,0 +1,8 @@
+{% load i18n policlase %}
+{% comment %} Cambio rápido de tema: un solo botón con el ícono del tema al que se pasa. Con el tema automático se
+   dibujan los dos y el CSS deja ver el que corresponde al tema del sistema (.themeswitch.auto). {% endcomment %}
+<form method="post" action="{% url 'set_theme' %}" class="themeswitch{% if not theme %} auto{% endif %}">
+  {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+  {% if theme != "light" %}<button name="theme" value="light" class="icon-btn to-light" title="{% translate 'Tema claro' %}" aria-label="{% translate 'Tema claro' %}">{% icon "light_mode" 18 %}</button>{% endif %}
+  {% if theme != "dark" %}<button name="theme" value="dark" class="icon-btn to-dark" title="{% translate 'Tema oscuro' %}" aria-label="{% translate 'Tema oscuro' %}">{% icon "dark_mode" 18 %}</button>{% endif %}
+</form>

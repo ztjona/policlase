@@ -191,7 +191,9 @@ class ThemePreferenceTests(TestCase):
         self.client.post(reverse("account_preferences"), {"language": "es", "timezone": "America/Guayaquil"})
         user.refresh_from_db()
         self.assertEqual(user.theme, "dark")                       # Preferencias ya no lo toca
-        self.assertContains(self.client.get(reverse("home")), 'value="dark" class="secondary small" aria-pressed="true"')
+        home = self.client.get(reverse("home"))                   # en oscuro, el botón lleva al claro
+        self.assertContains(home, 'name="theme" value="light"')
+        self.assertNotContains(home, 'name="theme" value="dark"')
 
     def test_tema_invalido_se_ignora(self):
         response = self.client.post(reverse("set_theme"), {"theme": "<script>", "next": "/"})

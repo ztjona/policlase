@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: policlase\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-15 14:29-0500\n"
+"POT-Creation-Date: 2026-10-15 17:10-0500\n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -41,7 +41,7 @@ msgstr "Language"
 msgid "Zona horaria"
 msgstr "Time zone"
 
-#: apps/accounts/forms.py:55 templates/courses/student_home.html:10
+#: apps/accounts/forms.py:55
 msgid "Tema"
 msgstr "Theme"
 
@@ -69,11 +69,11 @@ msgstr "Guest"
 msgid "Automático (como el sistema)"
 msgstr "Automatic (follow the system)"
 
-#: apps/accounts/models.py:23 templates/courses/student_home.html:12
+#: apps/accounts/models.py:23
 msgid "Claro"
 msgstr "Light"
 
-#: apps/accounts/models.py:24 templates/courses/student_home.html:13
+#: apps/accounts/models.py:24
 msgid "Oscuro"
 msgstr "Dark"
 
@@ -3409,7 +3409,7 @@ msgid "Entrar a clase en vivo"
 msgstr "Join a live class"
 
 #: templates/base.html:49 templates/courses/join.html:3
-#: templates/courses/join.html:6 templates/courses/student_home.html:36
+#: templates/courses/join.html:6 templates/courses/student_home.html:27
 msgid "Inscribirse en un curso"
 msgstr "Enroll in a course"
 
@@ -3437,6 +3437,14 @@ msgstr "Log out"
 #: templates/base.html:63
 msgid "Iniciar sesión"
 msgstr "Log in"
+
+#: templates/core/_theme_toggle.html:7 templates/live/present.html:22
+msgid "Tema claro"
+msgstr "Light theme"
+
+#: templates/core/_theme_toggle.html:8 templates/live/present.html:24
+msgid "Tema oscuro"
+msgstr "Dark theme"
 
 #: templates/core/about.html:10
 #, python-format
@@ -3815,7 +3823,7 @@ msgstr "PAUSED"
 
 #: templates/courses/course_detail.html:11
 #: templates/courses/course_manage.html:34
-#: templates/courses/student_home.html:57
+#: templates/courses/student_home.html:48
 msgid "EN VIVO"
 msgstr "LIVE"
 
@@ -4102,7 +4110,7 @@ msgstr "No approved students yet."
 msgid "Rechazadas"
 msgstr "Rejected"
 
-#: templates/courses/join.html:8 templates/courses/student_home.html:37
+#: templates/courses/join.html:8 templates/courses/student_home.html:28
 msgid ""
 "Ingrese el código que le dio su docente. Su solicitud queda pendiente hasta "
 "que la apruebe."
@@ -4110,15 +4118,7 @@ msgstr ""
 "Enter the code your teacher gave you. Your request stays pending until they "
 "approve it."
 
-#: templates/courses/student_home.html:15
-msgid "Sigue la configuración del sistema"
-msgstr "Follows the system setting"
-
-#: templates/courses/student_home.html:15
-msgid "Automático"
-msgstr "Automatic"
-
-#: templates/courses/student_home.html:22
+#: templates/courses/student_home.html:13
 msgid ""
 "Su correo electrónico aún no está confirmado. Confírmelo para poder "
 "recuperar su contraseña si la olvida; si no encuentra el mensaje, revise la "
@@ -4128,11 +4128,11 @@ msgstr ""
 "password if you forget it; if you cannot find the message, check your junk "
 "mail folder."
 
-#: templates/courses/student_home.html:23
+#: templates/courses/student_home.html:14
 msgid "Confirmar o cambiar el correo"
 msgstr "Confirm or change the email address"
 
-#: templates/courses/student_home.html:29
+#: templates/courses/student_home.html:20
 #, python-format
 msgid ""
 "Su solicitud a <strong>%(course)s</strong> fue rechazada. Si cree que es un "
@@ -4141,15 +4141,15 @@ msgstr ""
 "Your request to <strong>%(course)s</strong> was rejected. If you think this "
 "is a mistake, talk to %(teacher)s."
 
-#: templates/courses/student_home.html:30
+#: templates/courses/student_home.html:21
 msgid "Entendido"
 msgstr "Got it"
 
-#: templates/courses/student_home.html:57 templates/live/join.html:11
+#: templates/courses/student_home.html:48 templates/live/join.html:11
 msgid "Entrar"
 msgstr "Join"
 
-#: templates/courses/student_home.html:59
+#: templates/courses/student_home.html:50
 msgid "Pendiente de aprobación"
 msgstr "Waiting for approval"
 
@@ -5178,14 +5178,6 @@ msgstr ""
 #: templates/live/present.html:18
 msgid "Clic o → para avanzar"
 msgstr "Click or → to advance"
-
-#: templates/live/present.html:22
-msgid "Tema claro"
-msgstr "Light theme"
-
-#: templates/live/present.html:24
-msgid "Tema oscuro"
-msgstr "Dark theme"
 
 #: templates/live/present.html:29 templates/live/student.html:13
 #: templates/live/studio.html:63 templates/live/studio.html:85
