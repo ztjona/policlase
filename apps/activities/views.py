@@ -21,7 +21,7 @@ from apps.grades import gradebook
 from apps.grades.forms import MilestoneForm
 from apps.grades.models import Milestone, Period
 
-from . import engine, images, outline
+from . import engine, images, outline, stats
 from .forms import ActivitySettingsForm, EvaluationSettingsForm, PracticeSettingsForm
 from .models import Activity, Answer, Attempt, Extension, Upload, new_access_code
 
@@ -137,6 +137,10 @@ def _flags(telemetry: dict) -> list[str]:
     if telemetry.get("blurs"):
         out.append(ngettext("salió de la página %(n)d vez", "salió de la página %(n)d veces", telemetry["blurs"])
                    % {"n": telemetry["blurs"]})
+    if telemetry.get("away_s"):
+        out.append(_("estuvo fuera %(total)s en total; la salida más larga duró %(longest)s")
+                   % {"total": stats.duration_text(telemetry["away_s"]),
+                      "longest": stats.duration_text(telemetry.get("away_max_s"))})
     return out
 
 
@@ -202,6 +206,23 @@ def activity_detail(request, course_pk, pk):
         "extensions": Extension.objects.filter(activity=activity).select_related("student"),
         "students": students,
         "ai": _ai_panel(request, activity),
+    })
+
+
+@teacher_required
+def activity_stats(request, course_pk, pk):
+    """Estadísticas de las entregas que cuentan: la nota, cada pregunta, el tiempo y las señales."""
+    course = owned_course(request, course_pk)
+    activity = get_object_or_404(Activity, pk=pk, course=course)
+    engine.finalize_overdue(activity)
+    students = _approved(course)
+    counted = engine.counted_attempts(activity)
+    ids = [counted[s.pk].pk for s in students if s.pk in counted]
+    attempts = list(Attempt.objects.filter(pk__in=ids).prefetch_related("answer_rows"))
+    for attempt in attempts:
+        attempt.activity = activity
+    return render(request, "activities/stats.html", {
+        "course": course, "activity": activity, "report": stats.report(activity, attempts, len(students)),
     })
 
 

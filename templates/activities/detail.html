@@ -6,6 +6,7 @@
 <div class="course-head">
   <h1>{{ activity.title }}</h1>
   <a class="icon-btn" href="{% url 'activity_edit' course.pk activity.pk %}" title="{% translate 'Editar contenido' %}" aria-label="{% translate 'Editar contenido' %}">{% icon "edit" 20 %}</a>
+  <a class="icon-btn" href="{% url 'activity_stats' course.pk activity.pk %}" title="{% translate 'Estadísticas' %}" aria-label="{% translate 'Estadísticas' %}">{% icon "results" 20 %}</a>
   {% if not activity.is_evaluation %}<a class="icon-btn primary" href="{% url 'activity_present' course.pk activity.pk %}" title="{% translate 'Presentar en clase. Los estudiantes pueden seguir su avance o continuar a su propio ritmo.' %}" aria-label="{% translate 'Presentar en clase' %}">{% icon "play" 20 %}</a>{% endif %}
   {% if activity.is_evaluation %}<span class="chip">{% translate "Evaluación" %}</span>{% elif activity.is_practice %}<span class="chip">{% translate "Repaso" %}</span>{% endif %}
   {% if not activity.published %}<span class="chip warn">{% translate "Borrador" %}</span>{% endif %}

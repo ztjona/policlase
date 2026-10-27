@@ -8,8 +8,8 @@
   if (!form) return;
   var status = form.querySelector("[data-save-status]");
   var telemetryField = form.querySelector("input[name=telemetry]");
-  var delta = { pastes: 0, pasted_chars: 0, blurs: 0, blocked_pastes: 0 };
-  var timer = null, dirty = false, saving = false, away = false, failures = 0;
+  var delta = { pastes: 0, pasted_chars: 0, blurs: 0, blocked_pastes: 0, away_s: 0, away_max_s: 0 };
+  var timer = null, dirty = false, saving = false, away = false, awaySince = 0, failures = 0;
   // No `form.action`: los botones se llaman «action», y el navegador devuelve esos botones en vez de
   // la dirección del formulario (el autoguardado iba a «…/intento/[object RadioNodeList]»).
   var saveUrl = form.getAttribute("action") || location.pathname;
@@ -31,9 +31,16 @@
     delta.pastes += 1;
     delta.pasted_chars += text.length;
   });
-  // Salir de la página: cambiar de pestaña o de ventana. Se cuenta una vez por salida.
-  function leave() { if (!away) { away = true; delta.blurs += 1; flush(document.hidden); } }
-  function back() { away = false; }
+  // Salir de la página: cambiar de pestaña o de ventana. Se cuenta una vez por salida y, al volver,
+  // se suma cuánto duró; la salida más larga se envía aparte. Si no vuelve, esa duración no se registra.
+  function leave() { if (!away) { away = true; awaySince = Date.now(); delta.blurs += 1; flush(document.hidden); } }
+  function back() {
+    if (!away) return;
+    away = false;
+    var seconds = Math.round((Date.now() - awaySince) / 1000);
+    delta.away_s += seconds;
+    delta.away_max_s = Math.max(delta.away_max_s, seconds);
+  }
   document.addEventListener("visibilitychange", function () { if (document.hidden) leave(); else back(); });
   window.addEventListener("blur", leave);
   window.addEventListener("focus", back);
@@ -49,7 +56,11 @@
   }
 
   function resetDelta(sent) {
-    Object.keys(delta).forEach(function (k) { delta[k] = Math.max(0, delta[k] - (sent[k] || 0)); });
+    Object.keys(delta).forEach(function (k) {
+      // La salida más larga es un máximo, no una suma: lo enviado ya quedó registrado.
+      if (k === "away_max_s") delta[k] = delta[k] > (sent[k] || 0) ? delta[k] : 0;
+      else delta[k] = Math.max(0, delta[k] - (sent[k] || 0));
+    });
   }
 
   // Qué decirle al estudiante cuando un guardado falla: sin conexión no es lo mismo que una sesión
@@ -128,7 +139,7 @@
 
   form.addEventListener("input", function (e) { if (!e.target.matches("[data-upload]")) { dirty = true; schedule(); } });
   form.addEventListener("change", function (e) { if (!e.target.matches("[data-upload]")) { dirty = true; schedule(); } });
-  setInterval(function () { if (delta.pastes || delta.blurs || delta.blocked_pastes) save(); }, 60000);
+  setInterval(function () { if (delta.pastes || delta.blurs || delta.blocked_pastes || delta.away_s) save(); }, 60000);
 
   // ------------------------------------------------------------------ imágenes
 

@@ -17,7 +17,7 @@ from apps.grades import gradebook
 from apps.grades.models import Milestone
 from apps.live.models import Section
 
-from . import debate, engine
+from . import debate, engine, stats
 from .models import Activity, Answer, Attempt, DebateEntry, DebateReply, Upload
 
 SOURCE = r"""schema: policlase.activity/v1
@@ -145,6 +145,7 @@ class IsolationTests(ActivityBase):
                            ("activity_edit", [self.course.pk, self.activity.pk]),
                            ("activity_dates", [self.course.pk]),
                            ("question_review", [self.course.pk, self.activity.pk, "D1-a.q3"]),
+                           ("activity_stats", [self.course.pk, self.activity.pk]),
                            ("course_gradebook", [self.course.pk]),
                            ("grading_settings", [self.course.pk])]:
             self.assertEqual(self.client.get(reverse(name, args=args)).status_code, 404, name)
@@ -331,6 +332,73 @@ class GradingTests(ActivityBase):
     def test_telemetria_ignora_valores_absurdos(self):
         merged = engine.merge_telemetry({"pastes": 1}, {"pastes": "2", "blurs": -4, "otra": 9, "pasted_chars": "x"})
         self.assertEqual(merged, {"pastes": 3})
+
+
+class StatsTests(ActivityBase):
+    def setUp(self):
+        super().setUp()
+        wrong = next(o["key"] for o in self.activity.compiled["items"][0]["questions"][1]["options"]
+                     if o["key"] != self.right_choice)
+        for student, value, choice, telemetry in ((self.ana, "1.4142", self.right_choice, {"blurs": 3, "away_s": 40, "away_max_s": 25}),
+                                                  (self.bruno, "7", wrong, {})):
+            attempt = engine.start(self.activity, student)
+            self.answer_all(attempt, value=value, choice=choice)
+            engine.submit(attempt)
+            Attempt.objects.filter(pk=attempt.pk).update(telemetry=telemetry)
+        self.url = reverse("activity_stats", args=[self.course.pk, self.activity.pk])
+
+    def test_pagina_con_nota_preguntas_y_senales(self):
+        self.client.force_login(self.teacher)
+        page = self.client.get(self.url)
+        self.assertContains(page, "2 de 2 inscritos")
+        self.assertContains(page, "Desviación estándar")
+        self.assertContains(page, "Respuestas incorrectas más frecuentes")
+        self.assertContains(page, '<span class="mono">7</span>', html=True)
+        self.assertContains(page, "De 1 a 5 veces")
+        self.assertContains(page, "por revisar")                     # la abierta aún sin nota
+        detail = self.client.get(reverse("activity_detail", args=[self.course.pk, self.activity.pk]))
+        self.assertContains(detail, self.url)
+        self.assertContains(detail, "estuvo fuera 40 s en total; la salida más larga duró 25 s")
+
+    def test_sin_entregas(self):
+        Attempt.objects.all().delete()
+        self.client.force_login(self.teacher)
+        self.assertContains(self.client.get(self.url), "Las estadísticas aparecerán cuando haya entregas.")
+
+    def test_cifras_por_pregunta(self):
+        attempts = list(Attempt.objects.filter(activity=self.activity))
+        for a in attempts:
+            a.activity = self.activity
+        rows = {r["key"]: r for r in stats.report(self.activity, attempts, 2)["questions"]}
+        numeric = rows["D1-a.q1"]
+        self.assertEqual((numeric["correct"], numeric["n"], numeric["blank"], numeric["percent"]), (1, 2, 0, 50))
+        self.assertAlmostEqual(numeric["stats"]["sd"], 2 ** 0.5)       # puntos 2 y 0
+        self.assertEqual(numeric["wrong"], [("7", 1)])
+        self.assertEqual([b["count"] for b in rows["D1-a.q2"]["choices"]], [1, 1])
+        self.assertEqual(rows["D1-a.q3"]["pending"], 2)                 # la abierta no entra en el promedio
+        self.assertIsNone(rows["D1-a.q3"]["stats"])
+
+    def test_estadisticos(self):
+        self.assertEqual(stats.ranks([10, 20, 20, 5]), [1, 2.5, 2.5, 0])
+        self.assertAlmostEqual(stats.spearman([1, 2, 3, 4, 5], [2, 4, 9, 16, 100]), 1.0)
+        self.assertIsNone(stats.spearman([1, 2, 3], [3, 2, 1]))         # muy pocos datos
+        self.assertIsNone(stats.pearson([1, 1, 1, 1, 1], [1, 2, 3, 4, 5]))
+        self.assertAlmostEqual(stats.chance_bound(23), 0.418, places=3)
+        self.assertEqual([stats.duration_text(s) for s in (45, 200, 1500, 6900, 200_000)],
+                         ["45 s", "3 min 20 s", "25 min", "1 h 55 min", "2 d 7 h"])
+        self.assertEqual([b["count"] for b in stats.histogram([0.0, 0.05, 0.55, 1.0])], [2, 0, 0, 0, 0, 1, 0, 0, 0, 1])
+        row = {"percent": 50, "stats": {"n": 10}, "discrimination": -0.2}
+        self.assertEqual([f[0] for f in stats._question_flags(row)], ["discriminación negativa"])
+
+    def test_tiempo_fuera_se_suma_y_la_salida_mas_larga_es_un_maximo(self):
+        merged = engine.merge_telemetry({"blurs": 2, "away_s": 30, "away_max_s": 20},
+                                        {"blurs": 1, "away_s": 15, "away_max_s": 12})
+        self.assertEqual(merged, {"blurs": 3, "away_s": 45, "away_max_s": 20})
+        self.assertEqual(engine.merge_telemetry(merged, {"away_max_s": 90})["away_max_s"], 90)
+
+    def test_estudiante_no_ve_las_estadisticas(self):
+        self.client.force_login(self.ana)
+        self.assertIn(self.client.get(self.url).status_code, (403, 404))
 
 
 class UploadTests(ActivityBase):

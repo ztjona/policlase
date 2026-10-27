@@ -262,6 +262,12 @@ Reglas de interacción:
   pregunta al momento y la deja cerrada en ese intento (`Attempt.checked`); la explicación del ítem
   aparece cuando se comprobaron todas sus preguntas. Abren unos días antes de una fecha clave
   (`due_offset_days` negativo sobre `opens_at`) y se listan en la pestaña Evaluaciones.
+- **Estadísticas** (`activities/stats.py`, página propia enlazada desde la actividad): sobre el
+  intento que cuenta de cada estudiante, la nota (promedio, desviación estándar, mediana,
+  distribución), el tiempo entre empezar y enviar, cada pregunta (promedio, correctas, en blanco,
+  discriminación y respuestas incorrectas frecuentes) y las señales agrupadas, con la correlación
+  por rangos y el umbral bajo el cual puede deberse al azar. Junto a cada cifra que se presta a
+  sobreinterpretarse, la página dice qué no permite concluir.
 - **Notas fuera de policlase:** registros manuales (`ManualRecord`) que cuentan como una actividad
   (o una clase) más de su fila. Pegar una lista solo rellena: nada se guarda sin que el docente lo
   revise, y lo que no coincide queda «sin asignar» para cuando el estudiante se inscriba. Cada nota
@@ -273,9 +279,11 @@ Reglas de interacción:
   manual de la clase (`SessionGrade`), que reemplaza la suma sin tocar las respuestas.
 - **Imágenes:** solo JPEG, PNG y WebP, verificadas por contenido y **re-codificadas** a JPEG (sin
   EXIF ni GPS); se sirven solo por `upload_file`, con permisos y `nosniff`, nunca desde `/media/`.
-- **Señales, no sanciones:** pegar texto y salir de la página se registran y se muestran al
-  docente, y el estudiante lo sabe. No se bloquean capturas (en la web no se puede) ni se castiga
-  automáticamente. La marca de agua (nombre y cédula) es fija sobre la ventana, muy tenue, en el
+- **Señales, no sanciones:** pegar texto y salir de la página (cuántas veces y, desde 0.21, cuánto
+  tiempo en total y la salida más larga: `away_s`, `away_max_s`) se registran y se muestran al
+  docente, y el estudiante lo sabe. Una salida incluye pasar a otra ventana, por ejemplo a la
+  calculadora: por sí sola no distingue una herramienta permitida de una que no lo es. No se
+  bloquean capturas (en la web no se puede) ni se castiga automáticamente. La marca de agua (nombre y cédula) es fija sobre la ventana, muy tenue, en el
   intento y en la revisión (`activities/_watermark.html`).
 - **El intento:** el índice (partes, títulos del contenido e ítems, con cuántas preguntas tienen
   respuesta) en el borde izquierdo de la pantalla y el estado de cada pregunta en el derecho (un

@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% load i18n policlase %}
+{% block title %}{% translate "Estadísticas" %} · {{ activity.title }}{% endblock %}
+{% block main %}
+<div class="muted small"><a href="{% url 'activity_detail' course.pk activity.pk %}">← {{ activity.title }}</a></div>
+<h1>{% translate "Estadísticas" %}</h1>
+<p class="muted small">{% blocktranslate with n=report.submitted total=report.enrolled %}Se calculan sobre la última entrega de cada estudiante: {{ n }} de {{ total }} inscritos.{% endblocktranslate %}
+  {% if report.pending %}{% blocktranslate count n=report.pending %}{{ n }} entrega tiene preguntas por revisar; sus notas pueden cambiar.{% plural %}{{ n }} entregas tienen preguntas por revisar; sus notas pueden cambiar.{% endblocktranslate %}{% endif %}</p>
+
+{% if not report.submitted %}
+  <p class="muted">{% translate "Las estadísticas aparecerán cuando haya entregas." %}</p>
+{% else %}
+{% with s=report.score p=report.percent %}
+<div class="grid two">
+  <section class="card stack">
+    <h2 style="margin:0">{% translate "Nota" %}</h2>
+    <dl class="metrics">
+      <div><dt>{% translate "Promedio" %}</dt><dd>{{ s.mean|floatformat:2 }} <small>/ {{ report.max_points|floatformat:"-2" }}</small></dd><dd class="small muted">{{ p.mean|floatformat:0 }} %</dd></div>
+      <div><dt>{% translate "Desviación estándar" %}</dt><dd>{% if s.sd is None %}—{% else %}{{ s.sd|floatformat:2 }}{% endif %}</dd>{% if p.sd is not None %}<dd class="small muted">{{ p.sd|floatformat:0 }} %</dd>{% endif %}</div>
+      <div><dt>{% translate "Mediana" %}</dt><dd>{{ s.median|floatformat:2 }}</dd><dd class="small muted">{{ p.median|floatformat:0 }} %</dd></div>
+      <div><dt>{% translate "Mínima y máxima" %}</dt><dd>{{ s.min|floatformat:"-2" }} – {{ s.max|floatformat:"-2" }}</dd></div>
+    </dl>
+    <h3 style="margin:0">{% translate "Distribución" %}</h3>
+    <div class="bars">
+      {% for b in report.histogram %}
+        <div class="bar"><div class="bar-label"><span>{{ b.label }}</span></div><div class="count">{{ b.count }}</div>
+          <div class="fill-track"><div class="fill accent" style="width:{% widthratio b.count report.submitted 100 %}%"></div></div></div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="card stack">
+    <h2 style="margin:0">{% translate "Tiempo" %}</h2>
+    {% if report.duration %}
+      <dl class="metrics">
+        <div><dt>{% translate "Mediana" %}</dt><dd>{{ report.duration.median }}</dd></div>
+        <div><dt>{% translate "Promedio" %}</dt><dd>{{ report.duration.mean }}</dd></div>
+        <div><dt>{% translate "Mínimo" %}</dt><dd>{{ report.duration.min }}</dd></div>
+        <div><dt>{% translate "Máximo" %}</dt><dd>{{ report.duration.max }}</dd></div>
+      </dl>
+      <p class="small muted" style="margin:0">{% translate "Tiempo transcurrido entre el comienzo del intento y su envío." %}
+        {% if report.auto %}{% blocktranslate count n=report.auto %}{{ n }} intento se envió automáticamente al terminar el plazo.{% plural %}{{ n }} intentos se enviaron automáticamente al terminar el plazo.{% endblocktranslate %}{% endif %}
+        {% if report.late %}{% blocktranslate count n=report.late %}{{ n }} entrega fue atrasada.{% plural %}{{ n }} entregas fueron atrasadas.{% endblocktranslate %}{% endif %}</p>
+    {% endif %}
+
+    {% with sg=report.signals %}
+    <h2 style="margin:0">{% translate "Señales" %}</h2>
+    <table>
+      <thead><tr><th>{% translate "Salidas de la página" %}</th><th class="num">{% translate "Estudiantes" %}</th><th class="num">{% translate "Nota promedio" %}</th></tr></thead>
+      <tbody>
+        {% for g in sg.groups %}
+          <tr><td>{{ g.label }}</td><td class="num">{{ g.count }}</td><td class="num">{% if g.mean is None %}—{% else %}{{ g.mean }} %{% endif %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if sg.away %}
+      <p class="small" style="margin:0">{% blocktranslate with total=sg.away_total longest=sg.away_longest %}Mediana del tiempo total fuera de la página: {{ total }}; mediana de la salida más larga: {{ longest }}.{% endblocktranslate %}
+        {% if sg.away < report.submitted %}<span class="muted">{% blocktranslate count n=sg.away %}Solo {{ n }} intento registra la duración de las salidas.{% plural %}Solo {{ n }} intentos registran la duración de las salidas.{% endblocktranslate %}</span>{% endif %}</p>
+    {% endif %}
+    {% if sg.rho is not None %}
+      <p class="small" style="margin:0">{% blocktranslate with rho=sg.rho|floatformat:2 bound=sg.bound|floatformat:2 n=report.submitted %}Correlación por rangos (Spearman) entre las salidas y la nota: {{ rho }}. Con {{ n }} entregas, un valor menor que {{ bound }} en valor absoluto puede deberse al azar.{% endblocktranslate %}</p>
+    {% endif %}
+    {% if sg.pastes or sg.blocked %}
+      <p class="small" style="margin:0">{% blocktranslate with n=sg.pastes m=sg.blocked %}Texto pegado: {{ n }} veces. Intentos de pegar donde no estaba permitido: {{ m }}.{% endblocktranslate %}</p>
+    {% endif %}
+    <p class="small muted" style="margin:0">{% translate "Una salida se registra al cambiar de pestaña o de ventana, también para usar la calculadora u otra herramienta del computador. Una relación entre las salidas y la nota no indica su causa: puede deberse a herramientas permitidas o a otros factores. Las señales sirven como base para conversar con el estudiante, no para sancionar." %}</p>
+    {% endwith %}
+  </section>
+</div>
+{% endwith %}
+
+<h2>{% translate "Preguntas" %}</h2>
+<div class="card table-wrap">
+  <table class="stats-table">
+    <thead><tr>
+      <th class="num">#</th><th>{% translate "Pregunta" %}</th><th class="num">{% translate "Puntos" %}</th>
+      <th class="num">{% translate "Promedio" %}</th><th class="num">{% translate "Desv. estándar" %}</th>
+      <th class="num">{% translate "Correctas" %}</th><th class="num">{% translate "En blanco" %}</th>
+      <th class="num"><span class="tip" tabindex="0" data-tip="{% translate 'Correlación entre los puntos de la pregunta y el resto de la nota. Cerca de 0, la pregunta no distingue a quienes rinden mejor en el resto; negativa, quienes la acertaron rindieron peor en lo demás.' %}">{% translate "Discriminación" %}</span></th>
+    </tr></thead>
+    <tbody>
+      {% for r in report.questions %}
+        {% if r.new_item %}<tr class="item-row"><th colspan="8">{{ r.question.item_title|default:r.question.item_id|md_inline }}</th></tr>{% endif %}
+        <tr>
+          <td class="num"><a href="#p{{ r.number }}">{{ r.number }}</a></td>
+          <td class="question-cell"><div class="clamp">{{ r.question.prompt|md_inline }}</div>
+            <div class="small"><span class="muted">{% include "activities/_type_label.html" with q=r.question %}</span>
+              {% for text, kind, why in r.flags %}<span class="chip {{ kind }} tip" tabindex="0" data-tip="{{ why }}">{{ text }}</span> {% endfor %}
+              {% if r.pending %}<a class="chip warn" href="{% url 'question_review' course.pk activity.pk r.key %}">{% blocktranslate count n=r.pending %}{{ n }} por revisar{% plural %}{{ n }} por revisar{% endblocktranslate %}</a>{% endif %}</div></td>
+          <td class="num">{{ r.points|floatformat:"-2" }}</td>
+          <td class="num">{% if r.stats %}{{ r.stats.mean|floatformat:2 }} <span class="muted">({{ r.percent }} %)</span>{% else %}—{% endif %}</td>
+          <td class="num">{% if not r.stats or r.stats.sd is None %}—{% else %}{{ r.stats.sd|floatformat:2 }}{% endif %}</td>
+          <td class="num">{{ r.correct }} / {{ r.n }}</td>
+          <td class="num">{{ r.blank }}</td>
+          <td class="num">{% if r.discrimination is None %}—{% else %}{{ r.discrimination|floatformat:2 }}{% endif %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h2>{% translate "Respuestas por pregunta" %}</h2>
+<div class="stack">
+  {% for r in report.questions %}
+    <details class="card" id="p{{ r.number }}">
+      <summary><strong>{{ r.number }}.</strong> {{ r.question.prompt|md_inline }}</summary>
+      <div class="stack" style="margin-top:10px">
+        {% if r.choices %}
+          <div class="bars">
+            {% for b in r.choices %}
+              <div class="bar{% if b.correct %} right{% endif %}"><div class="bar-label">{% if b.correct %}<span title="{% translate 'Opción correcta' %}">{% icon "check" 14 %}</span>{% endif %}<span>{{ b.text|md_inline }}</span></div><div class="count">{{ b.count }}</div>
+                <div class="fill-track"><div class="fill {% if b.correct %}ok{% else %}accent{% endif %}" style="width:{% widthratio b.count r.n|default:1 100 %}%"></div></div></div>
+            {% endfor %}
+          </div>
+        {% elif r.statements %}
+          <table>
+            <thead><tr><th>{% translate "Afirmación" %}</th><th class="num">{% translate "Aciertos" %}</th></tr></thead>
+            <tbody>{% for st in r.statements %}<tr><td>{{ st.text|md_inline }}</td><td class="num">{{ st.right }} / {{ st.answered }}{% if st.percent is not None %} <span class="muted">({{ st.percent }} %)</span>{% endif %}</td></tr>{% endfor %}</tbody>
+          </table>
+        {% elif r.wrong %}
+          <p class="small" style="margin:0">{% translate "Respuestas incorrectas más frecuentes:" %}</p>
+          <ul class="plain">{% for value, count in r.wrong %}<li><span class="mono">{{ value }}</span> <span class="muted">· {% blocktranslate count n=count %}{{ n }} estudiante{% plural %}{{ n }} estudiantes{% endblocktranslate %}</span></li>{% endfor %}</ul>
+        {% elif r.question.type == "open" or r.question.type == "image" %}
+          <p class="small" style="margin:0"><a href="{% url 'question_review' course.pk activity.pk r.key %}">{% translate "Revisar las respuestas de esta pregunta" %}</a></p>
+        {% else %}
+          <p class="small muted" style="margin:0">{% translate "No hay respuestas incorrectas." %}</p>
+        {% endif %}
+      </div>
+    </details>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

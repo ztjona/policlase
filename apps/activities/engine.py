@@ -425,19 +425,21 @@ def save_draft(attempt: Attempt, answers: dict, telemetry: dict | None = None, n
     return attempt
 
 
-TELEMETRY_KEYS = ("pastes", "pasted_chars", "blurs", "blocked_pastes")
+TELEMETRY_KEYS = ("pastes", "pasted_chars", "blurs", "blocked_pastes", "away_s")
+#: Se guarda el mayor valor recibido, no la suma: la salida de la página más larga, en segundos.
+TELEMETRY_MAX_KEYS = ("away_max_s",)
 
 
 def merge_telemetry(current: dict, delta: dict) -> dict:
     """El navegador manda lo ocurrido desde el último guardado; aquí se acumula."""
     out = dict(current or {})
-    for key in TELEMETRY_KEYS:
+    for key in TELEMETRY_KEYS + TELEMETRY_MAX_KEYS:
         try:
             value = int(delta.get(key, 0))
         except (TypeError, ValueError):
             continue
         if 0 < value < 1_000_000:
-            out[key] = out.get(key, 0) + value
+            out[key] = max(out.get(key, 0), value) if key in TELEMETRY_MAX_KEYS else out.get(key, 0) + value
     return out
 
 

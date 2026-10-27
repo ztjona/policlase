@@ -528,6 +528,19 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .bar .mark { color: var(--ok); font-weight: 900; }
 .bar.wrong { opacity: .45; }
 .bar.right .bar-label { color: var(--ok); }
+.bar .fill.accent { background: var(--accent); } .bar .fill.ok { background: var(--ok); }
+
+/* Estadísticas de una actividad: cifras breves en una rejilla y enunciados recortados a dos líneas. */
+.metrics { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px 14px; margin: 0; }
+.metrics dt { font-size: .76rem; color: var(--muted); }
+.metrics dd { margin: 0; font-size: 1.3rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.metrics dd small { font-size: .7em; font-weight: 600; color: var(--muted); }
+.metrics dd.small { font-size: .8rem; font-weight: 400; }
+.stats-table td { vertical-align: top; }
+.stats-table td.num { white-space: nowrap; }
+.stats-table .question-cell { min-width: 28ch; }
+.stats-table tr.item-row th { background: var(--surface-alt); text-align: left; }
+.clamp { display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 46ch; }
 .meter { font-size: .7em; color: var(--muted); }
 .board { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: .25em; font-size: .75em; }
 .board li { display: flex; justify-content: space-between; gap: 1em; padding: .3em .6em; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; }
