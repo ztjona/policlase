@@ -81,7 +81,9 @@
       {% for choice in form.review_mode %}<label class="radio-row">{{ choice.tag }} {{ choice.choice_label }}</label>{% endfor %}
       {{ form.review_mode.errors }}
       <div class="review-milestone row">
-        {{ form.review_offset_days }} <span class="small">{% translate "días respecto a" %}</span> {{ form.review_milestone }}
+        {{ form.review_offset_days }}
+        <span class="review-on-milestone"><span class="small">{% translate "días respecto a" %}</span> {{ form.review_milestone }}</span>
+        <span class="small review-on-publish">{% translate "días después de publicar las notas," %}</span>
         <span class="small">{% translate "a las" %}</span> {{ form.review_time }}
         {{ form.review_milestone.errors }}{{ form.review_offset_days.errors }}{{ form.review_time.errors }}
       </div>

@@ -100,21 +100,28 @@ def _results(activity, students) -> list[dict]:
     tries: dict[int, int] = {}
     drafts: dict[int, Attempt] = {}
     for a in Attempt.objects.filter(activity=activity).only("pk", "student_id", "submitted_at", "telemetry",
-                                                             "started_at", "activity_id"):
+                                                             "started_at", "activity_id", "answers", "content"):
         if a.submitted_at:
             tries[a.student_id] = tries.get(a.student_id, 0) + 1
         else:
             drafts[a.student_id] = a
+    files: dict[int, set[str]] = {}
+    for attempt_id, key in Upload.objects.filter(attempt__activity=activity).values_list("attempt_id", "key"):
+        files.setdefault(attempt_id, set()).add(key)
     rows = []
     for student in students:
         attempt = counted.get(student.pk)
         draft = drafts.get(student.pk)
-        if draft is not None:
-            draft.activity = activity
+        for a in (attempt, draft):
+            if a is not None:
+                a.activity = activity
+        # El avance: del borrador mientras responde (se ve cómo avanza una evaluación), si no, de la entrega.
+        shown = draft if draft is not None else attempt
         rows.append({"student": student, "attempt": attempt, "tries": tries.get(student.pk, 0),
                      "working": draft is not None, "draft": draft,
                      # En una evaluación en curso, cuánto le queda.
                      "remaining": _minutes(engine.remaining_ms(draft)) if draft is not None else None,
+                     "progress": engine.progress_of(shown, files.get(shown.pk, set())) if shown else None,
                      "flags": _flags(attempt.telemetry) if attempt else []})
     rows.sort(key=lambda r: (r["attempt"] is None, r["student"].last_name, r["student"].first_name))
     return rows
@@ -218,11 +225,14 @@ def activity_stats(request, course_pk, pk):
     students = _approved(course)
     counted = engine.counted_attempts(activity)
     ids = [counted[s.pk].pk for s in students if s.pk in counted]
-    attempts = list(Attempt.objects.filter(pk__in=ids).prefetch_related("answer_rows"))
+    attempts = list(Attempt.objects.filter(pk__in=ids).select_related("student").prefetch_related("answer_rows"))
     for attempt in attempts:
         attempt.activity = activity
+    files: dict[int, set[str]] = {}
+    for attempt_id, key in Upload.objects.filter(attempt_id__in=ids).values_list("attempt_id", "key"):
+        files.setdefault(attempt_id, set()).add(key)
     return render(request, "activities/stats.html", {
-        "course": course, "activity": activity, "report": stats.report(activity, attempts, len(students)),
+        "course": course, "activity": activity, "report": stats.report(activity, attempts, len(students), files),
     })
 
 

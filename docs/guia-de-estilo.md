@@ -21,7 +21,9 @@ Repositorios: `policlase` (plataforma) y `policlase-gen` (formato y validador, v
 4. **Separación estricta entre docentes.** Un docente nunca ve ni modifica nada de otro: todo acceso
    pasa por `apps/courses/access.py` y lo ajeno responde **404** (no 403: no se confirma que exista).
 5. **El proyector lo ve la clase.** Nada que se muestre en el proyector —tampoco al pasar el mouse—
-   revela respuestas correctas ni notas del docente (`_slide_card.html` con `reveal=False`).
+   revela respuestas correctas (`_slide_card.html` con `reveal=False`). Las notas del docente de cada
+   diapositiva no están en el escenario: aparecen solo al pasar el cursor por su botón de los
+   controles, o al enfocarlo con el teclado (decisión del autor, 0.22).
 6. **Anonimato de verdad.** La retroalimentación se guarda sin estudiante y sin hora, y el resumen
    solo aparece con 3 respuestas o más.
 7. **La nota y el juego son cosas distintas.** El bono por rapidez y los puntos de juego (×1000) son
@@ -191,7 +193,8 @@ Reglas de interacción:
   proyecta (`evaluation_projector`), y diez códigos equivocados obligan a esperar. Pasado el límite
   (con una gracia de 20 s), nada se guarda y el intento se envía solo. El estudiante no ve su puntaje,
   su corrección ni su nota en «Calificaciones» hasta que el docente publica las notas
-  (`published_at`); la revisión empieza entonces. Una evaluación nunca se proyecta con sus preguntas
+  (`published_at`); la revisión empieza entonces y puede cerrarse unos días después de la
+  publicación (`Activity.Review.PUBLISHED`, que `engine.publish` recalcula). Una evaluación nunca se proyecta con sus preguntas
   y lo enviado no se reabre al mover la fecha. Las variantes por estudiante (§7 del formato) quedan
   para una segunda etapa.
 - **Pegar:** lo decide solo el documento (`block_paste` en la raíz o en un segmento). La antigua
@@ -266,8 +269,10 @@ Reglas de interacción:
   intento que cuenta de cada estudiante, la nota (promedio, desviación estándar, mediana,
   distribución), el tiempo entre empezar y enviar, cada pregunta (promedio, correctas, en blanco,
   discriminación y respuestas incorrectas frecuentes) y las señales agrupadas, con la correlación
-  por rangos y el umbral bajo el cual puede deberse al azar. Junto a cada cifra que se presta a
-  sobreinterpretarse, la página dice qué no permite concluir.
+  por rangos y el umbral bajo el cual puede deberse al azar; desde 0.22, el tiempo por pregunta y
+  los estudiantes (notas más altas y más bajas, a quienes se les acabó el tiempo, quienes dejaron
+  preguntas sin responder y quienes tienen más señales). Junto a cada cifra que se presta a
+  sobreinterpretarse, la página dice qué no permite concluir. «Con más señales», no «sospechosos».
 - **Notas fuera de policlase:** registros manuales (`ManualRecord`) que cuentan como una actividad
   (o una clase) más de su fila. Pegar una lista solo rellena: nada se guarda sin que el docente lo
   revise, y lo que no coincide queda «sin asignar» para cuando el estudiante se inscriba. Cada nota
@@ -281,10 +286,13 @@ Reglas de interacción:
   EXIF ni GPS); se sirven solo por `upload_file`, con permisos y `nosniff`, nunca desde `/media/`.
 - **Señales, no sanciones:** pegar texto y salir de la página (cuántas veces y, desde 0.21, cuánto
   tiempo en total y la salida más larga: `away_s`, `away_max_s`) se registran y se muestran al
-  docente, y el estudiante lo sabe. Una salida incluye pasar a otra ventana, por ejemplo a la
-  calculadora: por sí sola no distingue una herramienta permitida de una que no lo es. No se
-  bloquean capturas (en la web no se puede) ni se castiga automáticamente. La marca de agua (nombre y cédula) es fija sobre la ventana, muy tenue, en el
-  intento y en la revisión (`activities/_watermark.html`).
+  docente, y el estudiante lo sabe. Desde 0.22 también el tiempo en cada pregunta (`q_s`: cada
+  segundo con la página visible cuenta para la pregunta con el foco o, si ninguna lo tiene, la que
+  cruza el centro de la pantalla) y, en la tabla de entregas, el avance (`engine.progress_of`). Una
+  salida incluye pasar a otra ventana, por ejemplo a la calculadora: por sí sola no distingue una
+  herramienta permitida de una que no lo es. No se bloquean capturas (en la web no se puede) ni se
+  castiga automáticamente. La marca de agua (nombre y cédula) es fija sobre la ventana, muy tenue,
+  en el intento y en la revisión (`activities/_watermark.html`).
 - **El intento:** el índice (partes, títulos del contenido e ítems, con cuántas preguntas tienen
   respuesta) en el borde izquierdo de la pantalla y el estado de cada pregunta en el derecho (un
   recuadro por ítem, un número por pregunta, las de seguimiento con letra: respondida, sin responder

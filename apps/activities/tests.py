@@ -1776,3 +1776,120 @@ class PracticeTests(ActivityBase):
         self.client.force_login(self.outsider)
         url = reverse("attempt_check", args=[self.course.pk, self.rep.pk, "R-raiz.q1"])
         self.assertEqual(self.client.post(url, {"a-R-raiz.q1": "1"}).status_code, 404)
+
+
+TIMED_LIST = r"""schema: policlase/v1
+title: 'Python rápido'
+use: activity
+slides:
+  - segment: { title: 'Rápidas', time_limit_s: 120 }
+  - item:
+      id: TL-numpy
+      questions:
+        - { id: q1, type: numeric_list, shape: [1, 2], prompt: 'A[1, 2] y A[:, 1].sum()', solution: [6, 15], grading: { atol: 0 } }
+  - segment: {}
+  - item:
+      id: TL-exp
+      questions:
+        - { id: q1, type: numeric, prompt: 'Épsilon de float32', solution: 1.1920929e-7, grading: { rtol: 1.0e-3 } }
+"""
+
+
+class StudentReportsTests(ActivityBase):
+    """Lo que reportaron los estudiantes en octubre de 2026: una pregunta con tiempo cerrada con una
+    respuesta ilegible impedía enviar, y la notación científica solo se aceptaba como `1.5e-4`."""
+
+    def setUp(self):
+        super().setUp()
+        from policlase_gen import document as content_format
+
+        document, report, _use = content_format.load_text(TIMED_LIST)
+        self.assertEqual(report.errors, [])
+        self.quiz = Activity.objects.create(
+            course=self.course, title="Python rápido", source=TIMED_LIST, compiled=content_format.compile_content(document),
+            category=self.deberes, published=True, due_at=timezone.now() + timedelta(days=2))
+        self.attempt = engine.start(self.quiz, self.ana)
+        self.attempt = engine.open_timer(self.attempt, "TL-numpy.q1")
+
+    def test_una_respuesta_ilegible_no_cierra_la_pregunta_con_tiempo(self):
+        with self.assertRaisesMessage(engine.ActionError, "no es un número"):
+            engine.close_timer(self.attempt, "TL-numpy.q1", {"TL-numpy.q1": ["[3, 5, 6, 7]", "[1, 5, 9]"]})
+        self.attempt.refresh_from_db()
+        self.assertNotIn("closed", self.attempt.timers["TL-numpy.q1"])      # sigue abierta para corregirla
+        attempt = engine.close_timer(self.attempt, "TL-numpy.q1", {"TL-numpy.q1": ["6", "15"]})
+        self.assertIn("closed", attempt.timers["TL-numpy.q1"])
+
+    def test_una_pregunta_cerrada_e_ilegible_no_impide_enviar(self):
+        Attempt.objects.filter(pk=self.attempt.pk).update(
+            answers={"TL-numpy.q1": ["[3, 5]", "[1, 5]"], "TL-exp.q1": "1.19*10**-7"},
+            timers={"TL-numpy.q1": {**self.attempt.timers["TL-numpy.q1"], "closed": timezone.now().isoformat()}})
+        self.attempt.refresh_from_db()
+        self.assertEqual(engine.format_errors(self.attempt), {})
+        attempt = engine.submit(self.attempt)
+        answers = {a.key: a for a in attempt.answer_rows.all()}
+        self.assertEqual(answers["TL-numpy.q1"].points, 0)                 # ilegible: vale cero
+        self.assertTrue(answers["TL-exp.q1"].correct)                       # 1.19*10**-7 es un número
+
+    def test_avance_y_tiempo_por_pregunta(self):
+        engine.save_draft(self.attempt, {"TL-exp.q1": "1.19e-7"},
+                          telemetry={"q_s": {"TL-exp.q1": 40, "otra.q9": 7}, "blurs": 1})
+        engine.save_draft(self.attempt, {}, telemetry={"q_s": {"TL-exp.q1": 5, "TL-numpy.q1": "x"}})
+        self.attempt.refresh_from_db()
+        self.assertEqual(self.attempt.telemetry["q_s"], {"TL-exp.q1": 45})  # sin claves ajenas ni basura
+        self.assertEqual(engine.progress_of(self.attempt), (1, 2))
+        self.client.force_login(self.teacher)
+        detail = self.client.get(reverse("activity_detail", args=[self.course.pk, self.quiz.pk]))
+        self.assertContains(detail, "1 de 2 preguntas respondidas")
+        engine.submit(self.attempt)
+        page = self.client.get(reverse("activity_stats", args=[self.course.pk, self.quiz.pk]))
+        self.assertContains(page, "Mediana del tiempo con la pregunta en pantalla")
+        self.assertContains(page, "45 s")
+        self.assertContains(page, "Con preguntas sin responder")
+        self.assertContains(page, "Notas más altas")
+
+
+class ReviewAfterPublishingTests(ActivityBase):
+    def setUp(self):
+        super().setUp()
+        from policlase_gen import document as content_format
+
+        document, _report, _use = content_format.load_text(EVALUATION)
+        self.exam = Activity(course=self.course, title="Prueba 1", source=EVALUATION,
+                             compiled=content_format.compile_content(document),
+                             category=self.course.periods.first().categories.get(name="Prueba"), published=True,
+                             opens_at=timezone.now() - timedelta(hours=3), due_at=timezone.now() - timedelta(hours=1))
+        self.exam.set_kind("evaluation")
+        self.exam.save()
+
+    def test_la_revision_se_cuenta_desde_la_publicacion(self):
+        tz = timezone.get_default_timezone()
+        day = timezone.localtime(self.exam.due_at, tz).date()
+        self.client.force_login(self.teacher)
+        response = self.client.post(reverse("activity_detail", args=[self.course.pk, self.exam.pk]), {
+            "category": self.exam.category_id, "published": "on", "day_mode": "fixed", "day": day.isoformat(),
+            "opens_time": "07:00", "due_time": "09:00", "require_code": "on",
+            "review_mode": "published", "review_offset_days": "3", "review_time": "23:59"})
+        self.assertEqual(response.status_code, 302)
+        self.exam.refresh_from_db()
+        self.assertEqual(self.exam.review_mode, Activity.Review.PUBLISHED)
+        self.assertIsNone(self.exam.review_until)
+        self.assertEqual(str(self.exam.review_rule), "hasta 3 días después de publicar las notas")
+        Activity.objects.filter(pk=self.exam.pk).update(due_at=timezone.now() - timedelta(minutes=5))
+        self.exam.refresh_from_db()
+        published = timezone.now()
+        engine.publish(self.exam, now=published)
+        self.exam.refresh_from_db()
+        expected = datetime.combine(timezone.localtime(published, tz).date() + timedelta(days=3), time(23, 59))
+        self.assertEqual(timezone.localtime(self.exam.review_until, tz).replace(tzinfo=None), expected)
+        self.assertTrue(self.exam.review_open(published + timedelta(days=1)))
+        self.assertFalse(self.exam.review_open(published + timedelta(days=5)))
+        engine.unpublish(self.exam)
+        self.exam.refresh_from_db()
+        self.assertIsNone(self.exam.review_until)
+
+    def test_una_actividad_no_ofrece_la_opcion(self):
+        self.client.force_login(self.teacher)
+        page = self.client.get(reverse("activity_detail", args=[self.course.pk, self.activity.pk]))
+        self.assertNotContains(page, 'value="published"')
+        exam_page = self.client.get(reverse("activity_detail", args=[self.course.pk, self.exam.pk]))
+        self.assertContains(exam_page, 'value="published"')

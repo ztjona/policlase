@@ -19,7 +19,9 @@
       show(".day-milestone", day === "milestone");
       show(".day-fixed", day === "fixed");
       var review = (settings.querySelector("input[name=review_mode]:checked") || {}).value;
-      show(".review-milestone", review === "milestone");
+      show(".review-milestone", review === "milestone" || review === "published");
+      show(".review-on-milestone", review === "milestone");      // evaluación: relativa a una fecha clave…
+      show(".review-on-publish", review === "published");        // …o a la publicación de las notas
       show(".review-fixed", review === "fixed");
       var debate = (settings.querySelector("input[name=debate_mode]:checked") || {}).value;
       show(".debate-fixed", debate === "fixed");

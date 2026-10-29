@@ -44,7 +44,7 @@
 
     {% if activity.compiled.instructions %}<div class="card">{{ activity.compiled.instructions|md }}</div>{% endif %}
     <p class="small muted anon-note">
-      {% translate "Sus respuestas se guardan automáticamente mientras escribe. Se registra si pega texto, y cuántas veces y por cuánto tiempo sale de esta página; su docente lo verá junto con su entrega." %}
+      {% translate "Sus respuestas se guardan automáticamente mientras escribe. Se registra si pega texto, cuántas veces y por cuánto tiempo sale de esta página y cuánto tiempo dedica a cada pregunta; su docente lo verá junto con su entrega." %}
       {% if activity.is_practice %}{% translate "Compruebe cada pregunta para ver su corrección y, al comprobar todo un ejercicio, su explicación. Al terminar, las preguntas que no comprobó también se corrigen." %}
       {% elif activity.is_evaluation %}{% translate "Al acabarse el tiempo, la evaluación se envía automáticamente con lo que tenga guardado." %}
       {% elif activity.auto_submit and activity.due_at %}{% translate "Si no envía el intento antes de la fecha de entrega, se enviará automáticamente con lo que tenga guardado en ese momento." %}{% endif %}

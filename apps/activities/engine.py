@@ -387,6 +387,14 @@ def close_timer(attempt: Attempt, key: str, answers: dict | None = None, now=Non
     question = _question(attempt, key)
     if not question.get("time_limit_s") or key not in (attempt.timers or {}):
         raise ActionError(_("Esa pregunta no está abierta."))
+    # Una respuesta ilegible no cierra la pregunta: cerrada ya no se podría corregir, y el intento
+    # no se podría enviar (`format_errors`). Sigue abierta, con su tiempo corriendo.
+    incoming = answers.get(key) if answers and key in answers else attempt.answers.get(key)
+    if question["type"] not in REVIEW_TYPES and not blank(incoming):
+        result = grade(question, incoming, solution=_records(attempt.content)[key][2])
+        if not result.gradable:
+            raise ActionError(_("No se pudo leer su respuesta: %(error)s Corríjala y pulse «Responder» de nuevo; "
+                                "la pregunta sigue abierta.") % {"error": " ".join(result.format_errors)})
     if answers and key in answers and _accepts(attempt, question, now):
         _mark_late(attempt, key, answers[key], now)
         attempt.answers = {**attempt.answers, key: answers[key]}
@@ -419,6 +427,9 @@ def save_draft(attempt: Attempt, answers: dict, telemetry: dict | None = None, n
     if reasons:
         attempt.reasons = {**(attempt.reasons or {}), **reasons}
     if telemetry:
+        if isinstance(telemetry.get("q_s"), dict):          # solo las preguntas de este intento
+            known = {q["key"] for q in attempt.questions}
+            telemetry = {**telemetry, "q_s": {k: v for k, v in telemetry["q_s"].items() if k in known}}
         attempt.telemetry = merge_telemetry(attempt.telemetry, telemetry)
     attempt.saved_at = now
     attempt.save(update_fields=["answers", "saved_at", "telemetry", "marked", "timers", "reasons"])
@@ -440,7 +451,35 @@ def merge_telemetry(current: dict, delta: dict) -> dict:
             continue
         if 0 < value < 1_000_000:
             out[key] = max(out.get(key, 0), value) if key in TELEMETRY_MAX_KEYS else out.get(key, 0) + value
+    # Segundos en cada pregunta (la que tiene el foco o cruza el centro de la pantalla), por clave.
+    times = delta.get("q_s")
+    if isinstance(times, dict):
+        merged = dict(out.get("q_s") or {})
+        for key, value in list(times.items())[:500]:
+            try:
+                value = int(value)
+            except (TypeError, ValueError):
+                continue
+            if isinstance(key, str) and len(key) <= 250 and 0 < value < 100_000:
+                merged[key] = merged.get(key, 0) + value
+        if merged:
+            out["q_s"] = merged
     return out
+
+
+def progress_of(attempt: Attempt, files: set[str] | None = None) -> tuple[int, int]:
+    """(respondidas, total) de las preguntas que cuentan: sin encuestas ni secciones deshabilitadas.
+    Una pregunta de imagen cuenta como respondida si tiene archivos (`files`, sus claves)."""
+    if files is None:
+        files = set(attempt.uploads.values_list("key", flat=True))
+    skip = attempt.activity.disabled
+    done = total = 0
+    for key, (item, q, _record) in _records(attempt.content).items():
+        if item["item_id"] in skip or q.get("survey"):
+            continue
+        total += 1
+        done += (key in files) if q["type"] == "image" else not blank((attempt.answers or {}).get(key))
+    return done, total
 
 
 def _question(attempt: Attempt, key: str) -> dict:
@@ -543,6 +582,9 @@ def format_errors(attempt: Attempt) -> dict[str, str]:
         value = attempt.answers.get(key)
         if q["type"] in REVIEW_TYPES or blank(value) or item["item_id"] in skip:
             continue                       # lo deshabilitado no se ve: no se le puede pedir corregirlo
+        current = timer(attempt, q)
+        if current and current.state == "closed":
+            continue                       # una pregunta con tiempo ya cerrada no se puede corregir: vale cero
         result = grade(q, value, solution=record)
         if not result.gradable:
             errors[key] = " ".join(result.format_errors)
@@ -652,12 +694,14 @@ def publish(activity: Activity, now=None) -> None:
         raise ActionError(_("Las notas se publican cuando la evaluación ya se cerró."))
     finalize_overdue(activity, now)
     activity.published_at = now
-    activity.save(update_fields=["published_at"])
+    activity.compute_review()           # una revisión relativa a la publicación se cuenta desde ahora
+    activity.save(update_fields=["published_at", "review_until"])
 
 
 def unpublish(activity: Activity) -> None:
     activity.published_at = None
-    activity.save(update_fields=["published_at"])
+    activity.compute_review()
+    activity.save(update_fields=["published_at", "review_until"])
 
 
 def reopen_auto_submitted(activity: Activity, now=None) -> int:

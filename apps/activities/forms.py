@@ -25,8 +25,11 @@ REVIEW_WIDGETS = {
 class ReviewMixin:
     """La revisión (cuándo se ve la corrección y las soluciones), igual en actividades y evaluaciones."""
 
-    def setup_review(self, milestones):
+    def setup_review(self, milestones, evaluation=False):
         self.fields["review_milestone"].queryset = milestones
+        if not evaluation:              # solo las evaluaciones publican sus notas
+            self.fields["review_mode"].choices = [c for c in self.fields["review_mode"].choices
+                                                  if c[0] != Activity.Review.PUBLISHED]
         self.fields["review_milestone"].empty_label = _("— Elija una fecha clave —")
         self.fields["review_until"].label = _("Fecha y hora de cierre de la revisión")
         # Si no llegan (un formulario anterior, una petición parcial), se conservan los de la actividad.
@@ -58,6 +61,13 @@ class ReviewMixin:
             data["review_milestone"] = None
             if not data.get("review_until"):
                 self.add_error("review_until", _("Indique hasta cuándo dura la revisión."))
+        elif review == Activity.Review.PUBLISHED:
+            if data["review_offset_days"] < 0:
+                self.add_error("review_offset_days", _("Indique cuántos días después de publicar las notas, desde 0."))
+            if data.get("review_time") is None:
+                self.add_error("review_time", _("Indique la hora."))
+            # El cierre se calcula con la fecha de publicación (`Activity.compute_review`).
+            data["review_milestone"], data["review_until"] = None, None
         else:
             data["review_milestone"], data["review_until"] = None, None
         return review
@@ -249,7 +259,7 @@ class EvaluationSettingsForm(ReviewMixin, PeriodRowMixin, forms.ModelForm):
         self.fields["due_milestone"].widget.tags = {str(m.pk): {"data-day": m.on.isoformat()} for m in milestones}
         self.fields["due_offset_days"].required = False
         self.fields["opens_time"].required = True
-        self.setup_review(milestones)
+        self.setup_review(milestones, evaluation=True)
         self.setup_period(course, day_of(self.instance) or timezone.localdate())
         instance = self.instance
         if not self.is_bound:

@@ -8,7 +8,7 @@
   if (!form) return;
   var status = form.querySelector("[data-save-status]");
   var telemetryField = form.querySelector("input[name=telemetry]");
-  var delta = { pastes: 0, pasted_chars: 0, blurs: 0, blocked_pastes: 0, away_s: 0, away_max_s: 0 };
+  var delta = { pastes: 0, pasted_chars: 0, blurs: 0, blocked_pastes: 0, away_s: 0, away_max_s: 0, q_s: {} };
   var timer = null, dirty = false, saving = false, away = false, awaySince = 0, failures = 0;
   // No `form.action`: los botones se llaman «action», y el navegador devuelve esos botones en vez de
   // la dirección del formulario (el autoguardado iba a «…/intento/[object RadioNodeList]»).
@@ -45,6 +45,31 @@
   window.addEventListener("blur", leave);
   window.addEventListener("focus", back);
 
+  // Tiempo en cada pregunta: cada segundo con la página visible se suma a la pregunta en curso, la que
+  // tiene el foco o, si ninguna lo tiene, la que cruza el centro de la pantalla (la más interna, si
+  // una pregunta de seguimiento está dentro de otra). Pasar a otra ventana, como la calculadora, sigue
+  // contando; cambiar de pestaña, no.
+  var blocks = Array.prototype.slice.call(form.querySelectorAll(".q-block[id^='q-']"));
+  function currentBlock() {
+    var focused = document.activeElement && document.activeElement.closest ? document.activeElement.closest(".q-block[id^='q-']") : null;
+    if (focused && form.contains(focused)) return focused;
+    var middle = window.innerHeight / 2, best = null, bestDistance = Infinity;
+    blocks.forEach(function (b) {
+      var r = b.getBoundingClientRect();
+      if (!r.height) return;                     // oculta: sección deshabilitada o panel plegado
+      var d = r.top <= middle && r.bottom >= middle ? 0 : Math.min(Math.abs(r.top - middle), Math.abs(r.bottom - middle));
+      if (d < bestDistance || (d === bestDistance && best && best.contains(b))) { best = b; bestDistance = d; }
+    });
+    return best;
+  }
+  setInterval(function () {
+    if (document.hidden) return;
+    var b = currentBlock();
+    if (!b) return;
+    var key = b.id.slice(2);
+    delta.q_s[key] = (delta.q_s[key] || 0) + 1;
+  }, 1000);
+
   // ------------------------------------------------------------------ autoguardado
 
   function payload() {
@@ -56,7 +81,12 @@
   }
 
   function resetDelta(sent) {
+    Object.keys(sent.q_s || {}).forEach(function (q) {
+      delta.q_s[q] = (delta.q_s[q] || 0) - sent.q_s[q];
+      if (delta.q_s[q] <= 0) delete delta.q_s[q];
+    });
     Object.keys(delta).forEach(function (k) {
+      if (k === "q_s") return;
       // La salida más larga es un máximo, no una suma: lo enviado ya quedó registrado.
       if (k === "away_max_s") delta[k] = delta[k] > (sent[k] || 0) ? delta[k] : 0;
       else delta[k] = Math.max(0, delta[k] - (sent[k] || 0));
@@ -139,7 +169,9 @@
 
   form.addEventListener("input", function (e) { if (!e.target.matches("[data-upload]")) { dirty = true; schedule(); } });
   form.addEventListener("change", function (e) { if (!e.target.matches("[data-upload]")) { dirty = true; schedule(); } });
-  setInterval(function () { if (delta.pastes || delta.blurs || delta.blocked_pastes || delta.away_s) save(); }, 60000);
+  setInterval(function () {
+    if (delta.pastes || delta.blurs || delta.blocked_pastes || delta.away_s || Object.keys(delta.q_s).length) save();
+  }, 60000);
 
   // ------------------------------------------------------------------ imágenes
 

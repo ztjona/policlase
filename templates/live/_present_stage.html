@@ -124,7 +124,6 @@
     </div>
   {% endif %}
 
-  {% if slide.notes and session.status == "live" %}<p class="notes">{% translate "Notas:" %} {{ slide.notes }}</p>{% endif %}
   </div>
 
   <div class="controls">
@@ -138,6 +137,8 @@
     {% elif session.status == "live" %}
       <button data-action="prev" class="secondary" {% if not has_prev or session.phase == "open" %}disabled{% endif %} title="{% translate 'Flecha izquierda' %}">◀ {% translate "Anterior" %}</button>
       <span class="progress">{{ position }} / {{ visible_total }}</span>
+      {# Las notas del docente no se ven en el proyector: solo al pasar el cursor por este botón o al enfocarlo con el teclado. #}
+      {% if slide.notes %}<span class="icon-btn tip up" tabindex="0" role="note" aria-label="{% translate 'Notas del docente' %}" data-tip="{{ slide.notes }}">{% icon "info" 18 %}</span>{% endif %}
       {% if session.phase == "ready" %}<button data-action="open" title="{% translate 'Espacio' %}">{% translate "Abrir pregunta" %}</button>{% endif %}
       {% if session.phase == "open" %}<button data-action="close" title="{% translate 'Espacio' %}">{% translate "Cerrar ya" %}</button>
         {# El tiempo, discreto y solo en los controles: la clase no ve una cuenta regresiva. Al acabarse, la pregunta sigue abierta. #}

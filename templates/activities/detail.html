@@ -122,7 +122,7 @@
     <table>
       <thead><tr>
         <th>{% translate "Estudiante" %}</th><th>{% translate "Enviado" %}</th><th class="center">{% translate "Intentos" %}</th>
-        <th class="center">{% translate "Nota" %}</th><th>{% translate "Señales" %}</th><th class="actions-col"></th>
+        <th class="center">{% translate "Nota" %}</th><th class="center">{% translate "Avance" %}</th><th>{% translate "Señales" %}</th><th class="actions-col"></th>
       </tr></thead>
       <tbody>
         {% for r in rows %}{% with a=r.attempt %}
@@ -132,6 +132,7 @@
               {% elif r.working %}<span class="muted">{% translate "respondiendo…" %}{% if r.remaining is not None %} {% blocktranslate count n=r.remaining %}(queda {{ n }} minuto){% plural %}(quedan {{ n }} minutos){% endblocktranslate %}{% endif %}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
             <td class="center">{{ r.tries|default:"—" }}</td>
             <td class="center">{% if a %}{{ a.points|floatformat:"-2" }} / {{ a.max_points|floatformat:"-2" }}{% if a.pending %} <span class="chip warn" title="{% translate 'preguntas por revisar' %}">{{ a.pending }}</span>{% endif %}{% else %}—{% endif %}</td>
+            <td class="center small">{% if r.progress and r.progress.1 %}{% with done=r.progress.0 total=r.progress.1 %}<span title="{% blocktranslate %}{{ done }} de {{ total }} preguntas respondidas{% endblocktranslate %}"{% if done < total %} class="chip warn"{% endif %}>{% widthratio done total 100 %} %</span>{% endwith %}{% else %}—{% endif %}</td>
             <td class="small">{% for f in r.flags %}<span class="chip">{{ f }}</span> {% endfor %}</td>
             <td class="actions-col">{% if a %}<a class="small" href="{% url 'attempt_review' course.pk activity.pk a.pk %}">{% translate "Ver" %}</a>{% elif r.draft %}<a class="small" href="{% url 'attempt_review' course.pk activity.pk r.draft.pk %}">{% translate "Ver avance" %}</a>{% endif %}</td>
           </tr>

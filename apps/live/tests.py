@@ -967,6 +967,14 @@ class PreviewSafetyTests(LiveBase):
             self.assertNotIn('class="mark"', p)
             self.assertNotIn("Notas:", p)
 
+    def test_las_notas_del_docente_solo_en_un_tooltip(self):
+        session = self.start()
+        engine.apply(session.pk, "start")
+        note = "Preguntar primero si alguien recuerda el teorema del valor intermedio."
+        page = self.client.get(reverse("present_fragment", args=[session.pk])).content.decode()
+        self.assertNotIn('class="notes"', page)                     # ya no es texto del escenario
+        self.assertIn(f'data-tip="{note}"', page)                    # solo al pasar el cursor por su botón
+
     def test_el_editor_si_marca_la_correcta(self):
         self.client.force_login(self.teacher)
         html = self.client.post(reverse("content_preview", args=[self.course.pk]), {"source": DEMO}).json()["html"]

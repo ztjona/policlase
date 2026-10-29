@@ -58,6 +58,8 @@ class Activity(models.Model):
         ALWAYS = "always", _("Sin límite")
         MILESTONE = "milestone", _("Hasta una fecha relativa a una fecha clave")
         FIXED = "fixed", _("Hasta una fecha fija")
+        #: Solo en evaluaciones, cuya revisión empieza al publicar las notas.
+        PUBLISHED = "published", _("Hasta unos días después de publicar las notas")
         NONE = "none", _("Sin revisión (solo se muestra el puntaje)")
 
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="activities")
@@ -211,6 +213,12 @@ class Activity(models.Model):
         if self.review_mode == self.Review.MILESTONE and self.review_milestone_id:
             day = self.review_milestone.on + timedelta(days=self.review_offset_days)
             self.review_until = datetime.combine(day, self.review_time, tzinfo=course_tz(self.course))
+        elif self.review_mode == self.Review.PUBLISHED:
+            # Sin notas publicadas no hay revisión que cerrar; al publicarlas (o retirarlas) se recalcula.
+            tz = course_tz(self.course)
+            self.review_until = (datetime.combine(timezone.localtime(self.published_at, tz).date()
+                                                  + timedelta(days=self.review_offset_days), self.review_time, tzinfo=tz)
+                                 if self.published_at else None)
         elif self.review_mode in (self.Review.ALWAYS, self.Review.NONE):
             self.review_until = None
 
@@ -219,6 +227,10 @@ class Activity(models.Model):
         """«hasta el mismo día de «Prueba 1», 00:00», «hasta el 12 nov, 07:00», «sin límite»…"""
         if self.review_mode == self.Review.NONE:
             return _("sin revisión")
+        if self.review_mode == self.Review.PUBLISHED and not self.review_until:
+            return ngettext("hasta %(n)d día después de publicar las notas",
+                            "hasta %(n)d días después de publicar las notas", self.review_offset_days) % {
+                "n": self.review_offset_days}
         if self.review_mode == self.Review.ALWAYS or not self.review_until:
             return _("sin límite")
         return _("hasta el %(when)s") % {"when": date_format(timezone.localtime(self.review_until, course_tz(self.course)),
@@ -238,7 +250,8 @@ class Activity(models.Model):
         """Cuándo se cierra el debate; None si sigue abierto hasta que el docente lo cierre (también
         con «Al cerrar la revisión» si la revisión no tiene fin)."""
         if self.debate_mode == self.DebateClose.REVIEW:
-            return self.review_until if self.review_mode in (self.Review.MILESTONE, self.Review.FIXED) else None
+            return self.review_until if self.review_mode in (self.Review.MILESTONE, self.Review.FIXED,
+                                                             self.Review.PUBLISHED) else None
         return self.debate_until
 
     def debate_open(self, now=None) -> bool:

@@ -13,13 +13,15 @@ from collections import Counter
 
 from django.utils.translation import gettext as _
 
-from .engine import blank
+from .engine import blank, progress_of
 
 #: Con menos entregas, la desviación, la discriminación y la correlación no se muestran.
 MIN_FOR_SPREAD = 2
 MIN_FOR_CORRELATION = 5
 #: Grupos de la tabla de señales: (desde, hasta) salidas de la página, ambos incluidos.
 BLUR_GROUPS = ((0, 0), (1, 5), (6, 20), (21, None))
+#: Cuántos estudiantes muestra cada resumen (mejores notas, más señales…).
+TOP = 5
 
 
 def summary(values: list[float]) -> dict | None:
@@ -142,6 +144,8 @@ def question_rows(activity, attempts) -> list[dict]:
                                                        {q["key"] for q in activity.questions}]
     skip = activity.disabled
     totals = {a.pk: a.points or 0.0 for a in attempts}
+    # El tiempo en cada pregunta se registra desde la versión 0.22: solo cuentan los intentos que lo tienen.
+    timed = [a.telemetry["q_s"] for a in attempts if isinstance((a.telemetry or {}).get("q_s"), dict)]
     by_key: dict[str, list] = {}
     for attempt in attempts:
         for answer in attempt.answer_rows.all():
@@ -165,6 +169,7 @@ def question_rows(activity, attempts) -> list[dict]:
             # La primera pregunta de cada ejercicio abre su grupo en la tabla.
             "new_item": not rows or rows[-1]["question"]["item_id"] != q["item_id"],
             "pending": len(answers) - len(graded), "stats": spread,
+            "time": duration_text(statistics.median([t.get(key, 0) for t in timed])) if timed else None,
             "percent": round(100 * spread["mean"] / full) if spread and full else None,
             "correct": sum(1 for a in graded if a.correct),
             "blank": len(answers) - len(answered),
@@ -220,7 +225,44 @@ def signal_groups(attempts) -> list[dict]:
     return out
 
 
-def report(activity, attempts, enrolled: int) -> dict:
+def student_rows(attempts, files: dict[int, set[str]]) -> list[dict]:
+    """Una fila por estudiante, de la mejor nota a la más baja."""
+    rows = []
+    for a in attempts:
+        telemetry = a.telemetry or {}
+        done, total = progress_of(a, files.get(a.pk, set()))
+        rows.append({
+            "student": a.student, "attempt": a, "percent": round(100 * a.fraction) if a.fraction is not None else None,
+            "done": done, "total": total, "progress": round(100 * done / total) if total else 100,
+            "duration": duration_text((a.submitted_at - a.started_at).total_seconds()) if a.submitted_at else None,
+            "blurs": telemetry.get("blurs", 0), "pastes": telemetry.get("pastes", 0),
+            "blocked": telemetry.get("blocked_pastes", 0),
+            "away": duration_text(telemetry["away_s"]) if "away_s" in telemetry else None,
+            "away_s": telemetry.get("away_s", 0), "auto": a.auto_submitted,
+        })
+    rows.sort(key=lambda r: (-(r["percent"] or 0), r["student"].last_name))
+    return rows
+
+
+def student_lists(rows: list[dict]) -> list[dict]:
+    """Resúmenes breves: las notas más altas y más bajas, quienes no terminaron y las señales. Ninguno
+    es una conclusión: cada uno dice qué mirar y con quién conversar."""
+    signals = [r for r in rows if r["blurs"] or r["pastes"] or r["blocked"]]
+    signals.sort(key=lambda r: (-r["blurs"], -r["away_s"], -(r["pastes"] + r["blocked"])))
+    unfinished = sorted((r for r in rows if r["done"] < r["total"]), key=lambda r: r["progress"])
+    out_of_time = sorted((r for r in rows if r["auto"]), key=lambda r: r["progress"])
+    return [
+        {"title": _("Notas más altas"), "rows": rows[:TOP], "value": "percent"},
+        {"title": _("Notas más bajas"), "rows": list(reversed(rows[-TOP:])) if len(rows) > TOP else [], "value": "percent"},
+        {"title": _("Se les acabó el tiempo"), "rows": out_of_time[:TOP], "value": "progress",
+         "note": _("El intento se envió automáticamente al terminar el plazo; se indica el avance.")},
+        {"title": _("Con preguntas sin responder"), "rows": unfinished[:TOP], "value": "progress"},
+        {"title": _("Con más señales"), "rows": signals[:TOP], "value": "blurs",
+         "note": _("Más salidas de la página o intentos de pegar. Son motivo para conversar, no una conclusión.")},
+    ]
+
+
+def report(activity, attempts, enrolled: int, files: dict[int, set[str]] | None = None) -> dict:
     """Todo lo que muestra la página de estadísticas."""
     fractions = [a.fraction for a in attempts if a.fraction is not None]
     scores = [a.points or 0.0 for a in attempts]
@@ -230,6 +272,7 @@ def report(activity, attempts, enrolled: int) -> dict:
     # El tiempo fuera de la página se registra desde la versión 0.21: los intentos anteriores no lo tienen.
     away = [a for a in attempts if "away_s" in (a.telemetry or {})]
     time = summary(durations)
+    students = student_rows(attempts, files or {})
     return {
         "submitted": len(attempts), "enrolled": enrolled,
         "max_points": max((a.max_points for a in attempts), default=float(activity.points)),
@@ -240,6 +283,8 @@ def report(activity, attempts, enrolled: int) -> dict:
         "auto": sum(1 for a in attempts if a.auto_submitted),
         "late": sum(1 for a in attempts if a.late),
         "questions": question_rows(activity, attempts),
+        "students": students, "lists": student_lists(students),
+        "question_time": any(isinstance((a.telemetry or {}).get("q_s"), dict) for a in attempts),
         "signals": {
             "groups": signal_groups(attempts),
             "rho": spearman(blurs, [a.fraction or 0.0 for a in attempts]),

@@ -69,6 +69,49 @@
 </div>
 {% endwith %}
 
+<h2>{% translate "Estudiantes" %}</h2>
+<div class="grid">
+  {% for l in report.lists %}{% if l.rows %}
+    <section class="card stack">
+      <h3 style="margin:0">{{ l.title }}</h3>
+      {% if l.note %}<p class="small muted" style="margin:0">{{ l.note }}</p>{% endif %}
+      <ul class="plain">
+        {% for r in l.rows %}
+          <li class="student-line"><span>{% include "activities/_name.html" with s=r.student %}</span>
+            <span class="small muted">{% if l.value == "percent" %}{{ r.percent }} %{% elif l.value == "progress" %}{% blocktranslate with d=r.done t=r.total %}{{ d }} de {{ t }} preguntas{% endblocktranslate %}{% else %}{% blocktranslate count n=r.blurs %}{{ n }} salida{% plural %}{{ n }} salidas{% endblocktranslate %}{% if r.away %} · {{ r.away }}{% endif %}{% endif %}</span></li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}{% endfor %}
+</div>
+<details class="card">
+  <summary>{% translate "Todos los estudiantes" %}</summary>
+  <div class="table-wrap" style="margin-top:10px">
+    <table class="stats-table">
+      <thead><tr>
+        <th>{% translate "Estudiante" %}</th><th class="num">{% translate "Nota" %}</th><th class="num">{% translate "Avance" %}</th>
+        <th class="num">{% translate "Tiempo" %}</th><th class="num">{% translate "Salidas" %}</th>
+        <th class="num">{% translate "Tiempo fuera" %}</th><th class="num">{% translate "Intentos de pegar" %}</th><th></th>
+      </tr></thead>
+      <tbody>
+        {% for r in report.students %}
+          <tr>
+            <td>{% include "activities/_name.html" with s=r.student %}</td>
+            <td class="num">{% if r.percent is None %}—{% else %}{{ r.percent }} %{% endif %}</td>
+            <td class="num">{{ r.done }} / {{ r.total }}</td>
+            <td class="num">{{ r.duration|default:"—" }}</td>
+            <td class="num">{{ r.blurs }}</td>
+            <td class="num">{{ r.away|default:"—" }}</td>
+            <td class="num">{{ r.blocked }}</td>
+            <td>{% if r.auto %}<span class="chip">{% translate "enviado al terminar el plazo" %}</span>{% endif %}
+              <a class="small" href="{% url 'attempt_review' course.pk activity.pk r.attempt.pk %}">{% translate "Ver" %}</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</details>
+
 <h2>{% translate "Preguntas" %}</h2>
 <div class="card table-wrap">
   <table class="stats-table">
@@ -76,11 +119,12 @@
       <th class="num">#</th><th>{% translate "Pregunta" %}</th><th class="num">{% translate "Puntos" %}</th>
       <th class="num">{% translate "Promedio" %}</th><th class="num">{% translate "Desv. estándar" %}</th>
       <th class="num">{% translate "Correctas" %}</th><th class="num">{% translate "En blanco" %}</th>
+      {% if report.question_time %}<th class="num"><span class="tip" tabindex="0" data-tip="{% translate 'Mediana del tiempo con la pregunta en pantalla: la que tiene el foco o, si ninguna lo tiene, la que cruza el centro de la pantalla. Cuenta también el tiempo en otra ventana, como la calculadora, pero no el de otra pestaña.' %}">{% translate "Tiempo" %}</span></th>{% endif %}
       <th class="num"><span class="tip" tabindex="0" data-tip="{% translate 'Correlación entre los puntos de la pregunta y el resto de la nota. Cerca de 0, la pregunta no distingue a quienes rinden mejor en el resto; negativa, quienes la acertaron rindieron peor en lo demás.' %}">{% translate "Discriminación" %}</span></th>
     </tr></thead>
     <tbody>
       {% for r in report.questions %}
-        {% if r.new_item %}<tr class="item-row"><th colspan="8">{{ r.question.item_title|default:r.question.item_id|md_inline }}</th></tr>{% endif %}
+        {% if r.new_item %}<tr class="item-row"><th colspan="{% if report.question_time %}9{% else %}8{% endif %}">{{ r.question.item_title|default:r.question.item_id|md_inline }}</th></tr>{% endif %}
         <tr>
           <td class="num"><a href="#p{{ r.number }}">{{ r.number }}</a></td>
           <td class="question-cell"><div class="clamp">{{ r.question.prompt|md_inline }}</div>
@@ -92,6 +136,7 @@
           <td class="num">{% if not r.stats or r.stats.sd is None %}—{% else %}{{ r.stats.sd|floatformat:2 }}{% endif %}</td>
           <td class="num">{{ r.correct }} / {{ r.n }}</td>
           <td class="num">{{ r.blank }}</td>
+          {% if report.question_time %}<td class="num">{{ r.time|default:"—" }}</td>{% endif %}
           <td class="num">{% if r.discrimination is None %}—{% else %}{{ r.discrimination|floatformat:2 }}{% endif %}</td>
         </tr>
       {% endfor %}
