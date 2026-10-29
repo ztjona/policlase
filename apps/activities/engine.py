@@ -42,7 +42,7 @@ from django.utils.translation import gettext as _
 from policlase_gen.grading import grade
 
 from . import images, outline
-from .models import Activity, Answer, Attempt, Extension, Upload
+from .models import Activity, Answer, Attempt, Extension, SkippedCorrection, Upload
 
 REVIEW_TYPES = {"open", "image"}
 #: Tope de texto de una respuesta abierta: un párrafo largo, no un documento.
@@ -78,6 +78,8 @@ class State:
     show_score: bool = True          # en una evaluación, solo con las notas publicadas
     correction: "Activity | None" = None    # en una evaluación, su corrección (si se creó)
     correction_pending: bool = False  # puede enviar la corrección: la revisión espera
+    correction_started: bool = False  # tiene la corrección en curso: ya no la puede omitir
+    correction_skipped: bool = False  # la omitió para ver la revisión
 
     @property
     def used(self) -> int:
@@ -121,11 +123,15 @@ def state(activity: Activity, student, now=None) -> State:
         # Mientras pueda hacer la corrección, la revisión de la evaluación espera: verla antes sería
         # corregir con las soluciones a la vista.
         reveal = solutions = False
+    correction = activity.correction_activity if activity.is_evaluation else None
     return State(attempts=attempts, draft=draft, counted=counted, can_start=ok and draft is None,
                  reason=reason, late=late, reveal=reveal, solutions=solutions, review_closed=closed,
                  show_score=not activity.is_evaluation or bool(activity.published_at),
-                 correction=activity.correction_activity if activity.is_evaluation else None,
-                 correction_pending=pending is not None)
+                 correction=correction, correction_pending=pending is not None,
+                 correction_started=pending is not None and Attempt.objects.filter(
+                     activity=pending, student=student, submitted_at=None).exists(),
+                 correction_skipped=correction is not None and SkippedCorrection.objects.filter(
+                     activity=correction, student=student).exists())
 
 
 def correction_pending(exam: Activity, student, now=None) -> Activity | None:
@@ -135,6 +141,20 @@ def correction_pending(exam: Activity, student, now=None) -> Activity | None:
         return None
     if Attempt.objects.filter(activity=correction, student=student, submitted_at__isnull=False).exists():
         return None
+    if SkippedCorrection.objects.filter(activity=correction, student=student).exists():
+        return None
+    return correction
+
+
+def skip_correction(exam: Activity, student, now=None) -> Activity:
+    """El estudiante omite la corrección y ve de inmediato la revisión de su evaluación. Con la
+    corrección en curso no se puede: lo empezado se envía (y cuenta) o se envía solo al cerrarse."""
+    correction = correction_pending(exam, student, now)
+    if correction is None:
+        raise ActionError(_("No tiene una corrección pendiente en esta evaluación."))
+    if Attempt.objects.filter(activity=correction, student=student, submitted_at=None).exists():
+        raise ActionError(_("Ya empezó la corrección: envíela para ver la revisión."))
+    SkippedCorrection.objects.get_or_create(activity=correction, student=student)
     return correction
 
 
@@ -239,6 +259,9 @@ def can_answer(activity: Activity, submitted: int, now, student=None) -> tuple[b
             activity_id=activity.correction_of_id, student=student, submitted_at__isnull=False).exists()):
         # Una nueva oportunidad sobre la propia evaluación, no una forma de rendirla tarde.
         return False, _("La corrección es para quienes rindieron la evaluación."), False
+    if (activity.correction_of_id and student is not None
+            and SkippedCorrection.objects.filter(activity=activity, student=student).exists()):
+        return False, _("Omitió la corrección para ver la revisión de la evaluación."), False
     if submitted >= activity.max_attempts:
         return False, _("Ya usó todos sus intentos."), False
     if not due or now <= due:

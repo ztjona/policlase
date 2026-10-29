@@ -104,7 +104,17 @@
       <h2 style="margin:0">{% translate "Corrección de la evaluación" %}</h2>
       {% if state.correction_pending %}
         <p style="margin:0">{% if state.correction.due_at %}{% blocktranslate with when=state.correction.due_at|date:"D d M, H:i" %}Puede volver a resolver la evaluación completa, a su ritmo y en un solo intento, hasta el {{ when }}. Cuando la envíe, verá la revisión de su evaluación y la de su corrección, con las soluciones.{% endblocktranslate %}{% else %}{% translate "Puede volver a resolver la evaluación completa, a su ritmo y en un solo intento. Cuando la envíe, verá la revisión de su evaluación y la de su corrección, con las soluciones." %}{% endif %}</p>
-        <div class="row"><a class="btn" href="{% url 'activity_student' course.pk state.correction.pk %}">{% translate "Ir a la corrección" %}</a></div>
+        <div class="row">
+          <a class="btn" href="{% url 'activity_student' course.pk state.correction.pk %}">{% if state.correction_started %}{% translate "Continuar la corrección" %}{% else %}{% translate "Ir a la corrección" %}{% endif %}</a>
+          {% if not state.correction_started %}
+            <form method="post" action="{% url 'correction_skip' course.pk activity.pk %}" style="margin:0"
+                  onsubmit="return confirm('{% translate "¿Omitir la corrección? Verá ahora la revisión de su evaluación, con las soluciones, y ya no podrá hacer la corrección ni sumar su nota." as msg %}{{ msg|escapejs }}')">
+              {% csrf_token %}<button class="secondary">{% translate "Omitir la corrección y ver la revisión" %}</button></form>
+          {% endif %}
+        </div>
+        <p class="small muted" style="margin:0">{% if state.correction_started %}{% translate "Ya empezó la corrección: envíela para ver la revisión de su evaluación." %}{% else %}{% translate "Si prefiere no hacerla, por ejemplo porque su nota ya es la que esperaba, puede omitirla y ver la revisión de inmediato. Esta decisión no se puede deshacer." %}{% endif %}</p>
+      {% elif state.correction_skipped %}
+        <p class="small muted" style="margin:0">{% translate "Omitió la corrección para ver la revisión de su evaluación." %}</p>
       {% else %}
         <p style="margin:0"><a href="{% url 'activity_student' course.pk state.correction.pk %}">{% translate "Ver su corrección" %}</a></p>
       {% endif %}

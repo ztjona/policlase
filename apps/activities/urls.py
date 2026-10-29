@@ -30,6 +30,7 @@ urlpatterns = [
     # estudiante
     path(S, views.activity_student, name="activity_student"),
     path(S + "comenzar/", views.attempt_start, name="attempt_start"),
+    path(S + "correccion/omitir/", views.correction_skip, name="correction_skip"),
     path(S + "intento/", views.attempt_form, name="attempt_form"),
     path(S + "intento/imagenes/", views.attempt_upload, name="attempt_upload"),
     path(S + "intento/imagenes/<int:upload_pk>/quitar/", views.attempt_upload_remove, name="attempt_upload_remove"),

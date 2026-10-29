@@ -23,7 +23,7 @@ from apps.grades.models import Milestone, Period
 
 from . import engine, images, outline, stats, timeline
 from .forms import ActivitySettingsForm, EvaluationSettingsForm, PracticeSettingsForm
-from .models import Activity, Answer, Attempt, Extension, Upload, new_access_code
+from .models import Activity, Answer, Attempt, Extension, SkippedCorrection, Upload, new_access_code
 
 def _course_link(course):
     from apps.github.models import CourseRepo
@@ -106,6 +106,8 @@ def _results(activity, students) -> list[dict]:
         else:
             drafts[a.student_id] = a
     files = engine.upload_keys(Attempt.objects.filter(activity=activity))
+    skipped = (set(SkippedCorrection.objects.filter(activity=activity).values_list("student_id", flat=True))
+               if activity.correction_of_id else set())
     rows = []
     for student in students:
         attempt = counted.get(student.pk)
@@ -120,6 +122,7 @@ def _results(activity, students) -> list[dict]:
                      # En una evaluación en curso, cuánto le queda.
                      "remaining": _minutes(engine.remaining_ms(draft)) if draft is not None else None,
                      "progress": engine.progress_of(shown, files.get(shown.pk, set())) if shown else None,
+                     "skipped": student.pk in skipped,
                      "flags": _flags(attempt.telemetry) if attempt else []})
     rows.sort(key=lambda r: (r["attempt"] is None, r["student"].last_name, r["student"].first_name))
     return rows
@@ -885,6 +888,20 @@ def attempt_start(request, course_pk, pk):
         messages.error(request, str(exc))
         return redirect("activity_student", course_pk=course_pk, pk=pk)
     return redirect("attempt_form", course_pk=course_pk, pk=pk)
+
+
+@login_required
+@require_POST
+def correction_skip(request, course_pk, pk):
+    """El estudiante omite la corrección de una evaluación y ve su revisión de inmediato."""
+    activity = _student_activity(request, course_pk, pk)
+    try:
+        engine.skip_correction(activity, request.user)
+    except engine.ActionError as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, _("Omitió la corrección: ya puede ver la revisión de su evaluación."))
+    return redirect("activity_student", course_pk=course_pk, pk=pk)
 
 
 def _draft(request, activity) -> Attempt:

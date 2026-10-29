@@ -64,7 +64,7 @@ def lanes(activity: Activity, now=None, student=None) -> dict | None:
         correction = activity.correction_activity
         if correction is not None and correction.published and correction.opens_at:
             out.append(Lane(_("Corrección"), correction.opens_at, correction.due_at, "correction"))
-            notes.append(_("Mientras pueda enviar la corrección, la revisión de la evaluación espera a que la envíe."))
+            notes.append(_("Mientras pueda hacer la corrección, la revisión de la evaluación espera a que la envíe o la omita."))
     else:
         start = opens or (due - timedelta(days=7) if due else None)
         if start:

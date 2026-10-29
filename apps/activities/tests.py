@@ -2098,3 +2098,31 @@ class CorrectionAndTimelineTests(ActivityBase):
         self.client.force_login(self.teacher)
         settings = self.client.get(reverse("activity_settings", args=[self.course.pk, self.activity.pk]))
         self.assertContains(settings, "Fechas y plazos")
+
+    def test_omitir_la_correccion_abre_la_revision(self):
+        correction = self.enable()
+        engine.publish(self.exam)
+        correction.refresh_from_db()
+        self.client.force_login(self.ana)
+        page = self.client.get(reverse("activity_student", args=[self.course.pk, self.exam.pk]))
+        self.assertContains(page, "Omitir la corrección y ver la revisión")
+        self.client.post(reverse("correction_skip", args=[self.course.pk, self.exam.pk]))
+        state = engine.state(self.exam, self.ana)
+        self.assertTrue(state.reveal and state.correction_skipped and not state.correction_pending)
+        with self.assertRaisesMessage(engine.ActionError, "Omitió la corrección"):
+            engine.start(correction, self.ana)
+        self.client.force_login(self.teacher)
+        results = self.client.get(reverse("activity_detail", args=[self.course.pk, correction.pk]))
+        self.assertContains(results, "omitió la corrección")
+
+    def test_no_se_omite_una_correccion_empezada(self):
+        correction = self.enable()
+        engine.publish(self.exam)
+        correction.refresh_from_db()
+        engine.start(correction, self.ana)
+        with self.assertRaisesMessage(engine.ActionError, "Ya empezó la corrección"):
+            engine.skip_correction(self.exam, self.ana)
+        self.client.force_login(self.ana)
+        page = self.client.get(reverse("activity_student", args=[self.course.pk, self.exam.pk]))
+        self.assertContains(page, "Continuar la corrección")
+        self.assertNotContains(page, "Omitir la corrección y ver la revisión")

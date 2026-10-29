@@ -61,6 +61,7 @@
           <tr>
             <td>{% include "activities/_name.html" with s=r.student %}</td>
             <td class="small">{% if a %}{{ a.submitted_at|date:"d M H:i" }}{% if a.late %} <span class="chip warn">{% blocktranslate with p=a.penalty %}atrasada −{{ p }} %{% endblocktranslate %}</span>{% endif %}
+              {% elif r.skipped %}<span class="chip">{% translate "omitió la corrección" %}</span>
               {% elif r.working %}<span class="muted">{% translate "respondiendo…" %}{% if r.remaining is not None %} {% blocktranslate count n=r.remaining %}(queda {{ n }} minuto){% plural %}(quedan {{ n }} minutos){% endblocktranslate %}{% endif %}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
             <td class="center">{{ r.tries|default:"—" }}</td>
             <td class="center">{% if a %}{{ a.points|floatformat:"-2" }} / {{ a.max_points|floatformat:"-2" }}{% if a.pending %} <span class="chip warn" title="{% translate 'preguntas por revisar' %}">{{ a.pending }}</span>{% endif %}{% else %}—{% endif %}</td>

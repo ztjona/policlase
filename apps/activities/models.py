@@ -460,6 +460,18 @@ class Attempt(models.Model):
         self.save(update_fields=["points", "max_points", "pending"])
 
 
+class SkippedCorrection(models.Model):
+    """Un estudiante que decidió no hacer la corrección de una evaluación para ver su revisión de
+    inmediato (por ejemplo, porque su nota ya es la que esperaba). No se deshace."""
+
+    activity = models.ForeignKey(Activity, on_delete=models.CASCADE, related_name="skipped_by")  # la corrección
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["activity", "student"], name="one_skip_per_correction")]
+
+
 class Extension(models.Model):
     """Una prórroga para un estudiante: su propia fecha de entrega en una actividad, o su propio
     horario en una evaluación (por ejemplo, la rinde otro día por enfermedad) y, si hace falta, su

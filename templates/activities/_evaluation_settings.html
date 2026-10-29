@@ -41,7 +41,7 @@
   <fieldset class="due" id="correction">
     <legend>{% translate "Corrección" %}</legend>
     <label class="check-toggle">{{ form.allow_correction }} {{ form.allow_correction.label|capfirst }}</label>
-    <span class="helptext" style="margin:0">{% translate "Al publicar las notas, cada estudiante puede volver a resolver la evaluación completa, a su ritmo y en un solo intento, hasta el cierre de la revisión. La revisión de su evaluación se le muestra cuando envía la corrección; quien no la envía no la ve. La corrección cuenta en la fila que se elija." %}</span>
+    <span class="helptext" style="margin:0">{% translate "Al publicar las notas, cada estudiante puede volver a resolver la evaluación completa, a su ritmo y en un solo intento, hasta el cierre de la revisión. La revisión de su evaluación se le muestra cuando envía la corrección o cuando decide omitirla; quien no hace ninguna de las dos cosas no la ve. La corrección cuenta en la fila que se elija." %}</span>
     <div>{{ form.correction_category.label_tag }}{{ form.correction_category }}{{ form.correction_category.errors }}
       <span class="helptext">{{ form.correction_category.help_text }} <a href="{% url 'grading_settings' course.pk %}">{% translate "Editar ponderaciones" %}</a></span></div>
   </fieldset>
