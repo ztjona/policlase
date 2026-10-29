@@ -7,6 +7,7 @@ califican en la página del docente y el proyector. Se arma desde el contenido c
 
 from __future__ import annotations
 
+import random
 import re
 
 from django.utils.translation import gettext as _
@@ -104,6 +105,26 @@ def hidden_blocks(content: dict, disabled) -> set:
         if block.get("kind", "item") == "item" and block.get("item_id") in disabled:
             out.add(block.get("at"))
     return out
+
+
+def shuffle_parts(content: dict, seed: str) -> dict:
+    """El mismo contenido con sus partes en otro orden, para un estudiante. Una parte empieza en un
+    segmento y llega hasta el siguiente, con su contenido, sus ítems y sus soluciones: dentro de ella
+    nada se mueve, para que ningún enunciado pierda su contexto (mezclar preguntas sueltas lo haría).
+    Lo anterior al primer segmento queda al comienzo. Con menos de dos partes, no cambia nada."""
+    head: list[dict] = []
+    chunks: list[list[dict]] = []
+    for block in content.get("items", []):
+        if block.get("kind", "item") == "segment":
+            chunks.append([block])
+        elif chunks:
+            chunks[-1].append(block)
+        else:
+            head.append(block)
+    if len(chunks) < 2:
+        return content
+    random.Random(seed).shuffle(chunks)
+    return {**content, "items": head + [block for chunk in chunks for block in chunk]}
 
 
 def parts(content: dict, titles: dict[str, str] | None = None) -> list[dict]:

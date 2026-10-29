@@ -17,7 +17,7 @@
   </p>
   <span class="helptext" style="margin:0">{% translate "Mientras dure el debate, los estudiantes no ven la corrección de estas preguntas ni su explicación; al cerrarlo, las ven como síntesis. Conviene cerrarlo después de discutir las respuestas en clase y antes de la prueba." %}</span>
   <p class="small" style="margin:0">{% blocktranslate with rule=activity.get_debate_mode_display %}Cierre: {{ rule }}.{% endblocktranslate %}
-    <a href="{% url 'activity_detail' course.pk activity.pk %}#debate">{% translate "Cambiarlo en la configuración de la actividad" %}</a></p>
+    <a href="{% url 'activity_settings' course.pk activity.pk %}#debate">{% translate "Cambiarlo en la configuración de la actividad" %}</a></p>
   <form method="post" action="{% url 'debate_teacher_action' course.pk activity.pk %}" class="row" style="margin:0">{% csrf_token %}
     {% if is_closed %}<button name="action" value="reopen" class="secondary small">{% translate "Reabrir el debate" %}</button>
     {% elif is_open %}<button name="action" value="close" class="small" data-confirm="{% translate 'Los estudiantes verán la corrección y la explicación de estas preguntas, y ya no podrán publicar ni comentar. ¿Cerrar el debate?' %}">{% translate "Cerrar el debate ahora" %}</button>{% endif %}

@@ -157,13 +157,70 @@ def _titles(activity) -> dict[str, str]:
     return {i["item_id"]: i.get("title", "") for i in activity.compiled.get("items", []) if i.get("item_id")}
 
 
+#: Orden de la tabla de entregas: clave → (valor por fila o None si no tiene, sentido del primer clic).
+RESULT_SORTS = {
+    "apellido": (lambda r: (r["student"].last_name.lower(), r["student"].first_name.lower()), "asc"),
+    "nota": (lambda r: r["attempt"].fraction if r["attempt"] else None, "desc"),
+    "avance": (lambda r: r["progress"][0] / r["progress"][1] if r["progress"] and r["progress"][1] else None, "desc"),
+}
+
+
+def _sorted_results(rows: list[dict], params) -> tuple[list[dict], dict]:
+    """Las entregas en el orden pedido (`?orden=nota&dir=desc`); por omisión, por apellido. Un segundo
+    clic en el mismo encabezado invierte el sentido. Sin nota o sin avance, al final. Devuelve también
+    los enlaces de cada encabezado, como en la planilla (`grades/_sort.html`)."""
+    order = params.get("orden") if params.get("orden") in RESULT_SORTS else "apellido"
+    pick, first = RESULT_SORTS[order]
+    descending = params.get("dir", first) == "desc"
+    present = sorted((r for r in rows if pick(r) is not None), key=pick, reverse=descending)
+    rows = present + [r for r in rows if pick(r) is None]
+    links = {}
+    for key, (_pick, default) in RESULT_SORTS.items():
+        active = key == order
+        links[key] = {"url": f"?orden={key}&dir={('asc' if descending else 'desc') if active else default}",
+                      "active": active, "descending": descending}
+    return rows, links
+
+
+def _activity(course, pk) -> Activity:
+    return get_object_or_404(Activity.objects.select_related("category__period", "due_milestone", "course__owner"),
+                             pk=pk, course=course)
+
+
 @teacher_required
 def activity_detail(request, course_pk, pk):
+    """Las entregas: quién respondió, su nota, su avance y sus señales; en una evaluación, además, su
+    aplicación (código de acceso y publicación de las notas). La configuración está aparte
+    (`activity_settings`), para no cambiar algo cuando solo se quiere mirar los resultados."""
     course = owned_course(request, course_pk)
-    activity = get_object_or_404(Activity.objects.select_related("category__period", "due_milestone", "course__owner"),
-                                 pk=pk, course=course)
-    gradebook.ensure_defaults(course)
+    activity = _activity(course, pk)
     engine.finalize_overdue(activity)
+    students = _approved(course)
+    rows, sorts = _sorted_results(_results(activity, students), request.GET)
+    review = [q for q in activity.questions if q["type"] in engine.REVIEW_TYPES]
+    pending = {}
+    for key in Answer.objects.filter(attempt__activity=activity, needs_review=True,
+                                     attempt__submitted_at__isnull=False).values_list("key", flat=True):
+        pending[key] = pending.get(key, 0) + 1
+    return render(request, "activities/detail.html", {
+        "course": course, "activity": activity, "rows": rows, "sorts": sorts, "tab": "entregas",
+        "query": request.GET.urlencode(),
+        "surveys": _surveys(activity, rows),
+        "submitted": sum(1 for r in rows if r["attempt"]),
+        "review": [{"question": q, "pending": pending.get(q["key"], 0)} for q in review],
+        "working": sum(1 for r in rows if r["working"]),
+        "now": timezone.now(),
+        "ai": _ai_panel(request, activity),
+    })
+
+
+@teacher_required
+def activity_settings(request, course_pk, pk):
+    """La configuración: fechas, ponderación, revisión, prórrogas, secciones que se califican y el
+    contenido con sus soluciones. Separada de las entregas (`activity_detail`)."""
+    course = owned_course(request, course_pk)
+    activity = _activity(course, pk)
+    gradebook.ensure_defaults(course)
     form_class = (EvaluationSettingsForm if activity.is_evaluation else PracticeSettingsForm if activity.is_practice
                   else ActivitySettingsForm)
     form = form_class(request.POST or None, instance=activity, course=course)
@@ -173,7 +230,7 @@ def activity_detail(request, course_pk, pk):
             messages.success(request, _("Configuración guardada."))
             if form.closes_before:
                 messages.info(request, _("El repaso se cierra antes de abrir, así que los estudiantes no lo verán."))
-            return redirect("activity_detail", course_pk=course.pk, pk=activity.pk)
+            return redirect("activity_settings", course_pk=course.pk, pk=activity.pk)
         messages.error(request, _("Revise los campos marcados."))
     elif request.method == "POST":
         if form.is_valid():
@@ -190,29 +247,20 @@ def activity_detail(request, course_pk, pk):
                     "Como la nueva fecha de entrega es posterior, %(n)d intento enviado automáticamente volvió a quedar abierto.",
                     "Como la nueva fecha de entrega es posterior, %(n)d intentos enviados automáticamente volvieron a quedar abiertos.",
                     reopened) % {"n": reopened})
-            return redirect("activity_detail", course_pk=course.pk, pk=activity.pk)
+            return redirect("activity_settings", course_pk=course.pk, pk=activity.pk)
         messages.error(request, _("Revise los campos marcados."))
     students = _approved(course)
-    rows = _results(activity, students)
-    review = [q for q in activity.questions if q["type"] in engine.REVIEW_TYPES]
-    pending = {}
-    for key in Answer.objects.filter(attempt__activity=activity, needs_review=True,
-                                     attempt__submitted_at__isnull=False).values_list("key", flat=True):
-        pending[key] = pending.get(key, 0) + 1
-    return render(request, "activities/detail.html", {
-        "course": course, "activity": activity, "form": form, "rows": rows,
-        "surveys": _surveys(activity, rows),
+    return render(request, "activities/settings.html", {
+        "course": course, "activity": activity, "form": form, "tab": "configuracion",
         "mismatch": gradebook.mismatch(activity, list(Period.objects.filter(course=course))),
-        "submitted": sum(1 for r in rows if r["attempt"]),
-        "review": [{"question": q, "pending": pending.get(q["key"], 0)} for q in review],
+        "submitted": Attempt.objects.filter(activity=activity, submitted_at__isnull=False)
+                                    .values("student").distinct().count(),
         "milestones": Milestone.objects.filter(course=course),
         "parts": outline.parts(activity.compiled), "disabled": activity.disabled,
         "full_points": float(activity.compiled.get("points") or 0),
-        "working": sum(1 for r in rows if r["working"]),
         "now": timezone.now(),
         "extensions": Extension.objects.filter(activity=activity).select_related("student"),
         "students": students,
-        "ai": _ai_panel(request, activity),
     })
 
 
@@ -260,7 +308,7 @@ def activity_extension(request, course_pk, pk):
     from django.utils.dateparse import parse_datetime
 
     course, activity = _own_activity(request, course_pk, pk)
-    back = reverse("activity_detail", args=[course.pk, activity.pk]) + "#extensions"
+    back = reverse("activity_settings", args=[course.pk, activity.pk]) + "#extensions"
     if request.POST.get("action") == "remove":
         Extension.objects.filter(activity=activity, pk=request.POST.get("extension")).delete()
         messages.success(request, _("Prórroga eliminada."))
@@ -361,7 +409,7 @@ def activity_parts(request, course_pk, pk):
             % {"p": f"{activity.points:g}", "n": count})
     else:
         messages.success(request, _("Todas las secciones están habilitadas."))
-    return redirect(reverse("activity_detail", args=[course.pk, activity.pk]) + "#parts")
+    return redirect(reverse("activity_settings", args=[course.pk, activity.pk]) + "#parts")
 
 
 def _surveys(activity, rows) -> list[dict]:
@@ -401,12 +449,21 @@ def attempt_review(request, course_pk, pk, attempt_pk):
     course, activity = _own_activity(request, course_pk, pk)
     attempt = get_object_or_404(Attempt.objects.select_related("student"), pk=attempt_pk, activity=activity)
     others = Attempt.objects.filter(activity=activity, student=attempt.student).order_by("number")
-    # Anterior y siguiente, en el orden de la tabla de entregas: calificar una tras otra.
-    order = [r["attempt"].pk for r in _results(activity, _approved(course)) if r["attempt"]]
+    # Anterior y siguiente, en el orden en que se ordenó la tabla de entregas: calificar una tras otra.
+    ordered, _links = _sorted_results(_results(activity, _approved(course)), request.GET)
+    order = [r["attempt"].pk for r in ordered if r["attempt"]]
     here = order.index(attempt.pk) if attempt.pk in order else None
+    # Los paneles del intento: el índice y el estado de cada pregunta (correcta, incorrecta, marcada).
+    titles = _titles(activity)
+    rows = engine.answer_rows(attempt)
+    panel = _labeled([r for r in rows if not r["disabled"]], titles)
+    hidden = outline.hidden_blocks(attempt.content, activity.disabled)
+    entries = [e for e in outline.build(attempt.content, titles) if e["at"] not in hidden]
     return render(request, "activities/attempt_review.html", {
         "course": course, "activity": activity, "attempt": attempt, "others": others,
-        "rows": engine.answer_rows(attempt), "flags": _flags(attempt.telemetry),
+        "rows": rows, "panel": panel, "entries": _progress(entries, panel), "query": request.GET.urlencode(),
+        "answered": sum(1 for r in panel if not r["blank"]), "marked": sum(1 for r in panel if r["marked"]),
+        "flags": _flags(attempt.telemetry),
         "blocks": outline.for_review(attempt.content, activity.compiled),
         "previous": order[here - 1] if here else None,
         "next": order[here + 1] if here is not None and here + 1 < len(order) else None,

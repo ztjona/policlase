@@ -105,6 +105,9 @@ class Activity(models.Model):
     duration_min = models.PositiveSmallIntegerField(_("duración (minutos)"), null=True, blank=True)
     #: Evaluación: el código que el docente proyecta en el aula; sin él no se puede empezar.
     require_code = models.BooleanField(_("pedir un código de acceso para empezar"), default=True, db_default=True)
+    #: Cada estudiante recibe las partes (segmentos) en su propio orden (`outline.shuffle_parts`).
+    shuffle_parts = models.BooleanField(_("mostrar las partes en un orden distinto a cada estudiante"),
+                                        default=False, db_default=False)
     access_code = models.CharField(max_length=8, blank=True, default="", db_default="")
     #: Evaluación: cuándo publicó el docente las notas. Antes, el estudiante no ve ni su puntaje.
     published_at = models.DateTimeField(_("notas publicadas"), null=True, blank=True)

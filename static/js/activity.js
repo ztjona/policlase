@@ -49,12 +49,12 @@
   // tiene el foco o, si ninguna lo tiene, la que cruza el centro de la pantalla (la más interna, si
   // una pregunta de seguimiento está dentro de otra). Pasar a otra ventana, como la calculadora, sigue
   // contando; cambiar de pestaña, no.
-  var blocks = Array.prototype.slice.call(form.querySelectorAll(".q-block[id^='q-']"));
+  var questionBlocks = Array.prototype.slice.call(form.querySelectorAll(".q-block[id^='q-']"));
   function currentBlock() {
     var focused = document.activeElement && document.activeElement.closest ? document.activeElement.closest(".q-block[id^='q-']") : null;
     if (focused && form.contains(focused)) return focused;
     var middle = window.innerHeight / 2, best = null, bestDistance = Infinity;
-    blocks.forEach(function (b) {
+    questionBlocks.forEach(function (b) {
       var r = b.getBoundingClientRect();
       if (!r.height) return;                     // oculta: sección deshabilitada o panel plegado
       var d = r.top <= middle && r.bottom >= middle ? 0 : Math.min(Math.abs(r.top - middle), Math.abs(r.bottom - middle));
@@ -451,50 +451,10 @@
   window.policlaseAttemptRefresh = refresh;     // tras subir o quitar una imagen, o abrir una pregunta con tiempo
   refresh();
 
-  // Paneles laterales. Los botones solo sirven con JavaScript: llegan ocultos y se muestran aquí.
-  document.querySelectorAll("[data-side-open], [data-side-collapse], [data-side-expand]").forEach(function (b) { b.hidden = false; });
-
-  // En pantalla ancha, cada panel se pliega a un costado; este navegador lo recuerda.
-  function setCollapsed(side, collapsed) {
-    side.classList.toggle("collapsed", collapsed);
-    try { localStorage.setItem("policlase.side." + side.id, collapsed ? "1" : "0"); } catch (e) {}
-  }
-  document.querySelectorAll(".attempt-side").forEach(function (side) {
-    try { if (localStorage.getItem("policlase.side." + side.id) === "1") side.classList.add("collapsed"); } catch (e) {}
-    side.querySelector("[data-side-collapse]").addEventListener("click", function () { setCollapsed(side, true); });
-    side.querySelector("[data-side-expand]").addEventListener("click", function () { setCollapsed(side, false); });
-  });
-
-  // En pantalla angosta se abren sobre la página con los botones de abajo.
-  function closeSides() { document.querySelectorAll(".attempt-side.open").forEach(function (a) { a.classList.remove("open"); }); }
-  document.addEventListener("click", function (e) {
-    var open = e.target.closest("[data-side-open]");
-    if (open) {
-      var side = document.getElementById(open.dataset.sideOpen);
-      var wasOpen = side.classList.contains("open");
-      closeSides();
-      if (!wasOpen) side.classList.add("open");
-      return;
-    }
-    if (e.target.closest("[data-side-close]") || e.target.closest(".attempt-side.open a")) { closeSides(); return; }
-    if (!e.target.closest(".attempt-side")) closeSides();          // tocar fuera del panel lo cierra
-  });
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeSides(); });
-
-  // El índice resalta la parte que se está leyendo.
+  // Los paneles laterales y el resaltado del índice están en side-panels.js (también en la revisión del docente).
+  // Aquí, el índice y los bloques sirven para seguir al docente cuando presenta la actividad.
   var tocLinks = Array.from(document.querySelectorAll("[data-toc]"));
   var blocks = Array.from(form.querySelectorAll("[data-block]"));
-  var ticking = false;
-  function highlight() {
-    ticking = false;
-    var here = null;
-    blocks.forEach(function (b) { if (b.getBoundingClientRect().top < 140) here = b; });
-    var at = here ? Number(here.dataset.block) : -1, best = null;
-    tocLinks.forEach(function (a) { if (Number(a.dataset.toc) <= at) best = a; });
-    tocLinks.forEach(function (a) { if (a === best) a.setAttribute("aria-current", "true"); else a.removeAttribute("aria-current"); });
-  }
-  window.addEventListener("scroll", function () { if (!ticking) { ticking = true; requestAnimationFrame(highlight); } }, { passive: true });
-  highlight();
 
   // ------------------------------------------------------------------ tiempo de una evaluación
   // El límite lo pone el servidor (engine.check_time); aquí se muestra la cuenta regresiva y, al

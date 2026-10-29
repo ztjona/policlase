@@ -41,7 +41,7 @@ from django.utils.formats import date_format
 from django.utils.translation import gettext as _
 from policlase_gen.grading import grade
 
-from . import images
+from . import images, outline
 from .models import Activity, Answer, Attempt, Extension, Upload
 
 REVIEW_TYPES = {"open", "image"}
@@ -221,10 +221,14 @@ def start(activity: Activity, student, code: str | None = None) -> Attempt:
     if activity.is_evaluation and activity.require_code:
         check_code(activity, student, code)
     try:
+        content = activity.compiled
+        if activity.is_evaluation and activity.shuffle_parts:
+            # Su propio orden de las partes, fijo desde que empieza: el intento guarda su copia.
+            content = outline.shuffle_parts(content, f"{activity.pk}:{student.pk}")
         with transaction.atomic():
             return Attempt.objects.create(
                 activity=activity, student=student, number=len(current.attempts) + 1,
-                content=activity.compiled, max_points=activity.points,
+                content=content, max_points=activity.points,
             )
     except IntegrityError:          # doble clic: ya hay un borrador
         return Attempt.objects.get(activity=activity, student=student, submitted_at=None)

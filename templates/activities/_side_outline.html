@@ -1,0 +1,19 @@
+{% load i18n policlase %}
+{% comment %} El índice del intento, en el borde izquierdo: partes, títulos del contenido e ítems, con cuántas preguntas
+   tienen respuesta. Lo usan el intento y la revisión del docente (static/js/side-panels.js). {% endcomment %}
+<nav class="attempt-side" id="side-outline" aria-label="{% translate 'Índice de la actividad' %}">
+  <button type="button" class="icon-btn side-rail" data-side-expand hidden title="{% translate 'Mostrar el índice' %}" aria-label="{% translate 'Mostrar el índice' %}">{% icon "chevron_right" 20 %}</button>
+  <div class="side-body">
+    <div class="side-head"><h2>{% translate "Índice" %}</h2>
+      <button type="button" class="icon-btn side-collapse" data-side-collapse hidden title="{% translate 'Ocultar el índice' %}" aria-label="{% translate 'Ocultar el índice' %}">{% icon "chevron_left" 18 %}</button>
+      <button type="button" class="icon-btn side-close" data-side-close title="{% translate 'Cerrar' %}" aria-label="{% translate 'Cerrar' %}">{% icon "close" 16 %}</button></div>
+    <ol class="toc">
+      {% for e in entries %}
+        <li class="lvl-{{ e.level }} toc-{{ e.kind }}">
+          <a href="#b-{{ e.at }}" data-toc="{{ e.at }}">{{ e.title|md_inline }}</a>
+          {% if e.kind == "item" and e.total %}<span class="toc-count{% if e.done == e.total %} done{% endif %}" data-toc-count="{{ e.item_id }}">{{ e.done }}/{{ e.total }}</span>{% endif %}
+        </li>
+      {% endfor %}
+    </ol>
+  </div>
+</nav>

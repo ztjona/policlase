@@ -17,7 +17,7 @@ from apps.grades import gradebook
 from apps.grades.models import Milestone
 from apps.live.models import Section
 
-from . import debate, engine, stats
+from . import debate, engine, outline, stats
 from .models import Activity, Answer, Attempt, DebateEntry, DebateReply, Upload
 
 SOURCE = r"""schema: policlase.activity/v1
@@ -128,7 +128,7 @@ class EditorTests(ActivityBase):
     def test_configurar_fecha_relativa_a_una_fecha_clave(self):
         prueba = Milestone.objects.create(course=self.course, name="Prueba 1", on=date(2026, 11, 12))
         self.client.force_login(self.teacher)
-        self.client.post(reverse("activity_detail", args=[self.course.pk, self.activity.pk]), {
+        self.client.post(reverse("activity_settings", args=[self.course.pk, self.activity.pk]), {
             "category": self.deberes.pk, "published": "on", "due_mode": "milestone",
             "due_milestone": prueba.pk, "due_offset_days": "-1", "due_time": "23:59",
             "late_policy": "penalty", "late_penalty": "30", "max_attempts": "3"})
@@ -142,6 +142,7 @@ class IsolationTests(ActivityBase):
         other = make_user("otra", User.Role.TEACHER)
         self.client.force_login(other)
         for name, args in [("activity_detail", [self.course.pk, self.activity.pk]),
+                           ("activity_settings", [self.course.pk, self.activity.pk]),
                            ("activity_edit", [self.course.pk, self.activity.pk]),
                            ("activity_dates", [self.course.pk]),
                            ("question_review", [self.course.pk, self.activity.pk, "D1-a.q3"]),
@@ -150,7 +151,7 @@ class IsolationTests(ActivityBase):
                            ("grading_settings", [self.course.pk])]:
             self.assertEqual(self.client.get(reverse(name, args=args)).status_code, 404, name)
         self.client.post(reverse("activity_delete", args=[self.course.pk, self.activity.pk]))
-        self.client.post(reverse("activity_detail", args=[self.course.pk, self.activity.pk]),
+        self.client.post(reverse("activity_settings", args=[self.course.pk, self.activity.pk]),
                          {"due_mode": "none", "late_policy": "block", "late_penalty": "0", "max_attempts": "1"})
         self.activity.refresh_from_db()
         self.assertEqual((self.activity.late_policy, self.activity.max_attempts), ("penalty", 3))
@@ -987,7 +988,7 @@ class ReviewWindowTests(WorkshopBase):
     def test_configurar_la_revision_en_la_pagina(self):
         prueba = Milestone.objects.create(course=self.course, name="Prueba 1", on=date(2026, 11, 12))
         self.client.force_login(self.teacher)
-        self.client.post(reverse("activity_detail", args=[self.course.pk, self.workshop.pk]), {
+        self.client.post(reverse("activity_settings", args=[self.course.pk, self.workshop.pk]), {
             "category": self.deberes.pk, "published": "on", "due_mode": "milestone",
             "due_milestone": prueba.pk, "due_offset_days": "-3", "due_time": "21:59",
             "review_mode": "milestone", "review_milestone": prueba.pk, "review_offset_days": "0",
@@ -1001,7 +1002,7 @@ class ReviewWindowTests(WorkshopBase):
 class DueFromOpeningTests(WorkshopBase):
     def test_siete_dias_despues_de_la_apertura(self):
         self.client.force_login(self.teacher)
-        self.client.post(reverse("activity_detail", args=[self.course.pk, self.workshop.pk]), {
+        self.client.post(reverse("activity_settings", args=[self.course.pk, self.workshop.pk]), {
             "category": self.deberes.pk, "published": "on", "opens_at": "2026-10-13T16:05",
             "due_mode": "opening", "opening_days": "7", "opening_time": "21:59", "review_mode": "always",
             "late_policy": "penalty", "late_penalty": "30", "max_attempts": "3"})
@@ -1012,7 +1013,7 @@ class DueFromOpeningTests(WorkshopBase):
 
     def test_sin_apertura_no_se_puede(self):
         self.client.force_login(self.teacher)
-        page = self.client.post(reverse("activity_detail", args=[self.course.pk, self.workshop.pk]), {
+        page = self.client.post(reverse("activity_settings", args=[self.course.pk, self.workshop.pk]), {
             "category": self.deberes.pk, "published": "on", "opens_at": "", "due_mode": "opening",
             "opening_days": "7", "opening_time": "21:59", "review_mode": "always",
             "late_policy": "penalty", "late_penalty": "30", "max_attempts": "3"})
@@ -1412,7 +1413,7 @@ class EvaluationTests(ActivityBase):
     def test_fecha_relativa_a_la_prueba_con_horario(self):
         prueba = Milestone.objects.create(course=self.course, name="Prueba 1", on=date(2026, 11, 12))
         self.client.force_login(self.teacher)
-        self.client.post(reverse("activity_detail", args=[self.course.pk, self.exam.pk]), {
+        self.client.post(reverse("activity_settings", args=[self.course.pk, self.exam.pk]), {
             "category": self.prueba.pk, "published": "on", "day_mode": "milestone", "due_milestone": prueba.pk,
             "due_offset_days": "0", "opens_time": "07:00", "due_time": "09:00", "duration_min": "90",
             "require_code": "on", "review_mode": "always"})
@@ -1633,7 +1634,7 @@ class DebateTests(ActivityBase):
     def test_el_debate_se_cierra_con_la_revision_y_se_configura_con_las_fechas(self):
         prueba = Milestone.objects.create(course=self.course, name="Prueba 1", on=timezone.localdate() + timedelta(days=9))
         self.client.force_login(self.teacher)
-        url = reverse("activity_detail", args=[self.course.pk, self.deb.pk])
+        url = reverse("activity_settings", args=[self.course.pk, self.deb.pk])
         self.assertContains(self.client.get(url), 'name="debate_mode"')     # hay preguntas de debate
         due = timezone.localtime() + timedelta(days=2)
         data = {"category": self.deberes.pk, "published": "on", "due_mode": "fixed",
@@ -1750,7 +1751,7 @@ class PracticeTests(ActivityBase):
     def test_abre_unos_dias_antes_de_su_fecha_clave(self):
         prueba = Milestone.objects.create(course=self.course, name="Prueba 1", on=timezone.localdate() + timedelta(days=10))
         self.client.force_login(self.teacher)
-        self.client.post(reverse("activity_detail", args=[self.course.pk, self.rep.pk]), {
+        self.client.post(reverse("activity_settings", args=[self.course.pk, self.rep.pk]), {
             "published": "on", "open_mode": "milestone", "due_milestone": prueba.pk, "days_before": 7})
         self.rep.refresh_from_db()
         self.assertEqual(timezone.localtime(self.rep.opens_at).date(), prueba.on - timedelta(days=7))
@@ -1866,7 +1867,7 @@ class ReviewAfterPublishingTests(ActivityBase):
         tz = timezone.get_default_timezone()
         day = timezone.localtime(self.exam.due_at, tz).date()
         self.client.force_login(self.teacher)
-        response = self.client.post(reverse("activity_detail", args=[self.course.pk, self.exam.pk]), {
+        response = self.client.post(reverse("activity_settings", args=[self.course.pk, self.exam.pk]), {
             "category": self.exam.category_id, "published": "on", "day_mode": "fixed", "day": day.isoformat(),
             "opens_time": "07:00", "due_time": "09:00", "require_code": "on",
             "review_mode": "published", "review_offset_days": "3", "review_time": "23:59"})
@@ -1890,7 +1891,106 @@ class ReviewAfterPublishingTests(ActivityBase):
 
     def test_una_actividad_no_ofrece_la_opcion(self):
         self.client.force_login(self.teacher)
-        page = self.client.get(reverse("activity_detail", args=[self.course.pk, self.activity.pk]))
+        page = self.client.get(reverse("activity_settings", args=[self.course.pk, self.activity.pk]))
         self.assertNotContains(page, 'value="published"')
-        exam_page = self.client.get(reverse("activity_detail", args=[self.course.pk, self.exam.pk]))
+        exam_page = self.client.get(reverse("activity_settings", args=[self.course.pk, self.exam.pk]))
         self.assertContains(exam_page, 'value="published"')
+
+
+PARTS = r"""schema: policlase/v1
+title: 'Prueba por partes'
+use: evaluation
+slides:
+  - markdown: '## Indicaciones'
+  - segment: { title: 'Parte A' }
+  - item: { id: PA-a, questions: [{ id: q1, type: numeric, prompt: 'a', solution: 1, grading: { atol: 0 } }] }
+  - segment: { title: 'Parte B' }
+  - markdown: '## Algoritmo de bisección'
+  - item: { id: PB-a, questions: [{ id: q1, type: numeric, prompt: 'b', solution: 2, grading: { atol: 0 } }] }
+  - item: { id: PB-b, questions: [{ id: q1, type: numeric, prompt: 'c', solution: 3, grading: { atol: 0 } }] }
+  - segment: { title: 'Parte C' }
+  - item: { id: PC-a, questions: [{ id: q1, type: numeric, prompt: 'd', solution: 4, grading: { atol: 0 } }] }
+"""
+
+
+class ResultsAndSettingsTests(ActivityBase):
+    """Entregas y configuración en páginas separadas, la tabla ordenable, los paneles de la revisión y
+    las partes de una evaluación en un orden distinto para cada estudiante."""
+
+    def setUp(self):
+        super().setUp()
+        from policlase_gen import document as content_format
+
+        document, report, _use = content_format.load_text(PARTS)
+        self.assertEqual(report.errors, [])
+        self.exam = Activity(course=self.course, title="Prueba por partes", source=PARTS,
+                             compiled=content_format.compile_content(document),
+                             category=self.course.periods.first().categories.get(name="Prueba"), published=True,
+                             opens_at=timezone.now() - timedelta(minutes=10), due_at=timezone.now() + timedelta(hours=2),
+                             shuffle_parts=True)
+        self.exam.set_kind("evaluation")
+        self.exam.save()
+
+    def order(self, content):
+        return [b.get("title") or b.get("item_id") or b.get("markdown") for b in content["items"]]
+
+    def test_las_partes_se_mezclan_enteras(self):
+        compiled = self.exam.compiled
+        orders = set()
+        for seed in range(30):
+            shuffled = outline.shuffle_parts(compiled, f"x:{seed}")
+            names = self.order(shuffled)
+            self.assertEqual(names[0], "## Indicaciones")                       # la presentación, primero
+            b = names.index("Parte B")
+            self.assertEqual(names[b:b + 4], ["Parte B", "## Algoritmo de bisección", "PB-a", "PB-b"])  # entera
+            self.assertEqual(sorted(names), sorted(self.order(compiled)))         # nada se pierde
+            orders.add(tuple(names))
+        self.assertGreater(len(orders), 1)
+        self.assertEqual(outline.shuffle_parts(compiled, "x:1"), outline.shuffle_parts(compiled, "x:1"))
+
+    def test_cada_estudiante_conserva_su_orden_y_se_califica_igual(self):
+        code = self.exam.access_code
+        ana = engine.start(self.exam, self.ana, code=code)
+        again = engine.start(self.exam, self.ana, code=code)                              # el mismo borrador, el mismo orden
+        self.assertEqual(self.order(ana.content), self.order(again.content))
+        engine.save_draft(ana, {"PA-a.q1": "1", "PB-a.q1": "2", "PB-b.q1": "3", "PC-a.q1": "4"})
+        self.assertEqual(engine.submit(ana).points, 4)
+        Activity.objects.filter(pk=self.exam.pk).update(shuffle_parts=False)
+        self.exam.refresh_from_db()
+        bruno = engine.start(self.exam, self.bruno, code=code)
+        self.assertEqual(self.order(bruno.content), self.order(self.exam.compiled))   # sin la opción, el del archivo
+
+    def test_entregas_y_configuracion_separadas_y_tabla_ordenable(self):
+        for student, value in ((self.ana, "1.4142"), (self.bruno, "9")):
+            attempt = engine.start(self.activity, student)
+            self.answer_all(attempt, value=value)
+            engine.submit(attempt)
+        self.client.force_login(self.teacher)
+        results = self.client.get(reverse("activity_detail", args=[self.course.pk, self.activity.pk]))
+        self.assertNotContains(results, 'id="settings"')
+        self.assertContains(results, "?orden=nota&amp;dir=desc")
+        settings = self.client.get(reverse("activity_settings", args=[self.course.pk, self.activity.pk]))
+        self.assertContains(settings, 'id="settings"')
+        self.assertNotContains(settings, "Señales")
+        by_grade = self.client.get(reverse("activity_detail", args=[self.course.pk, self.activity.pk]),
+                                   {"orden": "nota", "dir": "desc"}).content.decode()
+        self.assertLess(by_grade.index("ana"), by_grade.index("bruno"))       # 1.4142 es la correcta
+        by_grade = self.client.get(reverse("activity_detail", args=[self.course.pk, self.activity.pk]),
+                                   {"orden": "nota", "dir": "asc"}).content.decode()
+        self.assertLess(by_grade.index("bruno"), by_grade.index("ana"))
+        exam_results = self.client.get(reverse("activity_detail", args=[self.course.pk, self.exam.pk]))
+        self.assertContains(exam_results, 'id="apply"')                        # la aplicación va con las entregas
+
+    def test_la_revision_del_docente_tiene_indice_y_estado_de_las_preguntas(self):
+        attempt = engine.start(self.activity, self.ana)
+        self.answer_all(attempt, value="7")
+        Attempt.objects.filter(pk=attempt.pk).update(marked=["D1-a.q1"])
+        attempt.refresh_from_db()
+        attempt = engine.submit(attempt)
+        self.client.force_login(self.teacher)
+        page = self.client.get(reverse("attempt_review", args=[self.course.pk, self.activity.pk, attempt.pk]))
+        self.assertContains(page, 'id="side-outline"')
+        self.assertContains(page, 'id="side-questions"')
+        self.assertContains(page, "qchip wrong marked")                        # incorrecta y marcada por ella
+        self.assertContains(page, "qchip right")                               # la de opción, correcta
+        self.assertContains(page, "1 marcadas por el estudiante")

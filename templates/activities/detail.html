@@ -2,23 +2,12 @@
 {% load static i18n policlase %}
 {% block title %}{{ activity.title }}{% endblock %}
 {% block main %}
-<div class="muted small"><a href="{% if activity.is_evaluation or activity.is_practice %}{% url 'activity_dates' course.pk %}{% else %}{% url 'course_activities' course.pk %}{% endif %}">← {{ course.name }}</a></div>
-<div class="course-head">
-  <h1>{{ activity.title }}</h1>
-  <a class="icon-btn" href="{% url 'activity_edit' course.pk activity.pk %}" title="{% translate 'Editar contenido' %}" aria-label="{% translate 'Editar contenido' %}">{% icon "edit" 20 %}</a>
-  <a class="icon-btn" href="{% url 'activity_stats' course.pk activity.pk %}" title="{% translate 'Estadísticas' %}" aria-label="{% translate 'Estadísticas' %}">{% icon "results" 20 %}</a>
-  {% if not activity.is_evaluation %}<a class="icon-btn primary" href="{% url 'activity_present' course.pk activity.pk %}" title="{% translate 'Presentar en clase. Los estudiantes pueden seguir su avance o continuar a su propio ritmo.' %}" aria-label="{% translate 'Presentar en clase' %}">{% icon "play" 20 %}</a>{% endif %}
-  {% if activity.is_evaluation %}<span class="chip">{% translate "Evaluación" %}</span>{% elif activity.is_practice %}<span class="chip">{% translate "Repaso" %}</span>{% endif %}
-  {% if not activity.published %}<span class="chip warn">{% translate "Borrador" %}</span>{% endif %}
-  {% if activity.uses_ai %}<span class="chip" title="{% translate 'Tiene preguntas marcadas para calificación con IA (función aún no disponible; las califica usted)' %}">IA</span>{% endif %}
-</div>
-<p class="muted small">{% blocktranslate with n=activity.questions|length p=activity.points|floatformat:"-2" %}{{ n }} preguntas · {{ p }} puntos{% endblocktranslate %}{% if disabled %} ({% blocktranslate with p=full_points|floatformat:"-2" %}de un total de {{ p }}, porque hay secciones deshabilitadas{% endblocktranslate %}){% endif %}{% if activity.github_path %} · <span class="mono">{{ activity.github_path }}</span>{% endif %}</p>
+{% include "activities/_activity_head.html" %}
 
 <div class="grid two">
-  {% if activity.is_evaluation %}{% include "activities/_evaluation_settings.html" %}{% elif activity.is_practice %}{% include "activities/_practice_settings.html" %}{% else %}{% include "activities/_activity_settings.html" %}{% endif %}
-
-  <section class="card stack">
-    <h2>{% translate "Contenido" %}</h2>
+  {% if activity.is_evaluation %}{% include "activities/_evaluation_apply.html" %}{% endif %}
+  <section class="card stack" id="grading">
+    <h2>{% translate "Calificación" %}</h2>
     {% if review %}
       <p class="small" style="margin:0">{% translate "Preguntas de calificación manual:" %}</p>
       <ul class="plain">
@@ -56,73 +45,16 @@
         <a class="btn secondary small" href="{% url 'debate_teacher' course.pk activity.pk %}">{% translate "Abrir el debate" %}</a>
       </div>
     {% endif %}
-    {% if parts %}
-      <form method="post" action="{% url 'activity_parts' course.pk activity.pk %}" class="stack parts-form" id="parts" data-dirty>
-        {% csrf_token %}
-        <h3 style="margin:0">{% translate "Secciones de la actividad" %}</h3>
-        <span class="helptext" style="margin:0">{% translate "Desmarque las secciones que no se realizaron. Una sección deshabilitada no se muestra a los estudiantes ni cuenta para la nota. Las respuestas que los estudiantes ya hubieran registrado en ella se conservan y vuelven a aparecer si la habilita de nuevo; las entregas ya enviadas se recalculan." %}</span>
-        {% for g in parts %}
-          <fieldset class="part">
-            {% if g.title %}<legend><label class="radio-row"><input type="checkbox" data-part-all> {{ g.title|md_inline }}</label></legend>{% endif %}
-            {% for e in g.items %}
-              <label class="radio-row small"><input type="checkbox" name="enabled" value="{{ e.item_id }}"{% if e.item_id not in disabled %} checked{% endif %}>
-                {{ e.title|md_inline }} <span class="muted">· {% blocktranslate with p=e.points|floatformat:"-2" %}{{ p }} pts{% endblocktranslate %}</span></label>
-            {% endfor %}
-          </fieldset>
-        {% endfor %}
-        <div class="row"><button type="submit" class="small" data-dirty-enable>{% translate "Guardar secciones" %}</button></div>
-      </form>
-    {% endif %}
-    <details>
-      <summary>{% if activity.is_evaluation %}{% translate "Ver la evaluación con sus soluciones" %}{% else %}{% translate "Ver la actividad con sus soluciones" %}{% endif %}</summary>
-      <div class="stack" style="margin-top:10px">{% include "activities/_preview.html" with content=activity.compiled %}</div>
-    </details>
-    <form method="post" action="{% url 'activity_delete' course.pk activity.pk %}"
-          onsubmit="return confirm('{% if activity.github_path %}{% blocktranslate with t=activity.title n=submitted path=activity.github_path asvar msg %}¿Eliminar «{{ t }}»? Se pierden sus entregas ({{ n }}) y sus notas, y se borra su archivo en GitHub ({{ path }}).{% endblocktranslate %}{% else %}{% blocktranslate with t=activity.title n=submitted asvar msg %}¿Eliminar «{{ t }}»? Se pierden sus entregas ({{ n }}) y sus notas.{% endblocktranslate %}{% endif %}{{ msg|escapejs }}')">
-      {% csrf_token %}<button class="danger small">{% if activity.is_evaluation %}{% translate "Eliminar evaluación" %}{% else %}{% translate "Eliminar actividad" %}{% endif %}</button>
-    </form>
   </section>
 </div>
-
-{% if not activity.is_practice %}
-<section class="card stack" id="extensions">
-  <h2 style="margin:0">{% translate "Prórrogas" %}</h2>
-  <span class="helptext" style="margin:0">{% if activity.is_evaluation %}{% translate "Un horario propio para un estudiante, por ejemplo si rinde la evaluación otro día, y, si necesita más tiempo, su propia duración." %}{% else %}{% translate "Una fecha de entrega propia para un estudiante. Si su intento ya se había enviado automáticamente, vuelve a quedar abierto." %}{% endif %}</span>
-  {% if extensions %}
-    <ul class="plain">
-      {% for x in extensions %}
-        <li class="row">
-          <strong>{{ x.student.display_name }}</strong>
-          <span class="small">{% if x.opens_at %}{{ x.opens_at|date:"D d M, H:i" }} – {% endif %}{{ x.due_at|date:"D d M Y, H:i" }}{% if x.duration_min %} · {% blocktranslate with n=x.duration_min %}{{ n }} min{% endblocktranslate %}{% endif %}</span>
-          {% if x.note %}<span class="small muted">{{ x.note }}</span>{% endif %}
-          <form method="post" action="{% url 'activity_extension' course.pk activity.pk %}" style="margin:0">{% csrf_token %}
-            <input type="hidden" name="extension" value="{{ x.pk }}">
-            <button name="action" value="remove" class="icon-btn danger" title="{% translate 'Quitar la prórroga' %}" aria-label="{% translate 'Quitar la prórroga' %}">{% icon "trash" 16 %}</button></form>
-        </li>
-      {% endfor %}
-    </ul>
-  {% endif %}
-  <form method="post" action="{% url 'activity_extension' course.pk activity.pk %}" class="row inline-form">{% csrf_token %}
-    <select name="student" class="compact" required aria-label="{% translate 'Estudiante' %}">
-      <option value="">{% translate "— Elija un estudiante —" %}</option>
-      {% for st in students %}<option value="{{ st.pk }}">{{ st.last_name }}, {{ st.first_name }}</option>{% endfor %}
-    </select>
-    {% if activity.is_evaluation %}<label class="small" style="margin:0">{% translate "Abre" %} <input type="datetime-local" name="opens_at"></label>{% endif %}
-    <label class="small" style="margin:0">{% if activity.is_evaluation %}{% translate "Cierra" %}{% else %}{% translate "Nueva fecha de entrega" %}{% endif %} <input type="datetime-local" name="due_at" required></label>
-    {% if activity.is_evaluation %}<label class="small" style="margin:0">{% translate "Duración propia (min)" %} <input type="number" name="duration_min" min="5" max="900" class="compact-input" style="width:6em" placeholder="{{ activity.duration_min|default:'' }}"></label>{% endif %}
-    <input type="text" name="note" maxlength="200" placeholder="{% translate 'Motivo (opcional)' %}" class="compact-input">
-    <button class="secondary small">{% translate "Agregar prórroga" %}</button>
-  </form>
-</section>
-{% endif %}
 
 <h2>{% translate "Entregas" %} <span class="chip">{{ submitted }} / {{ rows|length }}</span></h2>
 {% if rows %}
   <div class="card table-wrap">
     <table>
       <thead><tr>
-        <th>{% translate "Estudiante" %}</th><th>{% translate "Enviado" %}</th><th class="center">{% translate "Intentos" %}</th>
-        <th class="center">{% translate "Nota" %}</th><th class="center">{% translate "Avance" %}</th><th>{% translate "Señales" %}</th><th class="actions-col"></th>
+        <th>{% include "grades/_sort.html" with link=sorts.apellido label=_("Estudiante") %}</th><th>{% translate "Enviado" %}</th><th class="center">{% translate "Intentos" %}</th>
+        <th class="center">{% include "grades/_sort.html" with link=sorts.nota label=_("Nota") %}</th><th class="center">{% include "grades/_sort.html" with link=sorts.avance label=_("Avance") %}</th><th>{% translate "Señales" %}</th><th class="actions-col"></th>
       </tr></thead>
       <tbody>
         {% for r in rows %}{% with a=r.attempt %}
@@ -134,7 +66,7 @@
             <td class="center">{% if a %}{{ a.points|floatformat:"-2" }} / {{ a.max_points|floatformat:"-2" }}{% if a.pending %} <span class="chip warn" title="{% translate 'preguntas por revisar' %}">{{ a.pending }}</span>{% endif %}{% else %}—{% endif %}</td>
             <td class="center small">{% if r.progress and r.progress.1 %}{% with done=r.progress.0 total=r.progress.1 %}<span title="{% blocktranslate %}{{ done }} de {{ total }} preguntas respondidas{% endblocktranslate %}"{% if done < total %} class="chip warn"{% endif %}>{% widthratio done total 100 %} %</span>{% endwith %}{% else %}—{% endif %}</td>
             <td class="small">{% for f in r.flags %}<span class="chip">{{ f }}</span> {% endfor %}</td>
-            <td class="actions-col">{% if a %}<a class="small" href="{% url 'attempt_review' course.pk activity.pk a.pk %}">{% translate "Ver" %}</a>{% elif r.draft %}<a class="small" href="{% url 'attempt_review' course.pk activity.pk r.draft.pk %}">{% translate "Ver avance" %}</a>{% endif %}</td>
+            <td class="actions-col">{% if a %}<a class="small" href="{% url 'attempt_review' course.pk activity.pk a.pk %}{% if query %}?{{ query }}{% endif %}">{% translate "Ver" %}</a>{% elif r.draft %}<a class="small" href="{% url 'attempt_review' course.pk activity.pk r.draft.pk %}">{% translate "Ver avance" %}</a>{% endif %}</td>
           </tr>
         {% endwith %}{% endfor %}
       </tbody>

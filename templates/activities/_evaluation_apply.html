@@ -1,0 +1,40 @@
+{% load i18n policlase %}
+{% comment %} La aplicación de una evaluación: su estado, el código de acceso y la publicación de las notas. Va con las
+   entregas, no con la configuración: es lo que se usa el día de la evaluación y al terminar de calificar. {% endcomment %}
+<section class="card stack" id="apply">
+  <h2>{% translate "Aplicación" %}</h2>
+  <p class="small" style="margin:0">
+    {% if not activity.opens_at or not activity.due_at %}{% translate "Defina la fecha y el horario en la configuración." %}
+    {% elif now < activity.opens_at %}{% blocktranslate with day=activity.opens_at|date:"D d M Y" start=activity.opens_at|time:"H:i" end=activity.due_at|time:"H:i" %}Programada para el {{ day }}, de {{ start }} a {{ end }}.{% endblocktranslate %}
+    {% elif now <= activity.due_at %}<span class="chip live">{% translate "en curso" %}</span> {% blocktranslate count n=working %}{{ n }} estudiante está rindiéndola.{% plural %}{{ n }} estudiantes están rindiéndola.{% endblocktranslate %} {% blocktranslate with end=activity.due_at|time:"H:i" %}Se cierra a las {{ end }}.{% endblocktranslate %}
+    {% elif activity.published_at %}{% blocktranslate with when=activity.published_at|date:"D d M, H:i" %}Cerrada. Notas publicadas el {{ when }}.{% endblocktranslate %}
+    {% else %}{% translate "Cerrada. Las notas todavía no se han publicado, por lo que los estudiantes no ven su puntaje." %}{% endif %}
+    {% if activity.duration_min %}{% blocktranslate count n=activity.duration_min %}Cada estudiante dispone de {{ n }} minuto desde que empieza.{% plural %}Cada estudiante dispone de {{ n }} minutos desde que empieza.{% endblocktranslate %}{% endif %}
+  </p>
+  {% if activity.require_code %}
+    <div class="access-code">
+      <span class="small muted">{% translate "Código de acceso" %}</span>
+      <strong class="mono">{{ activity.access_code }}</strong>
+    </div>
+    <div class="row">
+      <a class="btn secondary small" href="{% url 'evaluation_projector' course.pk activity.pk %}" target="_blank" rel="noopener">{% icon "fullscreen" 16 %} {% translate "Proyectar el código" %}</a>
+      <form method="post" action="{% url 'evaluation_code' course.pk activity.pk %}" style="margin:0">{% csrf_token %}
+        <button class="secondary small" data-confirm="{% translate 'Se generará un código nuevo y el actual dejará de ser válido. Quienes ya empezaron no lo necesitan. ¿Continuar?' %}">{% translate "Generar otro código" %}</button></form>
+    </div>
+    <span class="helptext" style="margin:0">{% translate "Proyecte el código al comenzar la evaluación; sin él, no es posible empezarla. Si el código circula fuera del aula, genere otro." %}</span>
+  {% else %}
+    <p class="small muted" style="margin:0">{% translate "Esta evaluación no pide código de acceso. Pueden rendirla los estudiantes inscritos, dentro del horario." %}</p>
+  {% endif %}
+  {% if activity.due_at and now > activity.due_at %}
+    <form method="post" action="{% url 'evaluation_publish' course.pk activity.pk %}" class="row" style="margin:0">{% csrf_token %}
+      {% if activity.published_at %}
+        <button name="action" value="unpublish" class="secondary small"
+                data-confirm="{% translate 'Los estudiantes dejarán de ver sus notas de esta evaluación hasta que las publique de nuevo. ¿Retirar la publicación?' %}">{% translate "Retirar la publicación" %}</button>
+      {% else %}
+        <button name="action" value="publish"
+                data-confirm="{% translate 'Cada estudiante verá su nota y, durante la revisión, su corrección. ¿Publicar las notas?' %}">{% translate "Publicar las notas" %}</button>
+        {% for r in review %}{% if r.pending %}<span class="chip warn">{% translate "Hay respuestas por revisar" %}</span>{% endif %}{% endfor %}
+      {% endif %}
+    </form>
+  {% endif %}
+</section>

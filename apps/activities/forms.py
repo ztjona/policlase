@@ -240,7 +240,7 @@ class EvaluationSettingsForm(ReviewMixin, PeriodRowMixin, forms.ModelForm):
     class Meta:
         model = Activity
         fields = ["category", "published", "due_milestone", "due_offset_days", "opens_time", "due_time",
-                  "duration_min", "require_code", *REVIEW_FIELDS]
+                  "duration_min", "require_code", "shuffle_parts", *REVIEW_FIELDS]
         widgets = {
             "due_milestone": TaggedSelect(), "opens_time": TIME, "due_time": TIME,
             "due_offset_days": forms.NumberInput(attrs={"min": "-60", "max": "60"}),

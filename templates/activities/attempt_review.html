@@ -1,14 +1,19 @@
 {% extends "base.html" %}
 {% load static i18n policlase %}
 {% block title %}{{ attempt.student.display_name }} · {{ activity.title }}{% endblock %}
+{% block page_class %}attempt-page{% endblock %}
 {% block main %}
+{% comment %} Índice | intento con sus notas | estado de cada pregunta, como en el intento del estudiante. {% endcomment %}
+<div class="attempt-layout" id="attempt-layout">
+{% include "activities/_side_outline.html" %}
+<div class="attempt-main">
 <div class="spread small">
-  <a class="muted" href="{% url 'activity_detail' course.pk activity.pk %}">← {{ activity.title }}</a>
+  <a class="muted" href="{% url 'activity_detail' course.pk activity.pk %}{% if query %}?{{ query }}{% endif %}">← {{ activity.title }}</a>
   {% if position %}
     <nav class="row" aria-label="{% translate 'Entregas' %}">
-      {% if previous %}<a href="{% url 'attempt_review' course.pk activity.pk previous %}">← {% translate "Anterior" %}</a>{% endif %}
+      {% if previous %}<a href="{% url 'attempt_review' course.pk activity.pk previous %}{% if query %}?{{ query }}{% endif %}">← {% translate "Anterior" %}</a>{% endif %}
       <span class="muted">{% blocktranslate with n=position total=total %}Entrega {{ n }} de {{ total }}{% endblocktranslate %}</span>
-      {% if next %}<a href="{% url 'attempt_review' course.pk activity.pk next %}">{% translate "Siguiente" %} →</a>{% endif %}
+      {% if next %}<a href="{% url 'attempt_review' course.pk activity.pk next %}{% if query %}?{{ query }}{% endif %}">{% translate "Siguiente" %} →</a>{% endif %}
     </nav>
   {% endif %}
 </div>
@@ -43,10 +48,16 @@
   </form>
 {% endif %}
 
+<div class="row">
+  <button type="button" class="secondary small side-toggle" data-side-open="side-outline" hidden>{% translate "Índice" %}</button>
+  <button type="button" class="secondary small side-toggle" data-side-open="side-questions" hidden>{% translate "Preguntas" %}</button>
+</div>
+
 {% for item in blocks %}
-  {% if item.kind == "content" or item.kind == "segment" or item.kind == "solution" %}{% include "activities/_block_head.html" with index=None %}
+  {% if item.kind == "solution" %}{% include "activities/_block_head.html" with index=None %}
+  {% elif item.kind == "content" or item.kind == "segment" %}<div class="block" id="b-{{ item.at }}">{% include "activities/_block_head.html" with index=None %}</div>
   {% else %}
-    <section class="card stack">
+    <section class="card stack" id="b-{{ item.at }}">
       {% if item.stem %}<div class="stem">{{ item.stem|md }}</div>{% endif %}
       {% for row in rows %}{% if row.item.item_id == item.item_id %}
         {% include "activities/_answer.html" with row=row reveal=True %}
@@ -55,7 +66,11 @@
     </section>
   {% endif %}
 {% endfor %}
+</div>
+{% include "activities/_side_questions.html" with rows=panel review=True %}
+</div>
 {% endblock %}
 {% block scripts %}
+<script defer src="{% static 'js/side-panels.js' %}"></script>
 <script defer src="{% static 'js/activity-teacher.js' %}"></script>
 {% endblock %}

@@ -5,25 +5,10 @@
 {% block main %}
 {% include "activities/_watermark.html" %}
 {% comment %} Índice | preguntas | estado de cada pregunta. Los paneles van en los bordes de la pantalla y se pueden ocultar
-   (static/js/activity.js lo recuerda en este navegador); en pantallas angostas se abren sobre la página. Las secciones
+   (static/js/side-panels.js lo recuerda en este navegador); en pantallas angostas se abren sobre la página. Las secciones
    deshabilitadas por el docente (`hidden`) no se muestran: sus respuestas se conservan. {% endcomment %}
 <div class="attempt-layout" id="attempt-layout">
-  <nav class="attempt-side" id="side-outline" aria-label="{% translate 'Índice de la actividad' %}">
-    <button type="button" class="icon-btn side-rail" data-side-expand hidden title="{% translate 'Mostrar el índice' %}" aria-label="{% translate 'Mostrar el índice' %}">{% icon "chevron_right" 20 %}</button>
-    <div class="side-body">
-      <div class="side-head"><h2>{% translate "Índice" %}</h2>
-        <button type="button" class="icon-btn side-collapse" data-side-collapse hidden title="{% translate 'Ocultar el índice' %}" aria-label="{% translate 'Ocultar el índice' %}">{% icon "chevron_left" 18 %}</button>
-        <button type="button" class="icon-btn side-close" data-side-close title="{% translate 'Cerrar' %}" aria-label="{% translate 'Cerrar' %}">{% icon "close" 16 %}</button></div>
-      <ol class="toc">
-        {% for e in entries %}
-          <li class="lvl-{{ e.level }} toc-{{ e.kind }}">
-            <a href="#b-{{ e.at }}" data-toc="{{ e.at }}">{{ e.title|md_inline }}</a>
-            {% if e.kind == "item" and e.total %}<span class="toc-count{% if e.done == e.total %} done{% endif %}" data-toc-count="{{ e.item_id }}">{{ e.done }}/{{ e.total }}</span>{% endif %}
-          </li>
-        {% endfor %}
-      </ol>
-    </div>
-  </nav>
+  {% include "activities/_side_outline.html" %}
 
   <div class="attempt-main">
     <div class="muted small"><a href="{% url 'activity_student' course.pk activity.pk %}">← {{ activity.title }}</a></div>
@@ -102,32 +87,7 @@
   </div>
 
   {# Cada pregunta, agrupada por ítem, con su estado: respondida, sin responder o marcada para revisar. #}
-  <aside class="attempt-side" id="side-questions" aria-label="{% translate 'Estado de las preguntas' %}">
-    <button type="button" class="icon-btn side-rail" data-side-expand hidden title="{% translate 'Mostrar las preguntas' %}" aria-label="{% translate 'Mostrar las preguntas' %}">{% icon "chevron_left" 20 %}</button>
-    <div class="side-body">
-      <div class="side-head"><h2>{% translate "Preguntas" %}</h2>
-        <button type="button" class="icon-btn side-collapse" data-side-collapse hidden title="{% translate 'Ocultar las preguntas' %}" aria-label="{% translate 'Ocultar las preguntas' %}">{% icon "chevron_right" 18 %}</button>
-        <button type="button" class="icon-btn side-close" data-side-close title="{% translate 'Cerrar' %}" aria-label="{% translate 'Cerrar' %}">{% icon "close" 16 %}</button></div>
-      <p class="small muted qnav-summary">{% blocktranslate with done=answered total=rows|length %}<span data-answered-count>{{ done }}</span> de {{ total }} respondidas{% endblocktranslate %}
-        · {% blocktranslate with n=marked %}<span data-marked-count>{{ n }}</span> para revisar{% endblocktranslate %}</p>
-      <ul class="qnav">
-        {% regroup rows by item.item_id as groups %}
-        {% for g in groups %}{% with first=g.list.0 %}
-          <li class="qnav-item">
-            <a class="qnav-title" href="#b-{{ first.item.at }}">{{ first.item_title|md_inline }}</a>
-            <div class="qnav-chips">
-              {% for row in g.list %}<a href="#q-{{ row.key }}" data-qchip="{{ row.key }}" title="{{ row.label }}"
-                 class="qchip{% if row.question.follow_up %} follow{% endif %}{% if not row.blank %} done{% endif %}{% if row.marked %} marked{% endif %}">{{ row.number }}</a>{% endfor %}
-            </div>
-          </li>
-        {% endwith %}{% endfor %}
-      </ul>
-      <p class="small muted qnav-legend"><span class="qchip done" aria-hidden="true">1</span> {% translate "respondida" %}
-        <span class="qchip" aria-hidden="true">1</span> {% translate "sin responder" %}
-        <span class="qchip marked" aria-hidden="true">1</span> {% translate "para revisar" %}</p>
-      <p class="small muted">{% translate "Para marcar una pregunta, use la bandera que aparece en su esquina al pasar el puntero o al responderla." %}</p>
-    </div>
-  </aside>
+  {% include "activities/_side_questions.html" %}
 </div>
 
 <div class="clock-reminder" data-clock-reminder role="alert" hidden></div>
@@ -143,5 +103,6 @@
 </div>
 {% endblock %}
 {% block scripts %}
+<script defer src="{% static 'js/side-panels.js' %}"></script>
 <script defer src="{% static 'js/activity.js' %}"></script>
 {% endblock %}

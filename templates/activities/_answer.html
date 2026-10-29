@@ -2,7 +2,7 @@
 {% comment %} Lo que respondió un estudiante en una pregunta enviada, con su nota; con `reveal`, la solución. `debate_hold`: una
    pregunta en debate, cuya corrección se muestra al cerrarse. {% endcomment %}
 {% with q=row.question a=row.answer record=row.record value=row.value %}
-<div class="q-block{% if q.follow_up %} follow-up{% endif %}">
+<div class="q-block{% if q.follow_up %} follow-up{% endif %}" id="q-{{ row.key }}">
   <div class="q-head">
     {% if debate_hold %}<span class="chip debate" title="{% translate 'La corrección se mostrará cuando se cierre el debate.' %}">{% icon "forum" 14 %} {% translate "en debate" %}</span>
     {% elif q.survey %}<span class="chip">{% translate "Encuesta" %}</span>

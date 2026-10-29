@@ -740,9 +740,14 @@ a.qchip:hover { border-color: var(--accent); color: var(--accent); }
 a.qchip.done:hover { color: var(--accent-ink); filter: brightness(1.1); }
 .qchip.marked { border: 2px solid var(--warn); background: var(--warn-soft); color: var(--warn); }
 .qchip.done.marked { background: var(--accent); color: var(--accent-ink); box-shadow: 0 0 0 2px var(--warn); border-color: var(--surface); }
+/* En la revisión del docente: correcta o incorrecta (o parcial); la marca del estudiante se suma como anillo. */
+.qchip.right { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+.qchip.wrong { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
+.qchip.right.marked, .qchip.wrong.marked { box-shadow: 0 0 0 2px var(--warn); border-color: var(--surface); }
 .qnav-summary, .qnav-legend { margin: 0; }
 .qnav-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-bottom: 6px; }
 .qnav-legend .qchip { min-width: 20px; height: 18px; font-size: .68rem; }
+.qnav-legend .legend-entry { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 /* La bandera de «revisar después»: discreta hasta pasar el puntero o responder; marcada, a la vista. */
 .q-block { position: relative; }
 .q-head { padding-right: 30px; }

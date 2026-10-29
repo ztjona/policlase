@@ -189,14 +189,17 @@ Reglas de interacción:
 - **Evaluaciones** (`Activity.kind = evaluation`, desde `use: evaluation`): se editan, sincronizan y
   califican como una actividad, con otras reglas. Un intento, sin atrasos, en un horario (de
   `opens_at` a `due_at`, el día de su fecha clave o en una fecha fija) y, si hay `duration_min`, con
-  un límite propio desde que se empieza (`Activity.deadline`). Se empieza con el código que el docente
-  proyecta (`evaluation_projector`), y diez códigos equivocados obligan a esperar. Pasado el límite
-  (con una gracia de 20 s), nada se guarda y el intento se envía solo. El estudiante no ve su puntaje,
-  su corrección ni su nota en «Calificaciones» hasta que el docente publica las notas
+  un límite propio desde que se empieza (`Activity.deadline`). Se empieza con el código que el
+  docente proyecta (`evaluation_projector`), y diez códigos equivocados obligan a esperar. Pasado el
+  límite (con una gracia de 20 s), nada se guarda y el intento se envía solo. El estudiante no ve su
+  puntaje, su corrección ni su nota en «Calificaciones» hasta que el docente publica las notas
   (`published_at`); la revisión empieza entonces y puede cerrarse unos días después de la
-  publicación (`Activity.Review.PUBLISHED`, que `engine.publish` recalcula). Una evaluación nunca se proyecta con sus preguntas
-  y lo enviado no se reabre al mover la fecha. Las variantes por estudiante (§7 del formato) quedan
-  para una segunda etapa.
+  publicación (`Activity.Review.PUBLISHED`, que `engine.publish` recalcula). Con «partes en orden
+  aleatorio» (`Activity.shuffle_parts`), cada estudiante recibe los segmentos en su propio orden al
+  empezar (`outline.shuffle_parts`, con la semilla de la evaluación y el estudiante): se mezclan
+  partes enteras, nunca preguntas sueltas, para que ningún enunciado pierda su contexto. Una
+  evaluación nunca se proyecta con sus preguntas y lo enviado no se reabre al mover la fecha. Las
+  variantes por estudiante (§7 del formato) quedan para una segunda etapa.
 - **Pegar:** lo decide solo el documento (`block_paste` en la raíz o en un segmento). La antigua
   casilla de la plataforma bloqueaba también las preguntas que piden pegar código; se eliminó en 0.15.1.
 - Cada intento copia la actividad compilada (`Attempt.content`): editarla después no cambia lo que
@@ -207,6 +210,12 @@ Reglas de interacción:
   (`courses/_course_tabs.html`). Evaluaciones reúne las fechas clave (pruebas y exámenes) y el
   vencimiento de las actividades; Calificaciones es la planilla. Las dos son páginas propias con el
   mismo encabezado (`courses/_course_head.html`).
+- **Entregas y configuración, separadas.** Cada actividad tiene dos pestañas
+  (`activities/_activity_head.html`): Entregas (`activity_detail`: en una evaluación su aplicación,
+  con el código y la publicación de las notas; la calificación pendiente y la tabla de entregas,
+  ordenable por apellido, nota o avance) y Configuración (`activity_settings`: fechas, ponderación,
+  revisión, secciones, contenido y prórrogas). Así no se cambia algo cuando solo se quiere mirar los
+  resultados. La revisión de un intento sigue el orden elegido en la tabla.
 - **Material y notas, separados.** La pestaña Clases es el material, por unidad: presentaciones
   (con las fechas en que se dictaron, cada una enlazada a sus resultados) y actividades. La pestaña Actividades es todo lo que se
   califica, por parcial y en orden de fecha: clases dictadas, actividades y registros manuales,
@@ -296,11 +305,14 @@ Reglas de interacción:
 - **El intento:** el índice (partes, títulos del contenido e ítems, con cuántas preguntas tienen
   respuesta) en el borde izquierdo de la pantalla y el estado de cada pregunta en el derecho (un
   recuadro por ítem, un número por pregunta, las de seguimiento con letra: respondida, sin responder
-  o para revisar), con el contenido al centro. Los dos paneles se pliegan y el navegador lo recuerda.
-  «Revisar después» es una bandera discreta en la esquina de cada pregunta, visible al pasar el
-  puntero o al responder (en pantallas táctiles, tenue). El autoguardado es la única forma de guardar
-  (con JavaScript, «Guardar borrador» se oculta; Ctrl+S guarda al instante). Enviar con preguntas en
-  blanco es posible y la confirmación dice cuántas son.
+  o para revisar), con el contenido al centro. Los dos paneles se pliegan y el navegador lo recuerda
+  (`_side_outline.html`, `_side_questions.html` y `static/js/side-panels.js`). La revisión del
+  docente de un intento usa los mismos paneles; a la derecha, cada pregunta correcta, incorrecta o
+  por calificar, con la marca de «revisar después» del estudiante. «Revisar después» es una bandera
+  discreta en la esquina de cada pregunta, visible al pasar el puntero o al responder (en pantallas
+  táctiles, tenue). El autoguardado es la única forma de guardar (con JavaScript, «Guardar borrador»
+  se oculta; Ctrl+S guarda al instante). Enviar con preguntas en blanco es posible y la confirmación
+  dice cuántas son.
   Las preguntas con tiempo explican su regla una vez, al comienzo del segmento; en cada una, solo el
   botón y un tooltip. Ningún índice ni panel muestra el enunciado de una pregunta con tiempo.
 

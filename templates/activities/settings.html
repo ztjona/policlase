@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% load static i18n policlase %}
+{% block title %}{% translate "Configuración" %} · {{ activity.title }}{% endblock %}
+{% block main %}
+{% include "activities/_activity_head.html" %}
+
+<div class="grid two">
+  {% if activity.is_evaluation %}{% include "activities/_evaluation_settings.html" %}{% elif activity.is_practice %}{% include "activities/_practice_settings.html" %}{% else %}{% include "activities/_activity_settings.html" %}{% endif %}
+
+  <section class="card stack">
+    <h2>{% translate "Contenido" %}</h2>
+    {% if parts %}
+      <form method="post" action="{% url 'activity_parts' course.pk activity.pk %}" class="stack parts-form" id="parts" data-dirty>
+        {% csrf_token %}
+        <h3 style="margin:0">{% translate "Secciones de la actividad" %}</h3>
+        <span class="helptext" style="margin:0">{% translate "Desmarque las secciones que no se realizaron. Una sección deshabilitada no se muestra a los estudiantes ni cuenta para la nota. Las respuestas que los estudiantes ya hubieran registrado en ella se conservan y vuelven a aparecer si la habilita de nuevo; las entregas ya enviadas se recalculan." %}</span>
+        {% for g in parts %}
+          <fieldset class="part">
+            {% if g.title %}<legend><label class="radio-row"><input type="checkbox" data-part-all> {{ g.title|md_inline }}</label></legend>{% endif %}
+            {% for e in g.items %}
+              <label class="radio-row small"><input type="checkbox" name="enabled" value="{{ e.item_id }}"{% if e.item_id not in disabled %} checked{% endif %}>
+                {{ e.title|md_inline }} <span class="muted">· {% blocktranslate with p=e.points|floatformat:"-2" %}{{ p }} pts{% endblocktranslate %}</span></label>
+            {% endfor %}
+          </fieldset>
+        {% endfor %}
+        <div class="row"><button type="submit" class="small" data-dirty-enable>{% translate "Guardar secciones" %}</button></div>
+      </form>
+    {% endif %}
+    <details>
+      <summary>{% if activity.is_evaluation %}{% translate "Ver la evaluación con sus soluciones" %}{% else %}{% translate "Ver la actividad con sus soluciones" %}{% endif %}</summary>
+      <div class="stack" style="margin-top:10px">{% include "activities/_preview.html" with content=activity.compiled %}</div>
+    </details>
+    <form method="post" action="{% url 'activity_delete' course.pk activity.pk %}"
+          onsubmit="return confirm('{% if activity.github_path %}{% blocktranslate with t=activity.title n=submitted path=activity.github_path asvar msg %}¿Eliminar «{{ t }}»? Se pierden sus entregas ({{ n }}) y sus notas, y se borra su archivo en GitHub ({{ path }}).{% endblocktranslate %}{% else %}{% blocktranslate with t=activity.title n=submitted asvar msg %}¿Eliminar «{{ t }}»? Se pierden sus entregas ({{ n }}) y sus notas.{% endblocktranslate %}{% endif %}{{ msg|escapejs }}')">
+      {% csrf_token %}<button class="danger small">{% if activity.is_evaluation %}{% translate "Eliminar evaluación" %}{% else %}{% translate "Eliminar actividad" %}{% endif %}</button>
+    </form>
+  </section>
+</div>
+
+{% if not activity.is_practice %}
+<section class="card stack" id="extensions">
+  <h2 style="margin:0">{% translate "Prórrogas" %}</h2>
+  <span class="helptext" style="margin:0">{% if activity.is_evaluation %}{% translate "Un horario propio para un estudiante, por ejemplo si rinde la evaluación otro día, y, si necesita más tiempo, su propia duración." %}{% else %}{% translate "Una fecha de entrega propia para un estudiante. Si su intento ya se había enviado automáticamente, vuelve a quedar abierto." %}{% endif %}</span>
+  {% if extensions %}
+    <ul class="plain">
+      {% for x in extensions %}
+        <li class="row">
+          <strong>{{ x.student.display_name }}</strong>
+          <span class="small">{% if x.opens_at %}{{ x.opens_at|date:"D d M, H:i" }} – {% endif %}{{ x.due_at|date:"D d M Y, H:i" }}{% if x.duration_min %} · {% blocktranslate with n=x.duration_min %}{{ n }} min{% endblocktranslate %}{% endif %}</span>
+          {% if x.note %}<span class="small muted">{{ x.note }}</span>{% endif %}
+          <form method="post" action="{% url 'activity_extension' course.pk activity.pk %}" style="margin:0">{% csrf_token %}
+            <input type="hidden" name="extension" value="{{ x.pk }}">
+            <button name="action" value="remove" class="icon-btn danger" title="{% translate 'Quitar la prórroga' %}" aria-label="{% translate 'Quitar la prórroga' %}">{% icon "trash" 16 %}</button></form>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+  <form method="post" action="{% url 'activity_extension' course.pk activity.pk %}" class="row inline-form">{% csrf_token %}
+    <select name="student" class="compact" required aria-label="{% translate 'Estudiante' %}">
+      <option value="">{% translate "— Elija un estudiante —" %}</option>
+      {% for st in students %}<option value="{{ st.pk }}">{{ st.last_name }}, {{ st.first_name }}</option>{% endfor %}
+    </select>
+    {% if activity.is_evaluation %}<label class="small" style="margin:0">{% translate "Abre" %} <input type="datetime-local" name="opens_at"></label>{% endif %}
+    <label class="small" style="margin:0">{% if activity.is_evaluation %}{% translate "Cierra" %}{% else %}{% translate "Nueva fecha de entrega" %}{% endif %} <input type="datetime-local" name="due_at" required></label>
+    {% if activity.is_evaluation %}<label class="small" style="margin:0">{% translate "Duración propia (min)" %} <input type="number" name="duration_min" min="5" max="900" class="compact-input" style="width:6em" placeholder="{{ activity.duration_min|default:'' }}"></label>{% endif %}
+    <input type="text" name="note" maxlength="200" placeholder="{% translate 'Motivo (opcional)' %}" class="compact-input">
+    <button class="secondary small">{% translate "Agregar prórroga" %}</button>
+  </form>
+</section>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script defer src="{% static 'js/activity-teacher.js' %}"></script>
+{% endblock %}
