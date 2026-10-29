@@ -356,6 +356,7 @@ class StatsTests(ActivityBase):
         self.assertContains(page, '<span class="mono">7</span>', html=True)
         self.assertContains(page, "De 1 a 5 veces")
         self.assertContains(page, "por revisar")                     # la abierta aún sin nota
+        self.assertContains(page, reverse("question_review", args=[self.course.pk, self.activity.pk, "D1-a.q1"]))
         detail = self.client.get(reverse("activity_detail", args=[self.course.pk, self.activity.pk]))
         self.assertContains(detail, self.url)
         self.assertContains(detail, "estuvo fuera 40 s en total; la salida más larga duró 25 s")

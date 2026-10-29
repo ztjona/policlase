@@ -114,4 +114,22 @@
     });
     update();
   });
+  // Tooltips propios (`.tip[data-tip]`): con posición fija, para que no los corte un panel con
+  // desplazamiento propio (una tabla ancha dentro de su tarjeta), y abiertos hacia donde haya
+  // espacio. Sin JavaScript se ven igual que antes, debajo del elemento.
+  var TIP_WIDTH = 380;
+  function placeTip(event) {
+    var tip = event.target.closest && event.target.closest(".tip[data-tip]");
+    if (!tip) return;
+    var r = tip.getBoundingClientRect(), w = window.innerWidth, h = window.innerHeight;
+    var below = !tip.classList.contains("up") && (r.bottom + 160 < h || r.top < h / 2);
+    var toLeft = r.left + TIP_WIDTH > w - 8;
+    tip.style.setProperty("--tip-top", below ? r.bottom + 6 + "px" : "auto");
+    tip.style.setProperty("--tip-bottom", below ? "auto" : h - r.top + 6 + "px");
+    tip.style.setProperty("--tip-left", toLeft ? "auto" : Math.max(8, r.left) + "px");
+    tip.style.setProperty("--tip-right", toLeft ? Math.max(8, w - r.right) + "px" : "auto");
+    tip.classList.add("placed");
+  }
+  document.addEventListener("mouseover", placeTip);
+  document.addEventListener("focusin", placeTip);
 })();

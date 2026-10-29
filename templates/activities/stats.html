@@ -165,11 +165,11 @@
         {% elif r.wrong %}
           <p class="small" style="margin:0">{% translate "Respuestas incorrectas más frecuentes:" %}</p>
           <ul class="plain">{% for value, count in r.wrong %}<li><span class="mono">{{ value }}</span> <span class="muted">· {% blocktranslate count n=count %}{{ n }} estudiante{% plural %}{{ n }} estudiantes{% endblocktranslate %}</span></li>{% endfor %}</ul>
-        {% elif r.question.type == "open" or r.question.type == "image" %}
-          <p class="small" style="margin:0"><a href="{% url 'question_review' course.pk activity.pk r.key %}">{% translate "Revisar las respuestas de esta pregunta" %}</a></p>
-        {% else %}
+        {% elif r.question.type != "open" and r.question.type != "image" %}
           <p class="small muted" style="margin:0">{% translate "No hay respuestas incorrectas." %}</p>
         {% endif %}
+        <p class="small" style="margin:0"><a href="{% url 'question_review' course.pk activity.pk r.key %}">{% translate "Revisar las respuestas de esta pregunta" %}</a>
+          <span class="muted">· {% translate "Allí puede corregir la nota de cada respuesta." %}</span></p>
       </div>
     </details>
   {% endfor %}

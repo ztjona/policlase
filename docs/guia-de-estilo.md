@@ -82,7 +82,7 @@ oscuro: los proyectores lavan los fondos oscuros.
 | `.check-toggle` | **ajuste binario** (bono por rapidez, abierta a invitados) |
 | `.chip` (`.ok`, `.warn`, `.danger`, `.live`) | estado o conteo breve |
 | `.status-pill` (`.ok`, `.bad`) | estado vivo de un proceso (validación del editor) |
-| `.tip[data-tip]` | tooltip propio, varias líneas, aparece al instante |
+| `.tip[data-tip]` | tooltip propio, varias líneas, aparece al instante; `forms.js` lo ubica con posición fija para que no lo corte una tabla con desplazamiento propio, y `.up` lo abre hacia arriba |
 | `.notice` | aviso importante que requiere acción; **no** se esconde en un tooltip |
 | `.messages` | confirmación tras una acción |
 | `details.unit` | sección minimizable; solo la unidad (o el parcial, en Actividades) en curso viene desplegada |

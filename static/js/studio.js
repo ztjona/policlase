@@ -608,6 +608,9 @@
     if (li && li.dataset.line) ed.goTo(Number(li.dataset.line));
   });
   preview.addEventListener("click", function (e) {
+    // Un clic lleva al editor; arrastrar para seleccionar texto (y copiarlo) no.
+    var selection = window.getSelection();
+    if (selection && !selection.isCollapsed && preview.contains(selection.anchorNode)) return;
     var card = e.target.closest(".slide-card, .item-card");
     if (card && lines[Number(card.dataset.index)]) ed.goTo(lines[Number(card.dataset.index)]);
   });

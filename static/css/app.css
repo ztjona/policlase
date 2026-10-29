@@ -621,9 +621,13 @@ td.actions-col, th.actions-col { width: 1%; white-space: nowrap; padding-left: 2
 .tip { position: relative; }
 .tip:hover::after, .tip:focus-visible::after { content: attr(data-tip); position: absolute; left: 0; top: calc(100% + 6px); z-index: 30;
   width: max-content; max-width: 380px; white-space: pre-line; padding: 8px 10px; border-radius: 8px; font-size: .82rem; line-height: 1.4;
-  background: var(--ink); color: var(--surface); box-shadow: var(--shadow); font-weight: 400; }
+  background: var(--ink); color: var(--surface); box-shadow: var(--shadow); font-weight: 400;
+  text-transform: none; letter-spacing: normal; text-align: left; }
 /* Hacia arriba, para lo que está al pie de la pantalla (los controles del proyector). */
 .tip.up:hover::after, .tip.up:focus-visible::after { top: auto; bottom: calc(100% + 6px); }
+/* Ubicado por forms.js: fijo en la ventana, para que no lo corte un panel con desplazamiento propio. */
+.tip.placed:hover::after, .tip.placed:focus-visible::after { position: fixed; top: var(--tip-top); bottom: var(--tip-bottom);
+  left: var(--tip-left); right: var(--tip-right); max-width: min(380px, calc(100vw - 16px)); }
 .danger-text { color: var(--danger); }
 
 .site-foot { text-align: center; padding: 18px 0 28px; }
