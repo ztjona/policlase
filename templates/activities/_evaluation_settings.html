@@ -38,6 +38,14 @@
   <div><label class="check-toggle">{{ form.shuffle_parts }} {{ form.shuffle_parts.label|capfirst }}</label>
     <span class="helptext">{% translate "Cada estudiante recibe las partes de la evaluación (lo que empieza en cada segmento del documento) en su propio orden; dentro de cada parte, el contenido y las preguntas conservan el suyo. El orden se decide al empezar y no cambia." %}</span></div>
 
+  <fieldset class="due" id="correction">
+    <legend>{% translate "Corrección" %}</legend>
+    <label class="check-toggle">{{ form.allow_correction }} {{ form.allow_correction.label|capfirst }}</label>
+    <span class="helptext" style="margin:0">{% translate "Al publicar las notas, cada estudiante puede volver a resolver la evaluación completa, a su ritmo y en un solo intento, hasta el cierre de la revisión. La revisión de su evaluación se le muestra cuando envía la corrección; quien no la envía no la ve. La corrección cuenta en la fila que se elija." %}</span>
+    <div>{{ form.correction_category.label_tag }}{{ form.correction_category }}{{ form.correction_category.errors }}
+      <span class="helptext">{{ form.correction_category.help_text }} <a href="{% url 'grading_settings' course.pk %}">{% translate "Editar ponderaciones" %}</a></span></div>
+  </fieldset>
+
   <fieldset class="due" id="review">
     <legend>{% translate "Revisión" %}</legend>
     <span class="helptext" style="margin:0">{% translate "Cuando usted publique las notas, cada estudiante ve su corrección detallada y las diapositivas de solución durante el tiempo que se indique. Antes de publicarlas, no ve ni su puntaje." %}</span>

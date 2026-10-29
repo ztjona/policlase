@@ -76,6 +76,8 @@ class State:
     solutions: bool = False          # puede ver las diapositivas de solución (y, sin entrega, las respuestas)
     review_closed: bool = False      # la revisión ya terminó
     show_score: bool = True          # en una evaluación, solo con las notas publicadas
+    correction: "Activity | None" = None    # en una evaluación, su corrección (si se creó)
+    correction_pending: bool = False  # puede enviar la corrección: la revisión espera
 
     @property
     def used(self) -> int:
@@ -110,9 +112,58 @@ def state(activity: Activity, student, now=None) -> State:
     closed = is_past and not in_review and activity.review_mode != Activity.Review.NONE
     if activity.is_evaluation and not activity.published_at:
         closed = False                                 # la revisión ni siquiera empezó
+    if activity.correction_of_id:
+        # La corrección: un solo intento y, al enviarlo, su corrección con las soluciones.
+        reveal = solutions = (bool(counted) and activity.review_mode != Activity.Review.NONE
+                              and (activity.review_until is None or now <= activity.review_until))
+    pending = correction_pending(activity, student, now) if activity.is_evaluation else None
+    if pending is not None:
+        # Mientras pueda hacer la corrección, la revisión de la evaluación espera: verla antes sería
+        # corregir con las soluciones a la vista.
+        reveal = solutions = False
     return State(attempts=attempts, draft=draft, counted=counted, can_start=ok and draft is None,
                  reason=reason, late=late, reveal=reveal, solutions=solutions, review_closed=closed,
-                 show_score=not activity.is_evaluation or bool(activity.published_at))
+                 show_score=not activity.is_evaluation or bool(activity.published_at),
+                 correction=activity.correction_activity if activity.is_evaluation else None,
+                 correction_pending=pending is not None)
+
+
+def correction_pending(exam: Activity, student, now=None) -> Activity | None:
+    """La corrección que este estudiante todavía puede enviar, o None."""
+    correction = exam.correction_activity
+    if correction is None or not correction.is_visible(now) or correction.is_past_due(now):
+        return None
+    if Attempt.objects.filter(activity=correction, student=student, submitted_at__isnull=False).exists():
+        return None
+    return correction
+
+
+def sync_correction(exam: Activity, category=None) -> Activity | None:
+    """Crea o actualiza la corrección de una evaluación: el mismo contenido, un intento, abierta desde
+    que se publican las notas hasta el cierre de la revisión (sin cierre, sin fecha límite), en la fila
+    `category` si se indica. Desactivada, deja de publicarse; sus entregas se conservan."""
+    correction = exam.correction_activity
+    if not exam.allow_correction:
+        if correction is not None and correction.published:
+            correction.published = False
+            correction.save(update_fields=["published"])
+        return correction
+    if correction is None:
+        correction = Activity(course=exam.course, correction_of=exam, kind=Activity.Kind.ACTIVITY,
+                              max_attempts=1, late_policy=Activity.Late.BLOCK, auto_submit=True)
+    if category is not None:
+        correction.category = category
+    until = exam.review_until if exam.review_mode != Activity.Review.NONE else None
+    correction.title = _("Corrección: %(title)s") % {"title": exam.title}
+    correction.source, correction.compiled = exam.source, exam.compiled
+    correction.ungraded_items = exam.ungraded_items
+    correction.opens_at, correction.due_at = exam.published_at, until
+    correction.due_milestone, correction.due_from_opening = None, False
+    correction.review_mode = Activity.Review.FIXED if until else Activity.Review.ALWAYS
+    correction.review_milestone, correction.review_until = None, until
+    correction.published = exam.published and bool(exam.published_at)
+    correction.save()
+    return correction
 
 
 def _when(moment) -> str:
@@ -184,6 +235,10 @@ def can_answer(activity: Activity, submitted: int, now, student=None) -> tuple[b
         return True, "", False
     if not activity.is_visible(now):
         return False, _("La actividad todavía no está disponible."), False
+    if (activity.correction_of_id and student is not None and not Attempt.objects.filter(
+            activity_id=activity.correction_of_id, student=student, submitted_at__isnull=False).exists()):
+        # Una nueva oportunidad sobre la propia evaluación, no una forma de rendirla tarde.
+        return False, _("La corrección es para quienes rindieron la evaluación."), False
     if submitted >= activity.max_attempts:
         return False, _("Ya usó todos sus intentos."), False
     if not due or now <= due:
@@ -225,6 +280,12 @@ def start(activity: Activity, student, code: str | None = None) -> Attempt:
         if activity.is_evaluation and activity.shuffle_parts:
             # Su propio orden de las partes, fijo desde que empieza: el intento guarda su copia.
             content = outline.shuffle_parts(content, f"{activity.pk}:{student.pk}")
+        elif activity.correction_of_id:
+            # La corrección: la versión vigente de la evaluación, en el orden de partes que tuvo el estudiante.
+            exam = activity.correction_of
+            content = exam.compiled
+            if exam.shuffle_parts:
+                content = outline.shuffle_parts(content, f"{exam.pk}:{student.pk}")
         with transaction.atomic():
             return Attempt.objects.create(
                 activity=activity, student=student, number=len(current.attempts) + 1,
@@ -471,6 +532,14 @@ def merge_telemetry(current: dict, delta: dict) -> dict:
     return out
 
 
+def upload_keys(attempts) -> dict[int, set[str]]:
+    """Intento → las claves de sus preguntas de imagen que tienen archivos, en una sola consulta."""
+    out: dict[int, set[str]] = {}
+    for attempt_id, key in Upload.objects.filter(attempt__in=attempts).values_list("attempt_id", "key"):
+        out.setdefault(attempt_id, set()).add(key)
+    return out
+
+
 def progress_of(attempt: Attempt, files: set[str] | None = None) -> tuple[int, int]:
     """(respondidas, total) de las preguntas que cuentan: sin encuestas ni secciones deshabilitadas.
     Una pregunta de imagen cuenta como respondida si tiene archivos (`files`, sus claves)."""
@@ -700,12 +769,14 @@ def publish(activity: Activity, now=None) -> None:
     activity.published_at = now
     activity.compute_review()           # una revisión relativa a la publicación se cuenta desde ahora
     activity.save(update_fields=["published_at", "review_until"])
+    sync_correction(activity)           # la corrección se abre con la publicación
 
 
 def unpublish(activity: Activity) -> None:
     activity.published_at = None
     activity.compute_review()
     activity.save(update_fields=["published_at", "review_until"])
+    sync_correction(activity)
 
 
 def reopen_auto_submitted(activity: Activity, now=None) -> int:

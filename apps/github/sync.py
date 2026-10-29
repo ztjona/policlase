@@ -170,6 +170,9 @@ def pull(link: CourseRepo) -> PullResult:
                     fields += ["kind", "max_attempts", "late_policy", "auto_submit", "require_code", "access_code",
                                "category", "review_mode"]
                 activity.save(update_fields=fields)
+                if activity.is_evaluation:
+                    from apps.activities.engine import sync_correction
+                    sync_correction(activity)            # la corrección sigue al contenido de la evaluación
                 result.updated.append(path)
             continue
         if deck is None:
@@ -384,7 +387,11 @@ def export_local(link: CourseRepo) -> list[str]:
     GitHub, cada una en la carpeta de su sección."""
     exported = []
     for model in (Deck, Activity):
-        for content in model.objects.filter(course=link.course, github_path="").select_related("section"):
+        # Una corrección no tiene archivo propio: es la misma evaluación (`Activity.correction_of`).
+        local = model.objects.filter(course=link.course, github_path="")
+        if model is Activity:
+            local = local.filter(correction_of__isnull=True)
+        for content in local.select_related("section"):
             path, sha = push(link, content, content.source)
             model.objects.filter(pk=content.pk).update(github_path=path, github_sha=sha)
             exported.append(path)

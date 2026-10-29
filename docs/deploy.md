@@ -1,6 +1,6 @@
 # Publicar policlase con su dominio
 
-El prototipo responde solo en `http://127.0.0.1:8100`. Publicarlo es configuración, no código:
+La aplicación responde solo en `http://127.0.0.1:8100`. Publicarla es configuración, no código:
 nada en la plataforma lleva el dominio escrito.
 
 A lo largo de la guía, `aula.ejemplo.ec` es su dominio nuevo.

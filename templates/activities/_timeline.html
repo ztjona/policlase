@@ -1,0 +1,22 @@
+{% load i18n %}
+{% comment %} Fechas y plazos de una actividad (activities/timeline.py): una franja por plazo sobre un mismo eje de
+   tiempo y una línea en «hoy». `tl` = {"lanes", "now_at", "notes"}. {% endcomment %}
+{% if tl %}
+<section class="card stack timeline" aria-label="{% translate 'Fechas y plazos' %}">
+  <h2 style="margin:0">{% translate "Fechas y plazos" %}</h2>
+  <div class="tl">
+    {% for lane in tl.lanes %}
+      <div class="tl-row">
+        <div class="tl-label">{{ lane.label }}</div>
+        <div class="tl-track">
+          {% if lane.point %}<span class="tl-point" style="left:{{ lane.left|stringformat:'s' }}%"></span>
+          {% else %}<span class="tl-bar tone-{{ lane.tone }}{% if not lane.end %} open{% endif %}" style="left:{{ lane.left|stringformat:'s' }}%;width:{{ lane.width|stringformat:'s' }}%"></span>{% endif %}
+          {% if tl.now_at is not None %}<span class="tl-now" style="left:{{ tl.now_at|stringformat:'s' }}%"{% if forloop.first %} data-label="{% translate 'hoy' %}"{% endif %}></span>{% endif %}
+        </div>
+        <div class="tl-dates small muted">{% if lane.point %}{{ lane.start|date:"D d M, H:i" }}{% else %}{{ lane.start|date:"D d M, H:i" }} – {% if lane.end %}{{ lane.end|date:"D d M, H:i" }}{% else %}{% translate "sin límite" %}{% endif %}{% endif %}</div>
+      </div>
+    {% endfor %}
+  </div>
+  {% for note in tl.notes %}<p class="small muted" style="margin:0">{{ note }}</p>{% endfor %}
+</section>
+{% endif %}

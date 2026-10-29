@@ -4,6 +4,8 @@
 {% block main %}
 {% include "activities/_activity_head.html" %}
 
+{% include "activities/_timeline.html" %}
+
 <div class="grid two">
   {% if activity.is_evaluation %}{% include "activities/_evaluation_settings.html" %}{% elif activity.is_practice %}{% include "activities/_practice_settings.html" %}{% else %}{% include "activities/_activity_settings.html" %}{% endif %}
 

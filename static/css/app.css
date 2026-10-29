@@ -543,6 +543,29 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .student-line { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
 .student-line > :last-child { flex: none; white-space: nowrap; }
 .clamp { display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 46ch; }
+
+/* Fechas y plazos (activities/_timeline.html): franjas sobre un eje común y una línea en «hoy». */
+.tl { display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content; gap: 8px 12px; align-items: center; }
+.tl-row { display: contents; }
+.tl-label { font-size: .85rem; font-weight: 600; }
+.tl-track { position: relative; height: 14px; background: var(--surface-alt); border-radius: 999px; }
+.tl-bar { position: absolute; top: 0; bottom: 0; border-radius: 999px; background: var(--accent); }
+.tl-bar.open { border-top-right-radius: 0; border-bottom-right-radius: 0;
+  -webkit-mask-image: linear-gradient(to right, #000 80%, transparent); mask-image: linear-gradient(to right, #000 80%, transparent); }
+.tl-bar.tone-late { background: var(--warn); }
+.tl-bar.tone-review { background: var(--ok); }
+.tl-bar.tone-debate { background: var(--opt-5); }
+.tl-bar.tone-correction { background: var(--opt-4); }
+.tl-point { position: absolute; top: 1px; width: 12px; height: 12px; margin-left: -6px; transform: rotate(45deg); background: var(--ink-soft); }
+.tl-now { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--danger); }
+.tl-now[data-label]::before { content: attr(data-label); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+  font-size: .7rem; font-weight: 700; color: var(--danger); white-space: nowrap; }
+.tl-row:first-child .tl-track { margin-top: 12px; }
+@media (max-width: 640px) {
+  .tl { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .tl-track { margin-bottom: 2px; }
+  .tl-dates { margin-bottom: 8px; }
+}
 .meter { font-size: .7em; color: var(--muted); }
 .board { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: .25em; font-size: .75em; }
 .board li { display: flex; justify-content: space-between; gap: 1em; padding: .3em .6em; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; }

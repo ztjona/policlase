@@ -22,6 +22,11 @@
   {% if not activity.is_practice %}<div><dt>{% translate "Puntos" %}</dt><dd>{{ activity.points|floatformat:"-2" }}{% if activity.category %} · {{ activity.category.name }} ({{ activity.category.period.name }}){% endif %}</dd></div>{% endif %}
 </dl>
 
+{% include "activities/_timeline.html" %}
+
+{% if activity.correction_of %}
+  <div class="notice">{% blocktranslate with t=activity.correction_of.title %}Esta es la corrección de «{{ t }}»: vuelva a resolver la evaluación completa, con calma. No tiene límite de tiempo ni código de acceso, y tiene un solo intento. Al enviarla verá su corrección con las soluciones y la revisión de su evaluación.{% endblocktranslate %}</div>
+{% endif %}
 {% if activity.compiled.instructions %}<div class="card">{{ activity.compiled.instructions|md }}</div>{% endif %}
 
 {% if state.draft %}
@@ -83,6 +88,8 @@
     {% if activity.is_practice %}
     {% elif state.reveal %}
       {% if activity.review_until and activity.is_past_due %}<p class="small muted" style="margin:0">{% blocktranslate with when=activity.review_until|date:"D d M, H:i" %}La revisión está disponible hasta el {{ when }}. Después se mostrará solo el puntaje.{% endblocktranslate %}</p>{% endif %}
+    {% elif state.correction_pending %}
+      <p class="small muted" style="margin:0">{% translate "La revisión detallada de su evaluación se mostrará cuando envíe su corrección." %}</p>
     {% elif state.review_closed %}
       <p class="small muted" style="margin:0">{% blocktranslate with when=activity.review_until|date:"D d M, H:i" %}La revisión estuvo disponible hasta el {{ when }}; ahora se muestra solo el puntaje.{% endblocktranslate %}</p>
     {% elif activity.review_mode == "none" %}
@@ -91,6 +98,17 @@
       <p class="small muted" style="margin:0">{% translate "Las respuestas correctas y las soluciones se mostrarán cuando venza la fecha de entrega." %}</p>
     {% endif %}
   </div>
+  {% endif %}
+  {% if state.correction and state.correction.published %}
+    <div class="card stack" id="correction">
+      <h2 style="margin:0">{% translate "Corrección de la evaluación" %}</h2>
+      {% if state.correction_pending %}
+        <p style="margin:0">{% if state.correction.due_at %}{% blocktranslate with when=state.correction.due_at|date:"D d M, H:i" %}Puede volver a resolver la evaluación completa, a su ritmo y en un solo intento, hasta el {{ when }}. Cuando la envíe, verá la revisión de su evaluación y la de su corrección, con las soluciones.{% endblocktranslate %}{% else %}{% translate "Puede volver a resolver la evaluación completa, a su ritmo y en un solo intento. Cuando la envíe, verá la revisión de su evaluación y la de su corrección, con las soluciones." %}{% endif %}</p>
+        <div class="row"><a class="btn" href="{% url 'activity_student' course.pk state.correction.pk %}">{% translate "Ir a la corrección" %}</a></div>
+      {% else %}
+        <p style="margin:0"><a href="{% url 'activity_student' course.pk state.correction.pk %}">{% translate "Ver su corrección" %}</a></p>
+      {% endif %}
+    </div>
   {% endif %}
   {% if state.reveal %}
     {% for item in blocks %}

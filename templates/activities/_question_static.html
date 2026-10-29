@@ -7,7 +7,7 @@
     {% if q.time_limit_s %}<span class="chip warn" title="{% translate 'El estudiante la abre cuando decide y se cierra al agotarse el tiempo' %}">{% blocktranslate with s=q.time_limit_s %}{{ s }} s{% endblocktranslate %}</span>{% endif %}
     {% if q.block_paste %}<span class="chip">{% translate "sin pegar" %}</span>{% endif %}
     {% if q.debate %}<span class="chip debate">{% icon "forum" 14 %} {% translate "Debate" %}</span>{% endif %}
-    {% if q.grading.mode == "ai" %}<span class="chip" title="{% translate 'Marcada para calificación con IA (función aún no disponible; la califica el docente)' %}">IA</span>{% endif %}
+    {% if q.grading.mode == "ai" %}<span class="chip" title="{% translate 'Marcada para calificación asistida por IA: la IA propone una nota y el docente decide.' %}">IA</span>{% endif %}
   </div>
   {% if q.prompt %}<div class="prompt">{{ q.prompt|md }}</div>{% endif %}
   {% if q.options %}

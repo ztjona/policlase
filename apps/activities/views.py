@@ -21,7 +21,7 @@ from apps.grades import gradebook
 from apps.grades.forms import MilestoneForm
 from apps.grades.models import Milestone, Period
 
-from . import engine, images, outline, stats
+from . import engine, images, outline, stats, timeline
 from .forms import ActivitySettingsForm, EvaluationSettingsForm, PracticeSettingsForm
 from .models import Activity, Answer, Attempt, Extension, Upload, new_access_code
 
@@ -105,9 +105,7 @@ def _results(activity, students) -> list[dict]:
             tries[a.student_id] = tries.get(a.student_id, 0) + 1
         else:
             drafts[a.student_id] = a
-    files: dict[int, set[str]] = {}
-    for attempt_id, key in Upload.objects.filter(attempt__activity=activity).values_list("attempt_id", "key"):
-        files.setdefault(attempt_id, set()).add(key)
+    files = engine.upload_keys(Attempt.objects.filter(activity=activity))
     rows = []
     for student in students:
         attempt = counted.get(student.pk)
@@ -220,6 +218,9 @@ def activity_settings(request, course_pk, pk):
     contenido con sus soluciones. Separada de las entregas (`activity_detail`)."""
     course = owned_course(request, course_pk)
     activity = _activity(course, pk)
+    if activity.correction_of_id:
+        # Sus fechas y su fila se configuran en la evaluación, de la que depende.
+        return redirect(reverse("activity_settings", args=[course.pk, activity.correction_of_id]) + "#correction")
     gradebook.ensure_defaults(course)
     form_class = (EvaluationSettingsForm if activity.is_evaluation else PracticeSettingsForm if activity.is_practice
                   else ActivitySettingsForm)
@@ -252,6 +253,7 @@ def activity_settings(request, course_pk, pk):
     students = _approved(course)
     return render(request, "activities/settings.html", {
         "course": course, "activity": activity, "form": form, "tab": "configuracion",
+        "tl": timeline.lanes(activity),
         "mismatch": gradebook.mismatch(activity, list(Period.objects.filter(course=course))),
         "submitted": Attempt.objects.filter(activity=activity, submitted_at__isnull=False)
                                     .values("student").distinct().count(),
@@ -276,9 +278,7 @@ def activity_stats(request, course_pk, pk):
     attempts = list(Attempt.objects.filter(pk__in=ids).select_related("student").prefetch_related("answer_rows"))
     for attempt in attempts:
         attempt.activity = activity
-    files: dict[int, set[str]] = {}
-    for attempt_id, key in Upload.objects.filter(attempt_id__in=ids).values_list("attempt_id", "key"):
-        files.setdefault(attempt_id, set()).add(key)
+    files = engine.upload_keys(ids)
     return render(request, "activities/stats.html", {
         "course": course, "activity": activity, "report": stats.report(activity, attempts, len(students), files),
     })
@@ -815,6 +815,7 @@ def activity_student(request, course_pk, pk):
     inline = bool(counted and state.reveal) or bool(not counted and state.solutions)
     return render(request, "activities/student.html", {
         "course": activity.course, "activity": activity, "state": state, "rows": rows, "blocks": blocks,
+        "tl": timeline.lanes(activity, now, request.user),
         "debates": debates, "debates_inline": inline, "now": now,
         "held": {k for k in debates if debate.in_debate(activity, k, now)},
         "debate_rows": {r["key"]: r for r in rows if r["key"] in debates},

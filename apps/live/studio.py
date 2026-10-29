@@ -1,4 +1,4 @@
-"""El editor de contenido: clases, actividades (y luego evaluaciones) en un mismo estudio y un
+"""El editor de contenido: clases, actividades, evaluaciones y repasos en un mismo estudio y un
 mismo formato (`policlase/v1`, con segmentos; los formatos anteriores siguen valiendo).
 
 Panel lateral (tipo, sección e índice) | YAML en Monaco | vista previa. El tipo lo dice el texto
@@ -197,6 +197,9 @@ def editor(request, course_pk, kind=DECK, pk=None):
         sync.maybe_pull(link)                    # abrir el editor sobre la última versión de GitHub
     model = Activity if kind == ACTIVITY else Deck
     content = get_object_or_404(model, pk=pk, course=course) if pk else None
+    if kind == ACTIVITY and content is not None and content.correction_of_id:
+        # La corrección no tiene contenido propio: se edita la evaluación.
+        return redirect("activity_edit", course_pk=course.pk, pk=content.correction_of_id)
     evaluation = content is None and request.GET.get("tipo") == "evaluacion"
     practice = content is None and request.GET.get("tipo") == "repaso"
     if content is None and (evaluation or practice or request.GET.get("tipo") in ("actividad", ACTIVITY)):
@@ -290,6 +293,8 @@ def _save(request, course, link, kind, content, source, section, document, repor
     content.source, content.compiled = source, compiled
     content.save()
     if kind == ACTIVITY and content.is_evaluation:
+        from apps.activities.engine import sync_correction
+        sync_correction(content)                         # la corrección sigue al contenido de la evaluación
         messages.success(request, _("Evaluación «%(title)s» guardada: %(questions)d preguntas, %(points)s puntos.")
                          % {"title": content.title, "questions": len(content.questions),
                             "points": f"{content.points:g}"})

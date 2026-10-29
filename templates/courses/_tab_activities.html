@@ -61,7 +61,7 @@
                       <a href="{% url 'activity_detail' course.pk x.pk %}"><strong>{{ x.title }}</strong></a>
                       {% if x.is_evaluation %}<span class="chip">{% translate "Evaluación" %}</span>{% endif %}
                       {% if not x.published %}<span class="chip warn">{% translate "Borrador" %}</span>{% endif %}
-                      {% if x.uses_ai %}<span class="chip" title="{% translate 'Tiene preguntas marcadas para calificación con IA (función aún no disponible; las califica usted)' %}">IA</span>{% endif %}
+                      {% if x.uses_ai %}<span class="chip" title="{% translate 'Tiene preguntas marcadas para calificación asistida por IA: la IA propone una nota y usted decide.' %}">IA</span>{% endif %}
                       {% if x.mismatch %}<span class="chip danger" title="{% blocktranslate with p=x.mismatch.name %}Vence en «{{ p }}», pero cuenta en otro parcial.{% endblocktranslate %}">{% translate "otro parcial" %}</span>{% endif %}
                     </td>
                     <td class="small">{% if x.section %}{{ x.section.title }}{% else %}<span class="muted">—</span>{% endif %}</td>

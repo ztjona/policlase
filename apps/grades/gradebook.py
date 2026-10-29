@@ -154,10 +154,14 @@ def recompute_due_dates(milestone) -> int:
         rebind(activity, periods)
         activity.save(update_fields=["opens_at", "due_at", "review_until", "category"])
         engine.reopen_auto_submitted(activity)
+        if activity.is_evaluation:
+            engine.sync_correction(activity)          # la corrección se cierra con la revisión
         count += 1
     for activity in milestone.review_activities.exclude(due_milestone=milestone).select_related("course__owner", "review_milestone"):
         activity.compute_review()
         activity.save(update_fields=["review_until"])
+        if activity.is_evaluation:
+            engine.sync_correction(activity)
     return count
 
 

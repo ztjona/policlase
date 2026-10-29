@@ -236,11 +236,14 @@ class EvaluationSettingsForm(ReviewMixin, PeriodRowMixin, forms.ModelForm):
     day_mode = forms.ChoiceField(label=_("Fecha"), widget=forms.RadioSelect,
                                  choices=[(DAY_MILESTONE, _("El día de una fecha clave")), (DAY_FIXED, _("Una fecha fija"))])
     day = forms.DateField(label=_("Fecha"), required=False, widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"))
+    correction_category = forms.ModelChoiceField(
+        label=_("Fila de la ponderación de la corrección"), queryset=Category.objects.none(), required=False,
+        help_text=_("Conviene una fila opcional (por ejemplo, «Corrección»), que suma sobre la nota del parcial."))
 
     class Meta:
         model = Activity
         fields = ["category", "published", "due_milestone", "due_offset_days", "opens_time", "due_time",
-                  "duration_min", "require_code", "shuffle_parts", *REVIEW_FIELDS]
+                  "duration_min", "require_code", "shuffle_parts", "allow_correction", *REVIEW_FIELDS]
         widgets = {
             "due_milestone": TaggedSelect(), "opens_time": TIME, "due_time": TIME,
             "due_offset_days": forms.NumberInput(attrs={"min": "-60", "max": "60"}),
@@ -260,6 +263,11 @@ class EvaluationSettingsForm(ReviewMixin, PeriodRowMixin, forms.ModelForm):
         self.fields["due_offset_days"].required = False
         self.fields["opens_time"].required = True
         self.setup_review(milestones, evaluation=True)
+        self.fields["correction_category"].queryset = self.fields["category"].queryset
+        self.fields["correction_category"].empty_label = _("— Elija una fila —")
+        correction = self.instance.correction_activity if self.instance.pk else None
+        if correction is not None and not self.is_bound:
+            self.initial["correction_category"] = correction.category_id
         self.setup_period(course, day_of(self.instance) or timezone.localdate())
         instance = self.instance
         if not self.is_bound:
@@ -293,6 +301,8 @@ class EvaluationSettingsForm(ReviewMixin, PeriodRowMixin, forms.ModelForm):
         if opens and closes and closes <= opens:
             self.add_error("due_time", _("Debe ser posterior a la hora de inicio."))
         self.clean_review(data)
+        if data.get("allow_correction") and not data.get("correction_category"):
+            self.add_error("correction_category", _("Elija la fila de la ponderación en la que cuenta la corrección."))
         return self.clean_period_row(data)
 
     def save(self, commit=True):
@@ -314,7 +324,10 @@ class EvaluationSettingsForm(ReviewMixin, PeriodRowMixin, forms.ModelForm):
         self.review_before_due = self.review_warning(activity)
         self.rebound = rebind(activity)
         if commit:
+            from . import engine
+
             activity.save()
+            engine.sync_correction(activity, category=self.cleaned_data.get("correction_category"))
         return activity
 
 

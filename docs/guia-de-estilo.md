@@ -210,6 +210,16 @@ Reglas de interacción:
   (`courses/_course_tabs.html`). Evaluaciones reúne las fechas clave (pruebas y exámenes) y el
   vencimiento de las actividades; Calificaciones es la planilla. Las dos son páginas propias con el
   mismo encabezado (`courses/_course_head.html`).
+- **Corrección de una evaluación** (`Activity.allow_correction`, `correction_of`,
+  `engine.sync_correction`): una actividad aparte con el contenido de la evaluación, un intento,
+  abierta desde la publicación de las notas hasta el cierre de la revisión y en la fila que elija el
+  docente. `sync_correction` la mantiene al día al guardar la configuración, al publicar o retirar
+  las notas, al editar o sincronizar el contenido y al mover una fecha clave. Mientras el estudiante
+  pueda enviarla, la revisión de la evaluación espera (`engine.correction_pending`). Su
+  configuración y su contenido se editan en la evaluación.
+- **Fechas y plazos** (`activities/timeline.py`, `_timeline.html`): en la página del estudiante y en
+  la configuración, una franja por plazo (entrega, atrasadas, revisión, debate, notas, corrección)
+  sobre un eje común y una línea en «hoy», sin JavaScript. Lo que aún no tiene fecha va como nota.
 - **Entregas y configuración, separadas.** Cada actividad tiene dos pestañas
   (`activities/_activity_head.html`): Entregas (`activity_detail`: en una evaluación su aplicación,
   con el código y la publicación de las notas; la calificación pendiente y la tabla de entregas,

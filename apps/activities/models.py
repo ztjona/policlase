@@ -108,6 +108,14 @@ class Activity(models.Model):
     #: Cada estudiante recibe las partes (segmentos) en su propio orden (`outline.shuffle_parts`).
     shuffle_parts = models.BooleanField(_("mostrar las partes en un orden distinto a cada estudiante"),
                                         default=False, db_default=False)
+    #: En una evaluación: cada estudiante puede volver a resolverla, completa, después de publicadas las
+    #: notas y hasta el cierre de la revisión, que solo ve al enviar su corrección (`engine.sync_correction`).
+    allow_correction = models.BooleanField(_("permitir la corrección de la evaluación"), default=False,
+                                           db_default=False)
+    #: La corrección de una evaluación es una actividad aparte, con el mismo contenido, que cuenta en
+    #: su propia fila de la ponderación (por lo general, una opcional).
+    correction_of = models.OneToOneField("self", on_delete=models.CASCADE, null=True, blank=True,
+                                         related_name="correction")
     access_code = models.CharField(max_length=8, blank=True, default="", db_default="")
     #: Evaluación: cuándo publicó el docente las notas. Antes, el estudiante no ve ni su puntaje.
     published_at = models.DateTimeField(_("notas publicadas"), null=True, blank=True)
@@ -299,6 +307,14 @@ class Activity(models.Model):
         super().refresh_from_db(*args, **kwargs)
         # Las prórrogas que el motor guardó en el objeto se vuelven a leer.
         self.__dict__.pop("_extensions", None)
+
+    @property
+    def correction_activity(self) -> "Activity | None":
+        """La corrección de esta evaluación, si se creó alguna vez."""
+        try:
+            return self.correction
+        except Activity.DoesNotExist:
+            return None
 
     def set_kind(self, use: str) -> None:
         """El tipo según el `use` del documento. Una evaluación nueva parte de lo habitual: un solo

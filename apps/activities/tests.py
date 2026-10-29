@@ -1994,3 +1994,107 @@ class ResultsAndSettingsTests(ActivityBase):
         self.assertContains(page, "qchip wrong marked")                        # incorrecta y marcada por ella
         self.assertContains(page, "qchip right")                               # la de opción, correcta
         self.assertContains(page, "1 marcadas por el estudiante")
+
+
+class CorrectionAndTimelineTests(ActivityBase):
+    """La corrección de una evaluación (una actividad aparte, en su propia fila) y el diagrama de plazos."""
+
+    def setUp(self):
+        super().setUp()
+        from policlase_gen import document as content_format
+
+        document, _report, _use = content_format.load_text(PARTS)
+        period = self.course.periods.first()
+        self.extra = period.categories.create(name="Corrección", weight=5, optional=True)
+        self.exam = Activity(course=self.course, title="Prueba por partes", source=PARTS,
+                             compiled=content_format.compile_content(document),
+                             category=period.categories.get(name="Prueba"), published=True,
+                             opens_at=timezone.now() - timedelta(hours=3), due_at=timezone.now() + timedelta(hours=1),
+                             shuffle_parts=True)
+        self.exam.set_kind("evaluation")
+        self.exam.save()
+        attempt = engine.start(self.exam, self.ana, code=self.exam.access_code)
+        engine.save_draft(attempt, {"PA-a.q1": "1", "PB-a.q1": "0"})
+        engine.submit(attempt)
+        Activity.objects.filter(pk=self.exam.pk).update(due_at=timezone.now() - timedelta(minutes=5))
+        self.exam.refresh_from_db()
+
+    def enable(self):
+        self.client.force_login(self.teacher)
+        day = timezone.localdate() - timedelta(days=1)                  # ya se rindió
+        response = self.client.post(reverse("activity_settings", args=[self.course.pk, self.exam.pk]), {
+            "category": self.exam.category_id, "published": "on", "day_mode": "fixed", "day": day.isoformat(),
+            "opens_time": "07:00", "due_time": "09:00", "require_code": "on", "shuffle_parts": "on",
+            "allow_correction": "on", "correction_category": self.extra.pk,
+            "review_mode": "published", "review_offset_days": "7", "review_time": "23:59"})
+        self.assertEqual(response.status_code, 302, response.content[:3000])
+        self.exam.refresh_from_db()
+        return self.exam.correction_activity
+
+    def test_la_correccion_se_abre_al_publicar_y_la_revision_espera(self):
+        correction = self.enable()
+        self.assertFalse(correction.published)                          # aún sin notas publicadas
+        engine.publish(self.exam)
+        self.exam.refresh_from_db()
+        correction.refresh_from_db()
+        self.assertTrue(correction.published)
+        self.assertEqual((correction.opens_at, correction.due_at), (self.exam.published_at, self.exam.review_until))
+        self.assertEqual(correction.category, self.extra)
+        state = engine.state(self.exam, self.ana)
+        self.assertTrue(state.correction_pending)
+        self.assertFalse(state.reveal or state.solutions)                # la revisión espera
+        self.client.force_login(self.ana)
+        page = self.client.get(reverse("activity_student", args=[self.course.pk, self.exam.pk]))
+        self.assertContains(page, "Ir a la corrección")
+        self.assertContains(page, "se mostrará cuando envíe su corrección")
+        attempt = engine.start(correction, self.ana)
+        exam_attempt = Attempt.objects.get(activity=self.exam, student=self.ana)
+        self.assertEqual([b.get("at") for b in attempt.content["items"]],
+                         [b.get("at") for b in exam_attempt.content["items"]])     # su mismo orden de partes
+        engine.save_draft(attempt, {"PA-a.q1": "1", "PB-a.q1": "2", "PB-b.q1": "3", "PC-a.q1": "4"})
+        engine.submit(attempt)
+        self.assertTrue(engine.state(self.exam, self.ana).reveal)          # ahora sí, la revisión
+        corr_state = engine.state(correction, self.ana)
+        self.assertTrue(corr_state.reveal and corr_state.solutions)
+        grades = gradebook.course_grades(self.course, [self.ana])[0]
+        cell = next(c for c in grades.periods[0].cells if c.category == self.extra)
+        self.assertEqual(cell.fraction, 1.0)                               # cuenta en su fila
+
+    def test_quien_no_rindio_no_hace_la_correccion_y_desactivarla_la_oculta(self):
+        correction = self.enable()
+        engine.publish(self.exam)
+        correction.refresh_from_db()
+        with self.assertRaisesMessage(engine.ActionError, "quienes rindieron"):
+            engine.start(correction, self.bruno)
+        self.exam.allow_correction = False
+        self.exam.save(update_fields=["allow_correction"])
+        engine.sync_correction(self.exam)
+        correction.refresh_from_db()
+        self.assertFalse(correction.published)
+        self.client.force_login(self.teacher)
+        settings = self.client.get(reverse("activity_settings", args=[self.course.pk, correction.pk]))
+        self.assertRedirects(settings, reverse("activity_settings", args=[self.course.pk, self.exam.pk]) + "#correction",
+                             fetch_redirect_response=False)
+
+    def test_diagrama_de_plazos(self):
+        from . import timeline
+
+        self.activity.late_policy = Activity.Late.PENALTY
+        self.activity.save()
+        period = self.activity.category.period
+        period.ends_on = timezone.localdate() + timedelta(days=30)
+        period.save()
+        tl = timeline.lanes(self.activity)
+        self.assertEqual([lane.tone for lane in tl["lanes"]], ["main", "late", "review"])
+        self.assertIsNotNone(tl["now_at"])
+        self.assertTrue(all(0 <= lane.left <= 100 and lane.width > 0 for lane in tl["lanes"]))
+        engine.publish(self.exam)
+        self.exam.refresh_from_db()
+        exam_tl = timeline.lanes(self.exam)
+        self.assertEqual([lane.tone for lane in exam_tl["lanes"]][:2], ["main", "point"])
+        self.client.force_login(self.ana)
+        page = self.client.get(reverse("activity_student", args=[self.course.pk, self.activity.pk]))
+        self.assertContains(page, "Fechas y plazos")
+        self.client.force_login(self.teacher)
+        settings = self.client.get(reverse("activity_settings", args=[self.course.pk, self.activity.pk]))
+        self.assertContains(settings, "Fechas y plazos")
