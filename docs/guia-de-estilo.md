@@ -32,8 +32,8 @@ Repositorios: `policlase` (plataforma) y `policlase-gen` (formato y validador, v
 8. **GitHub es la fuente de verdad** del contenido: se confirma allá antes de guardar aquí, y ante un
    conflicto no se pisa nada (ver [`github.md`](github.md)).
 9. **El código del docente no corre en el servidor.** Los generadores de `policlase-gen` se ejecutan
-   en la máquina del autor; el registro de docentes es abierto y ejecutarlos aquí sería entregar el
-   servidor.
+   en la máquina del autor; cualquier docente puede invitar a otro y ejecutarlos aquí sería entregar el
+   servidor a quien reciba una invitación.
 10. **Identidad propia.** El logo y la paleta son de policlase, no de una institución. Una identidad
     institucional, si se autoriza, sería una edición configurable, no el logo base.
 
@@ -148,6 +148,22 @@ Reglas de interacción:
 
 - Las vistas son funciones; las parciales de plantilla empiezan con `_` (`_slide_card.html`).
 - Los comentarios explican **por qué**, en español, como el resto del código.
+
+### Registro de cuentas
+
+Cada cuenta nueva envía un correo a la dirección escrita en el formulario, así que el registro no está
+abierto a desconocidos (desde 0.26, tras un bot que usaba correos de terceros):
+
+- **Estudiantes:** el formulario exige el código de un curso abierto (`Course.open_for_code`) y crea la
+  solicitud de inscripción, que el docente aprueba como cualquier otra. Sin un código válido no se crea
+  la cuenta ni se envía nada. El enlace de inscripción (`/unirse/<código>/`) solo completa el código.
+- **Periodo:** «abierto» es `Course.is_accepting`, el interruptor del docente más la fecha de cierre
+  opcional. Es por curso y no general: con una ventana general el formulario quedaría público mientras
+  dure y un estudiante rezagado dependería de que alguien la reabra.
+- **Docentes:** por invitación de cualquier otro docente (`TeacherInvitation`): un enlace de un solo uso
+  que vence a los 7 días y que el docente entrega por su cuenta; la plataforma no lo envía. Sin
+  invitación vigente no hay formulario. El primer docente se crea con `create_teacher`.
+- **Campo trampa** en los dos registros (`ACCOUNT_SIGNUP_FORM_HONEYPOT_FIELD`), como segunda barrera.
 
 ### Estado de una clase en vivo
 

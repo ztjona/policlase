@@ -1,0 +1,18 @@
+{% extends "account/base_entrance.html" %}
+{% load allauth i18n %}
+{# Sin invitación vigente no hay formulario: no hay nada que un bot pueda llenar. #}
+{% block head_title %}{% translate "Crear cuenta de docente" %}{% endblock head_title %}
+{% block content %}
+    {% element h1 %}{% translate "Crear cuenta de docente" %}{% endelement %}
+    {% element p %}
+        {% if invalid %}
+            {% translate "Este enlace de invitación no es válido, ya se utilizó o venció. Solicite uno nuevo al docente que le invitó." %}
+        {% else %}
+            {% translate "El registro de docentes se realiza por invitación. Solicite un enlace a un docente que ya utilice policlase." %}
+        {% endif %}
+    {% endelement %}
+    {% element p %}
+        {% url 'account_login' as login_url %}
+        {% blocktranslate %}¿Ya tiene cuenta? <a href="{{ login_url }}">Inicie sesión</a>.{% endblocktranslate %}
+    {% endelement %}
+{% endblock content %}

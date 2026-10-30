@@ -107,17 +107,20 @@ correos de verificación terminan en la carpeta de spam.
 
 Aun con SPF, DKIM y DMARC correctos, algunos servidores institucionales (Microsoft 365) retienen en
 cuarentena el correo de un dominio nuevo sin avisarle al destinatario. Por eso la confirmación del
-correo es **obligatoria solo para docentes** (el registro de docentes es abierto) y **opcional para
+correo es **obligatoria solo para docentes** (un enlace de invitación puede reenviarse) y **opcional para
 estudiantes**, que entran de inmediato: el docente aprueba cada inscripción por nombre y cédula, y el
 estudiante ve en «Mis cursos» un recordatorio para confirmar su correo, necesario para recuperar la
 contraseña (`apps/accounts/stages.py`). Si una institución retiene los correos, lo más efectivo es
 pedirle a su área de TI que agregue el dominio como remitente permitido.
 
-Cada registro envía un correo a la dirección que se escriba en el formulario, sea de quien sea. Por eso
-los dos registros llevan un campo trampa invisible (`ACCOUNT_SIGNUP_FORM_HONEYPOT_FIELD`): quien lo llena
-recibe la respuesta normal, pero no se crea la cuenta ni se envía nada. Si en el panel del servicio de
-correo aparecen confirmaciones dirigidas a desconocidos, compare el formato de las cuentas nuevas
-(nombres y usuarios al azar) con los accesos a `/cuenta/signup/` en el registro de nginx.
+Cada cuenta nueva envía un correo a la dirección escrita en el formulario, sea de quien sea. Por eso el
+registro está cerrado a desconocidos: un estudiante necesita el código de un curso abierto y un docente,
+la invitación de un colega. Además, los dos registros llevan un campo trampa invisible
+(`ACCOUNT_SIGNUP_FORM_HONEYPOT_FIELD`): quien lo llena recibe la respuesta normal, pero no se crea la
+cuenta ni se envía nada. Si en el panel del servicio de correo aparecen confirmaciones dirigidas a
+desconocidos, compare el formato de las cuentas nuevas (nombres y usuarios al azar) con los accesos a
+`/cuenta/signup/` en el registro de nginx; un código filtrado se reemplaza con «Generar otro código», en
+la configuración del curso.
 
 ## 5. Levantar detrás del nginx
 
@@ -134,7 +137,7 @@ docker exec n8n-nginx nginx -t && docker exec n8n-nginx nginx -s reload
 - Solo en una instalación **nueva**, antes de que entre nadie: borre los datos de demostración
   (`docker compose down && sudo rm -rf /mnt/mydrive/policlase/postgres`) y vuelva a levantar. Con
   estudiantes registrados, **nunca**: borra todas las cuentas y resultados. Cree su cuenta con
-  `create_teacher --admin` (los colegas se registran en `/cuenta/registro-docente/`).
+  `create_teacher --admin`; invite a los colegas desde «Invitar docentes», en el menú de usuario.
 - Configure los respaldos (abajo) y una copia fuera del VPS.
 
 ## Respaldos

@@ -18,7 +18,7 @@
 </div>
 <p class="muted small">
   {% blocktranslate count n=approved_count %}{{ n }} estudiante inscrito{% plural %}{{ n }} estudiantes inscritos{% endblocktranslate %}
-  {% if not course.accepting %}· {% translate "inscripción cerrada" %}{% endif %}
+  {% if not course.is_accepting %}· {% translate "inscripción cerrada" %}{% endif %}
 </p>
 
 {% if live %}

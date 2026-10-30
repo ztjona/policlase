@@ -32,6 +32,8 @@ class Course(models.Model):
     join_code = models.CharField(_("código de inscripción"), max_length=CODE_LENGTH,
                                  unique=True, default=new_join_code)
     accepting = models.BooleanField(_("acepta solicitudes"), default=True)
+    #: Cierre automático de la inscripción; sin fecha, sigue abierta hasta que el docente la cierre.
+    accepting_until = models.DateTimeField(_("cerrar la inscripción el"), null=True, blank=True)
     #: Secreto para derivar la semilla de cada estudiante (policlase-gen `assign_seed`).
     seed_secret = models.CharField(max_length=64, default=new_seed_secret, editable=False)
 
@@ -53,6 +55,18 @@ class Course(models.Model):
     def regenerate_join_code(self) -> None:
         self.join_code = new_join_code()
         self.save(update_fields=["join_code"])
+
+    @property
+    def is_accepting(self) -> bool:
+        return self.accepting and (self.accepting_until is None or timezone.now() < self.accepting_until)
+
+    @classmethod
+    def open_for_code(cls, raw: str) -> "Course | None":
+        """El curso abierto con ese código, para inscribirse o para crear una cuenta. «No existe» y
+        «cerrado» son lo mismo para quien pregunta: no se confirma qué códigos son válidos."""
+        code = normalize_code(raw)
+        course = cls.objects.filter(join_code=code).first() if code else None
+        return course if course is not None and course.is_accepting else None
 
 
 class Enrollment(models.Model):

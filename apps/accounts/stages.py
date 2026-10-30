@@ -12,8 +12,8 @@ class RoleEmailVerificationStage(EmailVerificationStage):
     El docente aprueba cada inscripción por nombre y cédula, así que el correo del estudiante no
     protege el acceso a nada; solo sirve para recuperar la contraseña. Y algunos servidores
     institucionales (Microsoft 365) retienen el correo de confirmación sin avisarle a nadie: con la
-    confirmación obligatoria, el estudiante quedaba fuera. El registro de docentes es abierto: ahí el
-    correo confirmado sí importa.
+    confirmación obligatoria, el estudiante quedaba fuera. Una cuenta de docente se crea con un enlace
+    de invitación, que puede reenviarse: ahí el correo confirmado sí importa.
     """
 
     def handle(self):

@@ -1,7 +1,22 @@
+import secrets
+from datetime import timedelta
+
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+
+#: Días que dura un enlace de invitación sin usar.
+INVITATION_DAYS = 7
+
+
+def new_invitation_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def invitation_expiry():
+    return timezone.now() + timedelta(days=INVITATION_DAYS)
 
 
 class User(AbstractUser):
@@ -56,3 +71,31 @@ class User(AbstractUser):
         # «CAIZA OÑA, DANNY JAVIER» se guarda como «Caiza Oña, Danny Javier», venga de donde venga.
         self.first_name, self.last_name = name_case(self.first_name), name_case(self.last_name)
         super().save(*args, **kwargs)
+
+
+class TeacherInvitation(models.Model):
+    """Enlace de un solo uso para crear una cuenta de docente.
+
+    Lo genera un docente y lo entrega por su cuenta: la plataforma no envía correos a direcciones
+    escritas en un formulario, para no servir de vía de envío a terceros. La invitación usada se
+    conserva porque dice quién invitó a quién.
+    """
+
+    token = models.CharField(max_length=43, unique=True, default=new_invitation_token, editable=False)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                                   related_name="teacher_invitations")
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(default=invitation_expiry)
+    used_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                null=True, blank=True, related_name="+")
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.created_by} · {self.created_at:%Y-%m-%d}"
+
+    @property
+    def is_usable(self) -> bool:
+        return self.used_at is None and timezone.now() < self.expires_at

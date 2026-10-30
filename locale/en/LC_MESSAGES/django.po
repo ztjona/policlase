@@ -4,105 +4,138 @@ msgid ""
 msgstr ""
 "Project-Id-Version: policlase\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-29 16:24-0500\n"
+"POT-Creation-Date: 2026-10-30 12:39-0500\n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: apps/accounts/forms.py:22
+#: apps/accounts/forms.py:28 apps/courses/forms.py:31
+#: templates/courses/_join_form.html:5
+msgid "Código del curso"
+msgstr "Course code"
+
+#: apps/accounts/forms.py:29
+msgid ""
+"Su docente le entrega este código; si recibió un enlace de inscripción, ya "
+"aparece completado."
+msgstr ""
+"Your teacher gives you this code; if you received an enrollment link, it is "
+"already filled in."
+
+#: apps/accounts/forms.py:33
 msgid "Nombres"
 msgstr "First names"
 
-#: apps/accounts/forms.py:23
+#: apps/accounts/forms.py:34
 msgid "Apellidos"
 msgstr "Last names"
 
-#: apps/accounts/forms.py:25
+#: apps/accounts/forms.py:36
 msgid "Cédula o pasaporte"
 msgstr "National ID or passport"
 
-#: apps/accounts/forms.py:26
+#: apps/accounts/forms.py:37
 msgid ""
 "Se utiliza para identificarle ante sus docentes y en las actas de "
 "calificaciones."
 msgstr "Used to identify you to your teachers and on grade reports."
 
-#: apps/accounts/forms.py:35
+#: apps/accounts/forms.py:46 apps/courses/views.py:78
+#: templates/account/signup.html:20
+msgid ""
+"Ese código no corresponde a ningún curso abierto. Revíselo con su docente."
+msgstr "That code doesn't match any open course. Check it with your teacher."
+
+#: apps/accounts/forms.py:52
 msgid "Use solo letras, números o guiones (5 a 20 caracteres)."
 msgstr "Use only letters, numbers or hyphens (5 to 20 characters)."
 
-#: apps/accounts/forms.py:53
+#: apps/accounts/forms.py:69 apps/courses/views.py:88
+#, python-format
+msgid "Solicitud enviada a %(course)s. Su docente debe aprobarla."
+msgstr "Request sent to %(course)s. Your teacher needs to approve it."
+
+#: apps/accounts/forms.py:74
 msgid "Idioma"
 msgstr "Language"
 
-#: apps/accounts/forms.py:54
+#: apps/accounts/forms.py:75
 msgid "Zona horaria"
 msgstr "Time zone"
 
-#: apps/accounts/forms.py:55
+#: apps/accounts/forms.py:76
 msgid "Tema"
 msgstr "Theme"
 
-#: apps/accounts/forms.py:56
+#: apps/accounts/forms.py:77
 msgid "En el proyector se utiliza el tema claro, salvo que se elija el oscuro."
 msgstr "The projector uses the light theme unless the dark one is chosen."
 
-#: apps/accounts/models.py:16 templates/activities/detail.html:56
+#: apps/accounts/models.py:31 templates/activities/detail.html:56
 #: templates/activities/settings.html:61 templates/activities/stats.html:92
 #: templates/courses/course_manage.html:52
-#: templates/courses/course_settings.html:92 templates/grades/gradebook.html:22
-#: templates/grades/gradebook.html:37 templates/grades/record.html:51
-#: templates/live/results.html:11 templates/live/results.html:58
+#: templates/courses/course_settings.html:108
+#: templates/grades/gradebook.html:22 templates/grades/gradebook.html:37
+#: templates/grades/record.html:51 templates/live/results.html:11
+#: templates/live/results.html:58
 msgid "Estudiante"
 msgstr "Student"
 
-#: apps/accounts/models.py:17
+#: apps/accounts/models.py:32
 msgid "Docente"
 msgstr "Teacher"
 
-#: apps/accounts/models.py:19
+#: apps/accounts/models.py:34
 msgid "Invitado"
 msgstr "Guest"
 
-#: apps/accounts/models.py:22
+#: apps/accounts/models.py:37
 msgid "Automático (como el sistema)"
 msgstr "Automatic (follow the system)"
 
-#: apps/accounts/models.py:23
+#: apps/accounts/models.py:38
 msgid "Claro"
 msgstr "Light"
 
-#: apps/accounts/models.py:24
+#: apps/accounts/models.py:39
 msgid "Oscuro"
 msgstr "Dark"
 
-#: apps/accounts/models.py:26
+#: apps/accounts/models.py:41
 msgid "correo electrónico"
 msgstr "email address"
 
-#: apps/accounts/models.py:27
+#: apps/accounts/models.py:42
 msgid "rol"
 msgstr "role"
 
-#: apps/accounts/models.py:30
+#: apps/accounts/models.py:45
 msgid "cédula o pasaporte"
 msgstr "national ID or passport"
 
-#: apps/accounts/models.py:32
+#: apps/accounts/models.py:47
 msgid "idioma"
 msgstr "language"
 
-#: apps/accounts/models.py:33
+#: apps/accounts/models.py:48
 msgid "zona horaria"
 msgstr "time zone"
 
-#: apps/accounts/models.py:34
+#: apps/accounts/models.py:49
 msgid "tema"
 msgstr "theme"
 
-#: apps/accounts/views.py:90
+#: apps/accounts/views.py:94
+msgid "Enlace de invitación creado. Cópielo y entrégueselo a su colega."
+msgstr "Invitation link created. Copy it and give it to your colleague."
+
+#: apps/accounts/views.py:112
+msgid "El enlace de invitación dejó de funcionar."
+msgstr "The invitation link no longer works."
+
+#: apps/accounts/views.py:172
 msgid "Preferencias guardadas."
 msgstr "Preferences saved."
 
@@ -1364,9 +1397,9 @@ msgstr "How was the class? (anonymous)"
 msgid "Solo docentes."
 msgstr "Teachers only."
 
-#: apps/courses/forms.py:16 templates/courses/_join_form.html:5
-msgid "Código del curso"
-msgstr "Course code"
+#: apps/courses/forms.py:25
+msgid "La fecha de cierre debe ser posterior a la fecha actual."
+msgstr "The closing date must be later than the current date."
 
 #: apps/courses/models.py:27 templates/activities/_debate.html:71
 #: templates/base.html:37
@@ -1398,56 +1431,50 @@ msgstr "enrollment code"
 msgid "acepta solicitudes"
 msgstr "accepts requests"
 
-#: apps/courses/models.py:60 templates/grades/mine.html:40
+#: apps/courses/models.py:36
+msgid "cerrar la inscripción el"
+msgstr "close enrollment on"
+
+#: apps/courses/models.py:74 templates/grades/mine.html:40
 msgid "Pendiente"
 msgstr "Pending"
 
-#: apps/courses/models.py:61
+#: apps/courses/models.py:75
 msgid "Aprobada"
 msgstr "Approved"
 
-#: apps/courses/models.py:62
+#: apps/courses/models.py:76
 msgid "Rechazada"
 msgstr "Rejected"
 
-#: apps/courses/models.py:76
+#: apps/courses/models.py:90
 msgid "nombre preferido"
 msgstr "preferred name"
 
-#: apps/courses/views.py:60
+#: apps/courses/views.py:68
 msgid "Las cuentas de docente no se inscriben en cursos."
 msgstr "Teacher accounts can't enroll in courses."
 
-#: apps/courses/views.py:70
-msgid ""
-"Ese código no corresponde a ningún curso abierto. Revíselo con su docente."
-msgstr "That code doesn't match any open course. Check it with your teacher."
-
-#: apps/courses/views.py:80
-#, python-format
-msgid "Solicitud enviada a %(course)s. Su docente debe aprobarla."
-msgstr "Request sent to %(course)s. Your teacher needs to approve it."
-
-#: apps/courses/views.py:83
+#: apps/courses/views.py:91
 #, python-format
 msgid "Ya está inscrito en %(course)s."
 msgstr "You're already enrolled in %(course)s."
 
-#: apps/courses/views.py:85
+#: apps/courses/views.py:93
 #, python-format
 msgid "Su solicitud a %(course)s sigue pendiente de aprobación."
 msgstr "Your request to %(course)s is still waiting for approval."
 
-#: apps/courses/views.py:88
+#: apps/courses/views.py:96
 #, python-format
 msgid "Su solicitud a %(course)s fue rechazada. Hable con su docente."
 msgstr "Your request to %(course)s was rejected. Talk to your teacher."
 
-#: apps/courses/views.py:152 apps/courses/views.py:333
+#: apps/courses/views.py:160 apps/courses/views.py:341
 msgid "Ya tiene un curso con ese código."
 msgstr "You already have a course with that code."
 
-#: apps/courses/views.py:154
+#: apps/courses/views.py:162
 #, python-format
 msgid ""
 "Curso creado. Comparta el código de inscripción %(code)s con sus "
@@ -1456,44 +1483,44 @@ msgstr ""
 "Course created. Share the enrollment code %(code)s with your students; "
 "you'll also find it in the course settings."
 
-#: apps/courses/views.py:179
+#: apps/courses/views.py:187
 msgid "Presentaciones y actividades actualizadas desde GitHub."
 msgstr "Presentations and activities updated from GitHub."
 
-#: apps/courses/views.py:335
+#: apps/courses/views.py:343
 msgid "Datos del curso guardados."
 msgstr "Course details saved."
 
-#: apps/courses/views.py:369
+#: apps/courses/views.py:379
 #, python-format
 msgid "Se actualizó %(n)d inscrito."
 msgid_plural "Se actualizaron %(n)d inscritos."
 msgstr[0] "%(n)d enrolled student was updated."
 msgstr[1] "%(n)d enrolled students were updated."
 
-#: apps/courses/views.py:388
+#: apps/courses/views.py:398
 msgid "Acción desconocida."
 msgstr "Unknown action."
 
-#: apps/courses/views.py:401
+#: apps/courses/views.py:411
 msgid "No había solicitudes seleccionadas."
 msgstr "No requests were selected."
 
-#: apps/courses/views.py:403
+#: apps/courses/views.py:413
 #, python-format
 msgid "%(count)d solicitud aprobada."
 msgid_plural "%(count)d solicitudes aprobadas."
 msgstr[0] "%(count)d request approved."
 msgstr[1] "%(count)d requests approved."
 
-#: apps/courses/views.py:406
+#: apps/courses/views.py:416
 #, python-format
 msgid "%(count)d solicitud rechazada."
 msgid_plural "%(count)d solicitudes rechazadas."
 msgstr[0] "%(count)d request rejected."
 msgstr[1] "%(count)d requests rejected."
 
-#: apps/courses/views.py:418
+#: apps/courses/views.py:428
 #, python-format
 msgid ""
 "%(name)s fue retirado del curso. Puede volver a solicitar la inscripción con "
@@ -1502,18 +1529,22 @@ msgstr ""
 "%(name)s was removed from the course. They can request enrollment again with "
 "the course code."
 
-#: apps/courses/views.py:430
+#: apps/courses/views.py:440
 #, python-format
 msgid "Nuevo código: %(code)s. El anterior dejó de funcionar."
 msgstr "New code: %(code)s. The previous one no longer works."
 
-#: apps/courses/views.py:435
+#: apps/courses/views.py:448
 msgid "El curso acepta solicitudes."
 msgstr "The course is accepting requests."
 
-#: apps/courses/views.py:436
+#: apps/courses/views.py:449
 msgid "El curso ya no acepta solicitudes."
 msgstr "The course no longer accepts requests."
+
+#: apps/courses/views.py:454
+msgid "Fecha de cierre de la inscripción guardada."
+msgstr "Enrollment closing date saved."
 
 #: apps/github/client.py:64 apps/github/client.py:128 apps/github/client.py:144
 msgid "El archivo cambió en GitHub."
@@ -1566,7 +1597,7 @@ msgstr "repository"
 msgid "usuario/repositorio"
 msgstr "owner/repository"
 
-#: apps/github/models.py:43 templates/courses/course_settings.html:51
+#: apps/github/models.py:43 templates/courses/course_settings.html:67
 msgid "rama"
 msgstr "branch"
 
@@ -2316,8 +2347,57 @@ msgstr "Very good"
 msgid "Excelente"
 msgstr "Excellent"
 
+#: templates/account/invitations.html:3 templates/account/invitations.html:8
+#: templates/base.html:49
+msgid "Invitar docentes"
+msgstr "Invite teachers"
+
+#: templates/account/invitations.html:10
+#, python-format
+msgid ""
+"El registro de docentes se realiza por invitación. Cada enlace permite crear "
+"una sola cuenta y vence a los %(days)s días. Entréguelo a su colega por un "
+"medio de confianza, ya que quien lo tenga podrá registrarse como docente."
+msgstr ""
+"Teacher registration is by invitation. Each link allows one account to be "
+"created and expires after %(days)s days. Give it to your colleague through a "
+"trusted channel, because whoever has it can register as a teacher."
+
+#: templates/account/invitations.html:13
+msgid "Crear enlace de invitación"
+msgstr "Create invitation link"
+
+#: templates/account/invitations.html:18
+msgid "Enlaces sin utilizar"
+msgstr "Unused links"
+
+#: templates/account/invitations.html:23
+msgid "Enlace de invitación"
+msgstr "Invitation link"
+
+#: templates/account/invitations.html:25
+#, python-format
+msgid "Vence el %(when)s"
+msgstr "Expires on %(when)s"
+
+#: templates/account/invitations.html:29
+msgid "El enlace dejará de funcionar. ¿Desea continuar?"
+msgstr "The link will stop working. Do you want to continue?"
+
+#: templates/account/invitations.html:29
+msgid "Revocar"
+msgstr "Revoke"
+
+#: templates/account/invitations.html:38
+msgid "Docentes invitados"
+msgstr "Invited teachers"
+
+#: templates/account/invitations.html:42
+msgid "Cuenta eliminada"
+msgstr "Deleted account"
+
 #: templates/account/preferences.html:3 templates/account/preferences.html:6
-#: templates/base.html:54
+#: templates/base.html:55
 msgid "Preferencias"
 msgstr "Preferences"
 
@@ -2335,17 +2415,19 @@ msgstr ""
 #: templates/activities/_grade_form.html:11
 #: templates/activities/_practice_settings.html:21
 #: templates/activities/dates.html:75 templates/ai/account.html:26
-#: templates/courses/course_settings.html:32 templates/grades/record.html:107
+#: templates/courses/course_settings.html:48 templates/grades/record.html:107
 #: templates/grades/settings.html:60 templates/live/studio.html:25
 msgid "Guardar"
 msgstr "Save"
 
 #: templates/account/signup.html:4 templates/account/signup.html:6
+#: templates/account/teacher_signup_closed.html:4
+#: templates/account/teacher_signup_closed.html:6
 msgid "Crear cuenta de docente"
 msgstr "Create a teacher account"
 
-#: templates/account/signup.html:4 templates/account/signup.html:25
-#: templates/base.html:66
+#: templates/account/signup.html:4 templates/account/signup.html:30
+#: templates/base.html:67
 msgid "Crear cuenta"
 msgstr "Sign up"
 
@@ -2369,15 +2451,39 @@ msgstr ""
 "Are you a student? <a href=\"%(student_url)s\">Create a student account</a>."
 
 #: templates/account/signup.html:13
-#, python-format
-msgid "¿Es docente? <a href=\"%(teacher_url)s\">Cree su cuenta de docente</a>."
+msgid ""
+"¿Es docente? El registro de docentes se realiza con la invitación de un "
+"colega."
 msgstr ""
-"Are you a teacher? <a href=\"%(teacher_url)s\">Create a teacher account</a>."
+"Are you a teacher? Teacher registration requires an invitation from a "
+"colleague."
 
 #: templates/account/signup.html:15
+#: templates/account/teacher_signup_closed.html:16
 #, python-format
 msgid "¿Ya tiene cuenta? <a href=\"%(login_url)s\">Inicie sesión</a>."
 msgstr "Already have an account? <a href=\"%(login_url)s\">Log in</a>."
+
+#: templates/account/signup.html:18
+#, python-format
+msgid "Su solicitud de inscripción se enviará a «%(course)s»."
+msgstr "Your enrollment request will be sent to “%(course)s”."
+
+#: templates/account/teacher_signup_closed.html:9
+msgid ""
+"Este enlace de invitación no es válido, ya se utilizó o venció. Solicite uno "
+"nuevo al docente que le invitó."
+msgstr ""
+"This invitation link is not valid, has already been used or has expired. Ask "
+"the teacher who invited you for a new one."
+
+#: templates/account/teacher_signup_closed.html:11
+msgid ""
+"El registro de docentes se realiza por invitación. Solicite un enlace a un "
+"docente que ya utilice policlase."
+msgstr ""
+"Teacher registration is by invitation. Ask a teacher who already uses "
+"policlase for a link."
 
 #: templates/activities/_activity_head.html:9
 #: templates/courses/_tab_activities.html:78
@@ -2958,7 +3064,7 @@ msgstr ""
 "Those who have already started do not need it. Continue?"
 
 #: templates/activities/_evaluation_apply.html:23
-#: templates/courses/course_settings.html:23
+#: templates/courses/course_settings.html:39
 msgid "Generar otro código"
 msgstr "Generate a new code"
 
@@ -3984,7 +4090,7 @@ msgstr ""
 "not change)"
 
 #: templates/activities/dates.html:135
-#: templates/courses/course_settings.html:81
+#: templates/courses/course_settings.html:97
 msgid "Vincular"
 msgstr "Link"
 
@@ -4085,7 +4191,7 @@ msgstr[0] "%(n)s student has not posted an answer"
 msgstr[1] "%(n)s students have not posted an answer"
 
 #: templates/activities/detail.html:10
-#: templates/courses/course_settings.html:37
+#: templates/courses/course_settings.html:53
 msgid "Calificación"
 msgstr "Grading"
 
@@ -5189,37 +5295,37 @@ msgstr "Leave"
 msgid "Nuevo curso"
 msgstr "New course"
 
-#: templates/base.html:50
+#: templates/base.html:51
 msgid "Entrar a clase en vivo"
 msgstr "Join a live class"
 
-#: templates/base.html:51 templates/courses/join.html:3
+#: templates/base.html:52 templates/courses/join.html:3
 #: templates/courses/join.html:6 templates/courses/student_home.html:23
 msgid "Inscribirse en un curso"
 msgstr "Enroll in a course"
 
-#: templates/base.html:55
+#: templates/base.html:56
 msgid "Contraseña"
 msgstr "Password"
 
-#: templates/base.html:56 templates/courses/course_manage.html:52
-#: templates/courses/course_settings.html:94
+#: templates/base.html:57 templates/courses/course_manage.html:52
+#: templates/courses/course_settings.html:110
 msgid "Correo"
 msgstr "Email"
 
-#: templates/base.html:57
+#: templates/base.html:58
 msgid "Administración"
 msgstr "Administration"
 
-#: templates/base.html:58 templates/base.html:87 templates/core/about.html:3
+#: templates/base.html:59 templates/base.html:88 templates/core/about.html:3
 msgid "Acerca de"
 msgstr "About"
 
-#: templates/base.html:60
+#: templates/base.html:61
 msgid "Cerrar sesión"
 msgstr "Log out"
 
-#: templates/base.html:65
+#: templates/base.html:66
 msgid "Iniciar sesión"
 msgstr "Log in"
 
@@ -5696,7 +5802,7 @@ msgid ""
 msgstr "Each folder with presentations or activities is a section."
 
 #: templates/courses/course_manage.html:15
-#: templates/courses/course_settings.html:52
+#: templates/courses/course_settings.html:68
 #, python-format
 msgid "Última sincronización hace %(when)s."
 msgstr "Last synced %(when)s ago."
@@ -5740,7 +5846,7 @@ msgid "Solicitudes pendientes"
 msgstr "Pending requests"
 
 #: templates/courses/course_manage.html:52
-#: templates/courses/course_settings.html:94
+#: templates/courses/course_settings.html:110
 msgid "Cédula"
 msgstr "ID"
 
@@ -5759,7 +5865,7 @@ msgid "Aprobar todas (%(n)s)"
 msgstr "Approve all (%(n)s)"
 
 #: templates/courses/course_manage.html:69
-#: templates/courses/course_settings.html:132
+#: templates/courses/course_settings.html:148
 msgid "Aprobar seleccionadas"
 msgstr "Approve selected"
 
@@ -5777,36 +5883,59 @@ msgstr "Enrollment code"
 
 #: templates/courses/course_settings.html:16
 msgid ""
-"Los estudiantes lo ingresan en «Inscribirse en un curso» y usted aprueba "
-"cada solicitud."
+"Los estudiantes necesitan este código para crear su cuenta; quienes ya "
+"tienen una lo ingresan en «Inscribirse en un curso». Usted aprueba cada "
+"solicitud."
 msgstr ""
-"Students enter it under “Enroll in a course” and you approve each request."
+"Students need this code to create their account; those who already have one "
+"enter it under “Enroll in a course”. You approve each request."
 
 #: templates/courses/course_settings.html:17
 msgid "Inscripción cerrada:"
 msgstr "Enrollment closed:"
 
 #: templates/courses/course_settings.html:17
-msgid "el código no admite solicitudes nuevas."
-msgstr "the code doesn't accept new requests."
+msgid "el código no admite solicitudes nuevas ni la creación de cuentas."
+msgstr "the code doesn't accept new requests or the creation of accounts."
 
 #: templates/courses/course_settings.html:21
+msgid "Enlace de inscripción"
+msgstr "Enrollment link"
+
+#: templates/courses/course_settings.html:23
+msgid "Con este enlace, el código ya aparece completado."
+msgstr "With this link, the code is already filled in."
+
+#: templates/courses/course_settings.html:28
+msgid "Cerrar la inscripción el"
+msgstr "Close enrollment on"
+
+#: templates/courses/course_settings.html:30
+msgid ""
+"Si se deja vacío, la inscripción permanece abierta hasta que usted la cierre."
+msgstr "If left empty, enrollment stays open until you close it."
+
+#: templates/courses/course_settings.html:32
+msgid "Guardar fecha de cierre"
+msgstr "Save closing date"
+
+#: templates/courses/course_settings.html:37
 msgid "Cerrar inscripción"
 msgstr "Close enrollment"
 
-#: templates/courses/course_settings.html:21
+#: templates/courses/course_settings.html:37
 msgid "Abrir inscripción"
 msgstr "Open enrollment"
 
-#: templates/courses/course_settings.html:23
+#: templates/courses/course_settings.html:39
 msgid "El código actual dejará de funcionar. ¿Desea continuar?"
 msgstr "The current code will stop working. Do you want to continue?"
 
-#: templates/courses/course_settings.html:28
+#: templates/courses/course_settings.html:44
 msgid "Datos del curso"
 msgstr "Course details"
 
-#: templates/courses/course_settings.html:39
+#: templates/courses/course_settings.html:55
 msgid ""
 "Parciales, ponderación de cada componente (obligatorios y opcionales) y "
 "reglas de aprobación."
@@ -5814,16 +5943,16 @@ msgstr ""
 "Terms, the weight of each component (required and optional) and passing "
 "rules."
 
-#: templates/courses/course_settings.html:40 templates/grades/gradebook.html:12
+#: templates/courses/course_settings.html:56 templates/grades/gradebook.html:12
 #: templates/grades/settings.html:6
 msgid "Ponderaciones y aprobación"
 msgstr "Weightings and passing"
 
-#: templates/courses/course_settings.html:43
+#: templates/courses/course_settings.html:59
 msgid "Sincronización con GitHub"
 msgstr "GitHub sync"
 
-#: templates/courses/course_settings.html:46
+#: templates/courses/course_settings.html:62
 #, python-format
 msgid ""
 "Primero conecte su cuenta de GitHub en el menú de usuario → <a "
@@ -5832,15 +5961,15 @@ msgstr ""
 "First connect your GitHub account in the user menu → <a "
 "href=\"%(url)s\">GitHub</a>."
 
-#: templates/courses/course_settings.html:50
+#: templates/courses/course_settings.html:66
 msgid "Vinculado a"
 msgstr "Linked to"
 
-#: templates/courses/course_settings.html:57
+#: templates/courses/course_settings.html:73
 msgid "Sincronizar ahora"
 msgstr "Sync now"
 
-#: templates/courses/course_settings.html:59
+#: templates/courses/course_settings.html:75
 msgid ""
 "Las presentaciones y actividades se conservan en policlase, pero dejan de "
 "sincronizarse. ¿Desea continuar?"
@@ -5848,15 +5977,15 @@ msgstr ""
 "Presentations and activities are kept in policlase but stop synchronizing. "
 "Do you want to continue?"
 
-#: templates/courses/course_settings.html:59
+#: templates/courses/course_settings.html:75
 msgid "Desvincular"
 msgstr "Unlink"
 
-#: templates/courses/course_settings.html:62
+#: templates/courses/course_settings.html:78
 msgid "Sincronización instantánea (webhook, opcional)"
 msgstr "Instant sync (webhook, optional)"
 
-#: templates/courses/course_settings.html:63
+#: templates/courses/course_settings.html:79
 msgid ""
 "Sin webhook, policlase obtiene los cambios al abrir el curso o el editor; "
 "con webhook, inmediatamente después de cada push. Para configurarlo en "
@@ -5866,11 +5995,11 @@ msgstr ""
 "is opened; with a webhook, immediately after each push. To set it up on "
 "GitHub: Settings → Webhooks → Add webhook:"
 
-#: templates/courses/course_settings.html:68
+#: templates/courses/course_settings.html:84
 msgid "Eventos: solo «push»."
 msgstr "Events: just “push”."
 
-#: templates/courses/course_settings.html:72
+#: templates/courses/course_settings.html:88
 msgid ""
 "Las presentaciones y actividades del curso se almacenarán en una carpeta de "
 "su repositorio: lo que suba a GitHub aparecerá aquí, y lo que guarde en el "
@@ -5882,15 +6011,15 @@ msgstr ""
 "the editor will be committed to GitHub. Content that already exists in "
 "policlase is uploaded when the course is linked."
 
-#: templates/courses/course_settings.html:81
+#: templates/courses/course_settings.html:97
 msgid "Cambiar carpeta"
 msgstr "Change folder"
 
-#: templates/courses/course_settings.html:86
+#: templates/courses/course_settings.html:102
 msgid "Inscritos"
 msgstr "Enrolled"
 
-#: templates/courses/course_settings.html:93
+#: templates/courses/course_settings.html:109
 msgid ""
 "Cómo lo ven sus compañeros, junto con su primer apellido. Si se deja vacío, "
 "se usa su primer nombre. Puede ser un segundo nombre, ambos («María del "
@@ -5900,37 +6029,37 @@ msgstr ""
 "their first given name is used. It can be a second given name, both (“María "
 "del Cisne”) or a nickname (“Majo”)."
 
-#: templates/courses/course_settings.html:93
+#: templates/courses/course_settings.html:109
 msgid "Nombre preferido"
 msgstr "Preferred name"
 
-#: templates/courses/course_settings.html:94 templates/grades/_status.html:1
+#: templates/courses/course_settings.html:110 templates/grades/_status.html:1
 msgid "Aprobado"
 msgstr "Approved"
 
-#: templates/courses/course_settings.html:101
+#: templates/courses/course_settings.html:117
 #, python-format
 msgid "Nombre preferido de %(name)s"
 msgstr "Preferred name of %(name)s"
 
-#: templates/courses/course_settings.html:107
+#: templates/courses/course_settings.html:123
 #, python-format
 msgid "¿Retirar a %(name)s del curso?"
 msgstr "Remove %(name)s from the course?"
 
-#: templates/courses/course_settings.html:108
+#: templates/courses/course_settings.html:124
 msgid "Retirar"
 msgstr "Remove"
 
-#: templates/courses/course_settings.html:115
+#: templates/courses/course_settings.html:131
 msgid "Guardar los nombres"
 msgstr "Save the names"
 
-#: templates/courses/course_settings.html:118
+#: templates/courses/course_settings.html:134
 msgid "Aún no hay estudiantes aprobados."
 msgstr "No approved students yet."
 
-#: templates/courses/course_settings.html:122
+#: templates/courses/course_settings.html:138
 msgid "Rechazadas"
 msgstr "Rejected"
 

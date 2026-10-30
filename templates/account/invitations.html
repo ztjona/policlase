@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Invitar docentes" %}{% endblock %}
+{% block page_class %}narrow{% endblock %}
+{% block main %}
+{% comment %} La plataforma no envía estos enlaces: el docente los copia y los entrega por su cuenta. {% endcomment %}
+<h1>{% translate "Invitar docentes" %}</h1>
+<section class="card stack">
+  <p style="margin:0">{% blocktranslate %}El registro de docentes se realiza por invitación. Cada enlace permite crear una sola cuenta y vence a los {{ days }} días. Entréguelo a su colega por un medio de confianza, ya que quien lo tenga podrá registrarse como docente.{% endblocktranslate %}</p>
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit">{% translate "Crear enlace de invitación" %}</button>
+  </form>
+</section>
+
+{% if pending %}
+<h2>{% translate "Enlaces sin utilizar" %}</h2>
+<section class="card stack">
+  {% for invitation in pending %}
+  <div class="stack">
+    <input type="text" readonly value="{{ invitation.link }}" onfocus="this.select()"
+           aria-label="{% translate 'Enlace de invitación' %}">
+    <div class="spread">
+      <span class="small muted">{% blocktranslate with when=invitation.expires_at|date:"d M H:i" %}Vence el {{ when }}{% endblocktranslate %}</span>
+      <form method="post" action="{% url 'teacher_invitation_revoke' invitation.pk %}">
+        {% csrf_token %}
+        <button class="danger small"
+                onclick="return confirm('{% translate "El enlace dejará de funcionar. ¿Desea continuar?" as msg %}{{ msg|escapejs }}')">{% translate "Revocar" %}</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if used %}
+<h2>{% translate "Docentes invitados" %}</h2>
+<section class="card stack">
+  {% for invitation in used %}
+  <div class="spread">
+    <span>{% if invitation.used_by %}{{ invitation.used_by.display_name }}{% else %}{% translate "Cuenta eliminada" %}{% endif %}</span>
+    <span class="small muted">{{ invitation.used_at|date:"d M Y" }}</span>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+{% endblock %}

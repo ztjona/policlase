@@ -5,10 +5,12 @@ Aula virtual autoalojada para cursos universitarios con carga matemática.
 **Estado: en uso** en [policlase.org](https://policlase.org) con un curso real (versión en el archivo
 `VERSION`, visible en el pie de página). Funciona de punta a punta:
 
-- **Cuentas** con usuario y contraseña (django-allauth): registro, confirmación del correo
-  (obligatoria para docentes), recuperación de contraseña, límites de intentos y Argon2. Cada docente
-  tiene su espacio: nadie ve ni modifica lo de otro (lo ajeno responde 404).
-- **Cursos** con código de inscripción y aprobación del docente; nombre preferido de cada estudiante.
+- **Cuentas** con usuario y contraseña (django-allauth): estudiantes con el código de un curso abierto
+  y docentes por invitación de un colega, confirmación del correo (obligatoria para docentes),
+  recuperación de contraseña, límites de intentos y Argon2. Cada docente tiene su espacio: nadie ve ni
+  modifica lo de otro (lo ajeno responde 404).
+- **Cursos** con código y enlace de inscripción, fecha de cierre opcional y aprobación del docente;
+  nombre preferido de cada estudiante.
 - **Un solo formato y un solo editor** (`policlase/v1`, validado por [`policlase-gen`](../policlase-gen)):
   `use` dice si es una clase en vivo, una actividad, una evaluación o un repaso, y los **segmentos**
   cambian el comportamiento de lo que sigue (tiempo por pregunta, pegar). Monaco con autocompletado,
@@ -39,7 +41,7 @@ Aula virtual autoalojada para cursos universitarios con carga matemática.
 ```bash
 cp .env.example .env                  # complete DJANGO_SECRET_KEY y POSTGRES_PASSWORD
 docker compose up -d --build          # http://127.0.0.1:8100
-# docentes: http://127.0.0.1:8100/cuenta/registro-docente/  (o desde el servidor:)
+# primer docente, desde el servidor; los demás, con su invitación («Invitar docentes», en el menú de usuario):
 docker compose exec web python manage.py create_teacher --username profe --email profe@ejemplo.ec
 docker compose exec web python manage.py seed_demo       # opcional: datos de demostración
 ```

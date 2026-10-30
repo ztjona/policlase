@@ -1,7 +1,12 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
-from .models import User
+from .models import TeacherInvitation, User
+
+
+@admin.register(TeacherInvitation)
+class TeacherInvitationAdmin(admin.ModelAdmin):
+    list_display = ("created_by", "created_at", "expires_at", "used_by", "used_at")
 
 
 @admin.register(User)

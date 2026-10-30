@@ -1,20 +1,25 @@
 {% extends "account/base_entrance.html" %}
 {% load allauth i18n %}
-{# Un solo formulario para los dos registros; `teacher` lo pone TeacherSignupView. #}
+{# Un solo formulario para los dos registros; `teacher` e `invitation` los pone TeacherSignupView. #}
 {% block head_title %}{% if teacher %}{% translate "Crear cuenta de docente" %}{% else %}{% translate "Crear cuenta" %}{% endif %}{% endblock head_title %}
 {% block content %}
     {% element h1 %}{% if teacher %}{% translate "Crear cuenta de docente" %}{% else %}{% translate "Crear cuenta de estudiante" %}{% endif %}{% endelement %}
     {% element p %}
-        {% url 'account_signup' as student_url %}{% url 'teacher_signup' as teacher_url %}
+        {% url 'account_signup' as student_url %}
         {% if teacher %}
             {% translate "Dispondrá de un espacio propio: solo usted tiene acceso a sus cursos, estudiantes y clases." %}
             {% blocktranslate %}¿Es estudiante? <a href="{{ student_url }}">Cree su cuenta de estudiante</a>.{% endblocktranslate %}
         {% else %}
-            {% blocktranslate %}¿Es docente? <a href="{{ teacher_url }}">Cree su cuenta de docente</a>.{% endblocktranslate %}
+            {% translate "¿Es docente? El registro de docentes se realiza con la invitación de un colega." %}
         {% endif %}
         {% blocktranslate %}¿Ya tiene cuenta? <a href="{{ login_url }}">Inicie sesión</a>.{% endblocktranslate %}
     {% endelement %}
-    {% if teacher %}{% url 'teacher_signup' as action_url %}{% else %}{% url 'account_signup' as action_url %}{% endif %}
+    {% if link_course %}
+        {% element p %}{% blocktranslate with course=link_course.name %}Su solicitud de inscripción se enviará a «{{ course }}».{% endblocktranslate %}{% endelement %}
+    {% elif link_given %}
+        <p class="notice">{% translate "Ese código no corresponde a ningún curso abierto. Revíselo con su docente." %}</p>
+    {% endif %}
+    {% if teacher %}{% url 'teacher_signup' invitation.token as action_url %}{% else %}{% url 'account_signup' as action_url %}{% endif %}
     {% element form form=form method="post" action=action_url tags="entrance,signup" %}
         {% slot body %}
             {% csrf_token %}

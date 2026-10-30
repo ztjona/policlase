@@ -8,13 +8,14 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import urlencode
 from django.utils.translation import gettext as _
 from django.utils.translation import ngettext
 from django.views.decorators.http import require_POST
 
 from .access import can_view_course, owned_course, teacher_required
-from .forms import CourseForm, JoinForm
-from .models import Course, Enrollment, normalize_code
+from .forms import AcceptingUntilForm, CourseForm, JoinForm
+from .models import Course, Enrollment
 
 Status = Enrollment.Status
 
@@ -54,19 +55,26 @@ def home(request):
     })
 
 
+def join_link(request, code):
+    """El enlace que comparte el docente, con el código ya completado: quien tiene sesión va a
+    inscribirse y quien no, a crear su cuenta (esa página ofrece también iniciar sesión)."""
+    target = "course_join" if request.user.is_authenticated else "account_signup"
+    return redirect(f"{reverse(target)}?{urlencode({'codigo': code})}")
+
+
 @login_required
 def join(request):
     if request.user.is_teacher:
         raise PermissionDenied(_("Las cuentas de docente no se inscriben en cursos."))
     if request.method != "POST":
-        return render(request, "courses/join.html", {"join_form": JoinForm()})
+        form = JoinForm(initial={"code": request.GET.get("codigo", "")})
+        return render(request, "courses/join.html", {"join_form": form})
 
     form = JoinForm(request.POST)
-    code = normalize_code(form.data.get("code", ""))
-    course = Course.objects.filter(join_code=code).first() if code else None
+    course = Course.open_for_code(form.data.get("code", ""))
 
     # Mismo mensaje para "no existe" y "cerrado": no se confirma qué códigos son válidos.
-    if course is None or not course.accepting:
+    if course is None:
         messages.error(request, _("Ese código no corresponde a ningún curso abierto. Revíselo con su docente."))
         return redirect("course_join")
 
@@ -342,6 +350,8 @@ def course_settings(request, pk):
     return render(request, "courses/course_settings.html", {
         "course": course,
         "form": form,
+        "until_form": AcceptingUntilForm(instance=course),
+        "join_link": request.build_absolute_uri(reverse("course_join_link", args=[course.join_code])),
         "link": link,
         "repo_form": CourseRepoForm(instance=link, initial=None if link else {"branch": "main"}),
         "github_account": GitHubAccount.objects.filter(user=request.user).first(),
@@ -430,8 +440,18 @@ def join_code_action(request, pk):
         messages.success(request, _("Nuevo código: %(code)s. El anterior dejó de funcionar.")
                          % {"code": course.join_code_display})
     elif action == "toggle":
-        course.accepting = not course.accepting
-        course.save(update_fields=["accepting"])
+        course.accepting = not course.is_accepting
+        # Una fecha ya vencida volvería a cerrarla de inmediato.
+        if course.accepting and course.accepting_until and course.accepting_until <= timezone.now():
+            course.accepting_until = None
+        course.save(update_fields=["accepting", "accepting_until"])
         messages.success(request, _("El curso acepta solicitudes.") if course.accepting
                          else _("El curso ya no acepta solicitudes."))
+    elif action == "until":
+        form = AcceptingUntilForm(request.POST, instance=course)
+        if form.is_valid():
+            form.save()
+            messages.success(request, _("Fecha de cierre de la inscripción guardada."))
+        else:
+            messages.error(request, " ".join(form.errors["accepting_until"]))
     return redirect("course_settings", pk=pk)

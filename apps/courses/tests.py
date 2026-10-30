@@ -1,5 +1,8 @@
+from datetime import timedelta
+
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.accounts.models import User
 
@@ -45,6 +48,64 @@ class EnrollmentFlowTests(TestCase):
         self.course.save()
         self.join(self.ana, self.course.join_code)
         self.assertFalse(Enrollment.objects.exists())
+
+    def test_fecha_de_cierre_vencida_no_admite_solicitudes(self):
+        self.course.accepting_until = timezone.now() - timedelta(minutes=1)
+        self.course.save()
+        self.join(self.ana, self.course.join_code)
+        self.assertFalse(Enrollment.objects.exists())
+
+    def test_fecha_de_cierre_futura_admite_solicitudes(self):
+        self.course.accepting_until = timezone.now() + timedelta(days=1)
+        self.course.save()
+        self.join(self.ana, self.course.join_code)
+        self.assertTrue(Enrollment.objects.filter(student=self.ana).exists())
+
+    def code_action(self, user, **data):
+        self.client.force_login(user)
+        return self.client.post(reverse("join_code_action", args=[self.course.pk]), data, follow=True)
+
+    def test_guardar_y_quitar_la_fecha_de_cierre(self):
+        self.code_action(self.teacher, action="until", accepting_until="2099-01-01T10:00")
+        self.course.refresh_from_db()
+        self.assertEqual(self.course.accepting_until.year, 2099)
+        self.assertTrue(self.course.is_accepting)
+
+        self.code_action(self.teacher, action="until", accepting_until="")
+        self.course.refresh_from_db()
+        self.assertIsNone(self.course.accepting_until)
+
+    def test_fecha_de_cierre_pasada_se_rechaza(self):
+        response = self.code_action(self.teacher, action="until", accepting_until="2001-01-01T10:00")
+        self.assertContains(response, "posterior a la fecha actual")
+        self.course.refresh_from_db()
+        self.assertIsNone(self.course.accepting_until)
+
+    def test_abrir_quita_la_fecha_vencida_y_conserva_la_futura(self):
+        self.course.accepting_until = timezone.now() - timedelta(minutes=1)
+        self.course.save()
+        self.code_action(self.teacher, action="toggle")
+        self.course.refresh_from_db()
+        self.assertTrue(self.course.is_accepting)
+        self.assertIsNone(self.course.accepting_until)
+
+        future = timezone.now() + timedelta(days=1)
+        Course.objects.filter(pk=self.course.pk).update(accepting=False, accepting_until=future)
+        self.code_action(self.teacher, action="toggle")
+        self.course.refresh_from_db()
+        self.assertTrue(self.course.is_accepting)
+        self.assertEqual(self.course.accepting_until, future)
+
+    def test_aislamiento_otro_docente_no_cambia_la_inscripcion(self):
+        response = self.code_action(self.other_teacher, action="until", accepting_until="2099-01-01T10:00")
+        self.assertEqual(response.status_code, 404)
+        self.course.refresh_from_db()
+        self.assertIsNone(self.course.accepting_until)
+
+    def test_la_configuracion_muestra_el_enlace_de_inscripcion(self):
+        self.client.force_login(self.teacher)
+        page = self.client.get(reverse("course_settings", args=[self.course.pk]))
+        self.assertContains(page, reverse("course_join_link", args=[self.course.join_code]))
 
     def test_docente_no_puede_inscribirse(self):
         self.assertEqual(self.join(self.other_teacher, self.course.join_code).status_code, 403)

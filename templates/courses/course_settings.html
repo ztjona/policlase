@@ -13,12 +13,28 @@
     <h2 id="codigo">{% translate "Código de inscripción" %}</h2>
     <div class="joincode" aria-label="{% translate 'código' %}">{{ course.join_code_display }}</div>
     <p class="small muted">
-      {% if course.accepting %}{% translate "Los estudiantes lo ingresan en «Inscribirse en un curso» y usted aprueba cada solicitud." %}
-      {% else %}<strong>{% translate "Inscripción cerrada:" %}</strong> {% translate "el código no admite solicitudes nuevas." %}{% endif %}
+      {% if course.is_accepting %}{% translate "Los estudiantes necesitan este código para crear su cuenta; quienes ya tienen una lo ingresan en «Inscribirse en un curso». Usted aprueba cada solicitud." %}
+      {% else %}<strong>{% translate "Inscripción cerrada:" %}</strong> {% translate "el código no admite solicitudes nuevas ni la creación de cuentas." %}{% endif %}
     </p>
-    <form method="post" action="{% url 'join_code_action' course.pk %}" class="row">
+    {% if course.is_accepting %}
+    <p>
+      <label for="id_join_link">{% translate "Enlace de inscripción" %}</label>
+      <input type="text" id="id_join_link" readonly value="{{ join_link }}" onfocus="this.select()">
+      <span class="helptext">{% translate "Con este enlace, el código ya aparece completado." %}</span>
+    </p>
+    <form method="post" action="{% url 'join_code_action' course.pk %}">
       {% csrf_token %}
-      <button name="action" value="toggle" class="secondary">{% if course.accepting %}{% translate "Cerrar inscripción" %}{% else %}{% translate "Abrir inscripción" %}{% endif %}</button>
+      <p>
+        <label for="id_accepting_until">{% translate "Cerrar la inscripción el" %}</label>
+        {{ until_form.accepting_until }}
+        <span class="helptext">{% translate "Si se deja vacío, la inscripción permanece abierta hasta que usted la cierre." %}</span>
+      </p>
+      <button name="action" value="until" class="secondary">{% translate "Guardar fecha de cierre" %}</button>
+    </form>
+    {% endif %}
+    <form method="post" action="{% url 'join_code_action' course.pk %}" class="row" style="margin-top:12px">
+      {% csrf_token %}
+      <button name="action" value="toggle" class="secondary">{% if course.is_accepting %}{% translate "Cerrar inscripción" %}{% else %}{% translate "Abrir inscripción" %}{% endif %}</button>
       <button name="action" value="regenerate" class="secondary"
               onclick="return confirm('{% translate "El código actual dejará de funcionar. ¿Desea continuar?" as msg %}{{ msg|escapejs }}')">{% translate "Generar otro código" %}</button>
     </form>

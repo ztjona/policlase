@@ -2,9 +2,9 @@
 
     docker compose exec web python manage.py create_teacher --username profe --email profe@x.ec
 
-Los docentes normalmente se registran solos en /cuenta/registro-docente/. Este comando sirve para
-crear la primera cuenta desde el servidor, dar acceso al admin (--admin) o promover a docente una
-cuenta existente.
+Los docentes normalmente se registran con la invitación de un colega («Invitar docentes», en el menú
+de usuario). Este comando sirve para crear la primera cuenta desde el servidor, dar acceso al admin
+(--admin) o promover a docente una cuenta existente.
 """
 
 import getpass
