@@ -358,6 +358,10 @@ svg.i { display: inline-block; vertical-align: -4px; }
 
 form p { margin: 0 0 12px; }
 label { display: block; font-weight: 600; font-size: .92rem; margin-bottom: 4px; }
+/* El campo trampa del registro (ACCOUNT_SIGNUP_FORM_HONEYPOT_FIELD). Con `display: none` tampoco lo
+   alcanzan el lector de pantalla ni el autocompletado; el bot no carga esta hoja y lo llena igual. */
+input[name=comentario] { display: none; }
+p:has(> input[name=comentario]) { display: none; }
 input[type=text], input[type=email], input[type=password], input[type=number], input[type=search], input[type=date], input[type=time], input[type=datetime-local], textarea, select {
   width: 100%;
   font: inherit;

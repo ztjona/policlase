@@ -175,6 +175,11 @@ ACCOUNT_RATE_LIMITS = {
     "reset_password": "20/m/ip,5/m/key",
     "confirm_email": "1/3m/key",
 }
+# Campo trampa de los dos registros: quien lo llena recibe la respuesta normal, pero no se crea la
+# cuenta ni se envía el correo. Los límites por IP no bastan contra un bot que registra una cuenta por
+# hora desde muchas IP, con correos de terceros (octubre de 2026). `app.css` lo oculta a las personas:
+# el nombre no debe ser uno que el navegador autocomplete, porque el rechazo no se le avisa a nadie.
+ACCOUNT_SIGNUP_FORM_HONEYPOT_FIELD = "comentario"
 
 LOGIN_URL = "account_login"
 LOGIN_REDIRECT_URL = "home"

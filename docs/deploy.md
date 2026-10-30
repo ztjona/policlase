@@ -113,6 +113,12 @@ estudiante ve en «Mis cursos» un recordatorio para confirmar su correo, necesa
 contraseña (`apps/accounts/stages.py`). Si una institución retiene los correos, lo más efectivo es
 pedirle a su área de TI que agregue el dominio como remitente permitido.
 
+Cada registro envía un correo a la dirección que se escriba en el formulario, sea de quien sea. Por eso
+los dos registros llevan un campo trampa invisible (`ACCOUNT_SIGNUP_FORM_HONEYPOT_FIELD`): quien lo llena
+recibe la respuesta normal, pero no se crea la cuenta ni se envía nada. Si en el panel del servicio de
+correo aparecen confirmaciones dirigidas a desconocidos, compare el formato de las cuentas nuevas
+(nombres y usuarios al azar) con los accesos a `/cuenta/signup/` en el registro de nginx.
+
 ## 5. Levantar detrás del nginx
 
 ```bash

@@ -83,6 +83,21 @@ class SignupTests(TestCase):
         self.assertRedirects(response, reverse("account_email_verification_sent"))
         self.assertNotIn("_auth_user_id", self.client.session)
 
+    def test_el_campo_trampa_no_crea_la_cuenta_ni_envia_correo(self):
+        for name in ("account_signup", "teacher_signup"):
+            with self.subTest(name):
+                self.assertContains(self.client.get(reverse(name)), 'name="comentario"')
+                response = self.client.post(reverse(name), signup_data(comentario="xqzwvplmkj"))
+                # Misma respuesta que un registro con confirmación pendiente: el bot no se entera.
+                self.assertRedirects(response, reverse("account_email_verification_sent"))
+                self.assertFalse(User.objects.filter(username="ana").exists())
+                self.assertEqual(mail.outbox, [])
+                self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_el_campo_trampa_vacio_no_afecta_el_registro(self):
+        self.client.post(reverse("account_signup"), signup_data(comentario=""))
+        self.assertTrue(User.objects.filter(username="ana").exists())
+
     def test_cada_pagina_enlaza_a_la_otra(self):
         self.assertContains(self.client.get(reverse("account_signup")), reverse("teacher_signup"))
         page = self.client.get(reverse("teacher_signup"))
