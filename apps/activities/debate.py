@@ -196,6 +196,23 @@ def thread(activity: Activity, key: str, viewer, teacher: bool = False, names_ma
                   replies=sum(1 for e in visible for r in e.reply_list if not r.hidden))
 
 
+def anonymize(thread: Thread, labels: dict[int, str]) -> None:
+    """Para la vista de solo lectura (`apps.accounts.readonly`): los compañeros no consintieron en que
+    otra persona vea su nombre, así que cada uno aparece como «Estudiante N», con el mismo número en
+    todos los foros de la página (`labels` se comparte). Su respuesta y la del docente, con nombre."""
+    def label(pk: int) -> str:
+        if pk not in labels:
+            labels[pk] = _("Estudiante %(n)s") % {"n": len(labels) + 1}
+        return labels[pk]
+
+    for e in thread.entries:
+        if not e.mine:
+            e.name = label(e.student_id)
+        for r in e.reply_list:
+            if not r.mine and not r.is_teacher:
+                r.name = label(r.author_id)
+
+
 def _preview(text: str) -> str:
     """El comienzo de una justificación, cortado en una palabra; vacío si cabe entera."""
     text = (text or "").strip()

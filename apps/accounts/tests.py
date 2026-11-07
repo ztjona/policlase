@@ -11,7 +11,8 @@ from django.utils import timezone
 
 from apps.courses.models import Course, Enrollment
 
-from .models import TeacherInvitation, User
+from .models import ReadOnlyLink, TeacherInvitation, User
+from .readonly import SESSION_KEY
 
 PASSWORD = "clave-segura-2026"
 
@@ -391,3 +392,117 @@ class NameCaseTests(TestCase):
         self.assertEqual(name_case("DE LA TORRE VEGA"), "De la Torre Vega")
         self.assertEqual(name_case("McDonald"), "McDonald")                # una mezcla deliberada se respeta
         self.assertEqual(name_case("Oña A."), "Oña A.")
+
+
+class ReadOnlyViewTests(TestCase):
+    """El enlace de solo lectura de un estudiante (apps.accounts.readonly)."""
+
+    def setUp(self):
+        self.teacher = User.objects.create_user("docente", "docente@example.ec", PASSWORD, role=User.Role.TEACHER)
+        self.course = Course.objects.create(owner=self.teacher, name="Métodos", code="MN-1")
+        self.ana = User.objects.create_user("ana", "ana@example.ec", PASSWORD, first_name="Ana", last_name="Pérez",
+                                            student_id="1700000001", language="es")
+        Enrollment.objects.create(course=self.course, student=self.ana, status=Enrollment.Status.APPROVED)
+        self.link = ReadOnlyLink.objects.create(student=self.ana)
+
+    def open(self, link=None):
+        return self.client.get(reverse("readonly_open", args=[(link or self.link).token]))
+
+    def test_el_estudiante_crea_y_revoca_sus_enlaces(self):
+        self.client.force_login(self.ana)
+        self.assertContains(self.client.get(reverse("home")), reverse("readonly_links"))     # en su menú
+        self.client.post(reverse("readonly_links"))
+        self.assertEqual(self.ana.readonly_links.count(), 2)
+        new = self.ana.readonly_links.first()
+        self.assertContains(self.client.get(reverse("readonly_links")), reverse("readonly_open", args=[new.token]))
+        # Los enlaces de un estudiante no los ve ni los revoca otro: 404.
+        bruno = User.objects.create_user("bruno", "bruno@example.ec", PASSWORD)
+        self.client.force_login(bruno)
+        self.assertNotContains(self.client.get(reverse("readonly_links")), new.token)
+        self.assertEqual(self.client.post(reverse("readonly_link_revoke", args=[new.pk])).status_code, 404)
+        self.client.force_login(self.ana)
+        self.client.post(reverse("readonly_link_revoke", args=[new.pk]))
+        self.assertFalse(ReadOnlyLink.objects.filter(pk=new.pk).exists())
+        # Lo vencido se borra al abrir la página.
+        ReadOnlyLink.objects.filter(pk=self.link.pk).update(expires_at=timezone.now() - timedelta(minutes=1))
+        self.client.get(reverse("readonly_links"))
+        self.assertFalse(self.ana.readonly_links.exists())
+
+    def test_un_docente_no_comparte_su_cuenta(self):
+        # Vería así los datos de todos sus estudiantes.
+        self.client.force_login(self.teacher)
+        self.assertNotContains(self.client.get(reverse("home")), reverse("readonly_links"))
+        self.assertEqual(self.client.get(reverse("readonly_links")).status_code, 404)
+        self.assertEqual(self.client.post(reverse("readonly_links")).status_code, 404)
+        self.assertFalse(ReadOnlyLink.objects.filter(student=self.teacher).exists())
+        # Si la cuenta deja de ser de estudiante, sus enlaces dejan de funcionar.
+        self.client.logout()
+        User.objects.filter(pk=self.ana.pk).update(role=User.Role.TEACHER)
+        self.assertEqual(self.open().status_code, 404)
+
+    def test_quien_recibe_el_enlace_consulta_la_cuenta_sin_iniciar_sesion(self):
+        self.assertRedirects(self.open(), reverse("home"), fetch_redirect_response=False)
+        self.assertNotIn("_auth_user_id", self.client.session)             # no es un inicio de sesión
+        page = self.client.get(reverse("home"))
+        self.assertContains(page, "Métodos")
+        self.assertContains(page, "vista de solo lectura de la cuenta de Ana Pérez")
+        self.assertNotContains(page, reverse("account_preferences"))       # sin el menú de la cuenta
+        self.assertNotContains(page, reverse("account_email"))             # ni el aviso del correo
+        self.assertEqual(self.client.get(reverse("course_detail", args=[self.course.pk])).status_code, 200)
+        self.assertEqual(self.client.get(reverse("my_grades", args=[self.course.pk])).status_code, 200)
+        self.ana.refresh_from_db()
+        self.assertIsNone(self.ana.last_login)
+
+    def test_nada_de_la_cuenta_se_abre_ni_se_modifica(self):
+        self.open()
+        for name in ("account_preferences", "account_change_password", "account_email", "account_logout",
+                     "account_login", "readonly_links", "live_join", "course_join", "teacher_invitations"):
+            self.assertEqual(self.client.get(reverse(name)).status_code, 403, name)
+        self.assertEqual(self.client.get("/admin/").status_code, 403)
+        other = Course.objects.create(owner=self.teacher, name="Álgebra", code="AL-1")
+        response = self.client.post(reverse("course_join"), {"code": other.join_code})
+        self.assertContains(response, "no está disponible en la vista de solo lectura", status_code=403)
+        self.assertFalse(Enrollment.objects.filter(course=other).exists())
+        self.assertEqual(self.client.post(reverse("readonly_links")).status_code, 403)
+        self.assertEqual(self.ana.readonly_links.count(), 1)
+        # Una página que sí se abre tampoco acepta POST.
+        self.assertEqual(self.client.post(reverse("home")).status_code, 403)
+
+    def test_idioma_y_tema_quedan_en_el_navegador_de_quien_mira(self):
+        self.open()
+        response = self.client.post(reverse("set_language"), {"language": "en", "next": "/"})
+        self.assertEqual(response.cookies["django_language"].value, "en")
+        self.client.post(reverse("set_theme"), {"theme": "dark", "next": "/"})
+        self.assertContains(self.client.get(reverse("home")), '<html lang="en" data-theme="dark">')
+        self.ana.refresh_from_db()
+        self.assertEqual((self.ana.language, self.ana.theme), ("es", ""))     # la cuenta no cambia
+
+    def test_revocar_o_vencer_corta_el_acceso(self):
+        self.open()
+        self.link.delete()
+        self.assertRedirects(self.client.get(reverse("home")), reverse("readonly_ended"))
+        self.assertNotIn(SESSION_KEY, self.client.session)
+        self.assertEqual(self.client.get(reverse("home")).status_code, 302)      # al inicio de sesión
+        expired = ReadOnlyLink.objects.create(student=self.ana, expires_at=timezone.now() - timedelta(minutes=1))
+        self.assertContains(self.open(expired), "no está vigente", status_code=404)
+        self.assertNotIn(SESSION_KEY, self.client.session)
+
+    def test_salir_de_la_vista(self):
+        self.open()
+        self.assertRedirects(self.client.post(reverse("readonly_exit")), reverse("readonly_ended"))
+        self.assertNotIn(SESSION_KEY, self.client.session)
+        self.assertTrue(ReadOnlyLink.objects.filter(pk=self.link.pk).exists())    # el enlace sigue vigente
+
+    def test_con_una_sesion_iniciada_no_se_mezclan_las_cuentas(self):
+        self.client.force_login(self.teacher)
+        self.assertContains(self.open(), "ventana privada")
+        self.assertNotIn(SESSION_KEY, self.client.session)
+        self.assertNotContains(self.client.get(reverse("home")), "solo lectura de la cuenta")
+
+    async def test_tambien_bajo_asgi(self):
+        # Producción corre con uvicorn: el mismo recorrido por la versión asíncrona del middleware.
+        await self.async_client.get(reverse("readonly_open", args=[self.link.token]))
+        self.assertContains(await self.async_client.get(reverse("home")), "solo lectura de la cuenta de Ana Pérez")
+        response = await self.async_client.post(reverse("course_join"), {"code": "MN-1"})
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual((await self.async_client.get(reverse("account_preferences"))).status_code, 403)

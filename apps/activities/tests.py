@@ -4,6 +4,7 @@ import tempfile
 from datetime import date, datetime, time, timedelta
 from unittest import mock
 
+from asgiref.sync import sync_to_async
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -11,7 +12,7 @@ from django.utils import timezone
 from PIL import Image
 from policlase_gen import activity as activityfmt
 
-from apps.accounts.models import User
+from apps.accounts.models import ReadOnlyLink, User
 from apps.courses.models import Course, Enrollment
 from apps.grades import gradebook
 from apps.grades.models import Milestone
@@ -916,6 +917,60 @@ class AutoSubmitTests(WorkshopBase):
         self.assertTrue(grades)
 
 
+class ReadOnlyViewTests(WorkshopBase):
+    """Lo que ve quien abre el enlace de solo lectura de un estudiante (apps.accounts.readonly)."""
+
+    def view_as_ana(self):
+        link = ReadOnlyLink.objects.create(student=self.ana)
+        self.client.get(reverse("readonly_open", args=[link.token]))
+
+    def test_lo_que_una_pagina_escribe_al_consultarse_se_deshace(self):
+        attempt = engine.start(self.activity, self.ana)
+        self.overdue(self.activity)
+        self.view_as_ana()
+        page = self.client.get(reverse("activity_student", args=[self.course.pk, self.activity.pk]))
+        self.assertContains(page, "envío automático")                  # lo que verá el estudiante…
+        attempt.refresh_from_db()
+        self.assertIsNone(attempt.submitted_at)                         # …pero no se guardó
+        self.client.force_login(self.ana)                               # ella sí lo guarda al entrar
+        self.client.get(reverse("activity_student", args=[self.course.pk, self.activity.pk]))
+        attempt.refresh_from_db()
+        self.assertTrue(attempt.auto_submitted)
+
+    async def test_tambien_se_deshace_bajo_asgi(self):
+        # Producción corre con uvicorn: la vista se ejecuta en otro hilo, dentro de la misma transacción.
+        def overdue_draft():
+            attempt = engine.start(self.activity, self.ana)
+            self.overdue(self.activity)
+            return attempt
+
+        attempt = await sync_to_async(overdue_draft)()
+        link = await ReadOnlyLink.objects.acreate(student=self.ana)
+        await self.async_client.get(reverse("readonly_open", args=[link.token]))
+        page = await self.async_client.get(reverse("activity_student", args=[self.course.pk, self.activity.pk]))
+        self.assertContains(page, "envío automático")
+        await attempt.arefresh_from_db()
+        self.assertIsNone(attempt.submitted_at)
+
+    def test_no_abre_ni_empieza_intentos(self):
+        engine.start(self.activity, self.ana)
+        self.view_as_ana()
+        self.assertContains(self.client.get(reverse("activity_student", args=[self.course.pk, self.activity.pk])),
+                            "Tiene el intento 1 en curso")
+        self.assertEqual(self.client.get(reverse("attempt_form", args=[self.course.pk, self.activity.pk])).status_code,
+                         403)
+        response = self.client.post(reverse("attempt_start", args=[self.course.pk, self.workshop.pk]))
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(Attempt.objects.filter(activity=self.workshop).exists())
+
+    def test_solo_las_actividades_del_estudiante(self):
+        other = Course.objects.create(owner=self.teacher, name="Álgebra", code="AL-1")
+        foreign = Activity.objects.create(course=other, title="Ajena", source=SOURCE, compiled=self.activity.compiled,
+                                          published=True, due_at=timezone.now() + timedelta(days=2))
+        self.view_as_ana()
+        self.assertEqual(self.client.get(reverse("activity_student", args=[other.pk, foreign.pk])).status_code, 404)
+
+
 class ReviewWindowTests(WorkshopBase):
     def submit_workshop(self, student=None):
         attempt = engine.start(self.workshop, student or self.ana)
@@ -1541,6 +1596,28 @@ class DebateTests(ActivityBase):
         self.assertContains(page, "Ver la explicación")
         self.client.force_login(self.bruno)
         self.assertContains(self.page(self.bruno), "Anita Pérez")            # su nombre preferido
+
+    def test_la_vista_de_solo_lectura_no_muestra_nombres_de_companeros_ni_la_cedula(self):
+        User.objects.filter(pk=self.ana.pk).update(student_id="1700000001")
+        self.send(self.ana, self.right, "Por la convergencia cuadrática")
+        self.send(self.bruno, self.wrong, "La bisección siempre converge")
+        self.close_due()
+        page = self.page(self.ana)
+        self.assertContains(page, "Bruno De la Torre")
+        self.assertContains(page, "1700000001")                              # su marca de agua
+        self.client.logout()
+        link = ReadOnlyLink.objects.create(student=self.ana)
+        self.client.get(reverse("readonly_open", args=[link.token]))
+        page = self.client.get(reverse("activity_student", args=[self.course.pk, self.deb.pk]))
+        self.assertContains(page, "La bisección siempre converge")
+        self.assertContains(page, "Estudiante 1")
+        self.assertNotContains(page, "Bruno")
+        self.assertContains(page, "Anita Pérez")                             # la suya, con su nombre
+        self.assertContains(page, 'class="watermark"')
+        self.assertNotContains(page, "1700000001")
+        self.assertEqual(self.client.post(reverse("debate_like", args=[self.course.pk, self.deb.pk]),
+                                          {"entry": DebateEntry.objects.get(student=self.bruno).pk}).status_code, 403)
+        self.assertFalse(DebateEntry.objects.filter(likes__isnull=False).exists())
 
     def test_primero_se_publica_y_quien_puede_entregar_no_lee(self):
         carla = make_user("carla")

@@ -15,6 +15,7 @@ from django.utils.translation import gettext as _
 from django.utils.translation import ngettext
 from django.views.decorators.http import require_POST
 
+from apps.accounts import readonly
 from apps.courses.access import is_approved, owned_course, teacher_required
 from apps.courses.models import Course, Enrollment
 from apps.grades import gradebook
@@ -833,12 +834,15 @@ def _debates(request, activity, state, now) -> dict:
         return {}
     debate.sync(activity, now)
     names = debate.names(activity)
+    labels = {} if readonly.viewing(request) else None       # sin los nombres de los compañeros
     out = {}
     for key, (item, question, record) in debate.records(activity).items():
         access = debate.access(activity, request.user, state, key, now)
         panel = {"key": key, "item": item, "question": question, "record": record, "access": access}
         if access.can_read:
             panel["thread"] = debate.thread(activity, key, request.user, names_map=names)
+            if labels is not None:
+                debate.anonymize(panel["thread"], labels)
         entry = access.entry
         if access.can_post:
             # El formulario de la respuesta revisada parte de lo último publicado.

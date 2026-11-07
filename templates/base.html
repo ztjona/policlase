@@ -30,7 +30,14 @@
     <a class="brand" href="{% url 'home' %}"><img src="{% static 'img/icon.svg' %}" alt="" width="26" height="26">poli<span>clase</span></a>
     <nav aria-label="{% translate 'principal' %}">
       {% include "core/_theme_toggle.html" %}
-      {% if user.is_authenticated %}
+      {% if readonly_view %}
+        {# Quien mira la cuenta de un estudiante con su enlace (apps.accounts.readonly): sin menú de la cuenta. #}
+        <a href="{% url 'home' %}">{% translate "Cursos" %}</a>
+        <span class="whoami">{{ user.display_name }} · {% translate "solo lectura" %}</span>
+        <form method="post" action="{% url 'readonly_exit' %}" class="langswitch">
+          {% csrf_token %}<button class="link">{% translate "Salir de la vista" %}</button>
+        </form>
+      {% elif user.is_authenticated %}
         {% if not user.is_guest %}<a href="{% url 'home' %}">{% translate "Mis cursos" %}</a>{% endif %}
         <details class="usermenu">
           <summary>
@@ -50,6 +57,7 @@
             {% else %}
               <a role="menuitem" href="{% url 'live_join' %}">{% translate "Entrar a clase en vivo" %}</a>
               <a role="menuitem" href="{% url 'course_join' %}">{% translate "Inscribirse en un curso" %}</a>
+              <a role="menuitem" href="{% url 'readonly_links' %}">{% translate "Compartir en solo lectura" %}</a>
             {% endif %}
             <hr>
             <a role="menuitem" href="{% url 'account_preferences' %}">{% translate "Preferencias" %}</a>
@@ -65,6 +73,8 @@
       {% else %}
         <a href="{% url 'account_login' %}">{% translate "Iniciar sesión" %}</a>
         <a href="{% url 'account_signup' %}">{% translate "Crear cuenta" %}</a>
+      {% endif %}
+      {% if readonly_view or not user.is_authenticated %}
         <form method="post" action="{% url 'set_language' %}" class="langswitch">
           {% csrf_token %}
           <input type="hidden" name="next" value="{{ request.get_full_path }}">
@@ -78,6 +88,9 @@
     </nav>
   </header>
   <main class="page {% block page_class %}{% endblock %}">
+    {% if readonly_view %}
+      <div class="notice small" role="status">{% blocktranslate with name=user.display_name %}Esta es una vista de solo lectura de la cuenta de {{ name }}. Puede consultar sus cursos, actividades y calificaciones, pero no es posible responder, enviar ni modificar nada.{% endblocktranslate %}</div>
+    {% endif %}
     {% if messages %}
       <ul class="messages" role="status">
         {% for message in messages %}<li class="{{ message.tags }}">{{ message }}</li>{% endfor %}

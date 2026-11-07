@@ -3,6 +3,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone, translation
@@ -14,9 +15,10 @@ from django.views.generic import TemplateView
 from apps.courses.access import teacher_required
 from apps.courses.models import Course
 
+from . import readonly
 from .context_processors import THEMES
 from .forms import PreferencesForm
-from .models import INVITATION_DAYS, TeacherInvitation
+from .models import INVITATION_DAYS, READONLY_DAYS, ReadOnlyLink, TeacherInvitation, User
 
 CLOSED_TEMPLATE = "account/teacher_signup_closed.html"
 
@@ -113,6 +115,56 @@ def teacher_invitation_revoke(request, pk):
     return redirect("teacher_invitations")
 
 
+@login_required
+def readonly_links(request):
+    """Los enlaces de solo lectura del estudiante: crearlos, copiarlos y revocarlos."""
+    student = request.user
+    if student.role != User.Role.STUDENT:
+        # Un docente vería así los datos de todos sus estudiantes; un invitado no tiene cuenta que mostrar.
+        raise Http404
+    if request.method == "POST":
+        ReadOnlyLink.objects.create(student=student)
+        messages.success(request, _("Enlace de solo lectura creado. Cópielo y entrégueselo a la persona "
+                                    "que consultará su cuenta."))
+        return redirect("readonly_links")
+    student.readonly_links.filter(expires_at__lte=timezone.now()).delete()     # ya no sirven
+    links = list(student.readonly_links.all())
+    for link in links:
+        link.url = request.build_absolute_uri(reverse("readonly_open", args=[link.token]))
+    return render(request, "account/readonly_links.html", {"links": links, "days": READONLY_DAYS})
+
+
+@login_required
+@require_POST
+def readonly_link_revoke(request, pk):
+    # El de otro estudiante es un 404.
+    get_object_or_404(ReadOnlyLink, pk=pk, student=request.user).delete()
+    messages.success(request, _("El enlace de solo lectura dejó de funcionar."))
+    return redirect("readonly_links")
+
+
+def readonly_open(request, token):
+    """Quien recibe el enlace entra a la vista de solo lectura, sin cuenta (`apps.accounts.readonly`)."""
+    link = readonly.find(token)
+    if link is None:
+        return render(request, readonly.TEMPLATE, {"state": "invalid"}, status=404)
+    if request.user.is_authenticated and readonly.viewing(request) is None:
+        # Dos cuentas en una misma sesión se confundirían: se mira desde otra ventana.
+        return render(request, readonly.TEMPLATE, {"state": "signed_in"})
+    request.session[readonly.SESSION_KEY] = link.token
+    return redirect("home")
+
+
+@require_POST
+def readonly_exit(request):
+    request.session.pop(readonly.SESSION_KEY, None)
+    return redirect("readonly_ended")
+
+
+def readonly_ended(request):
+    return render(request, readonly.TEMPLATE, {"state": "ended"})
+
+
 def _cookie(response, name: str, value: str):
     """Las cookies mantienen idioma y tema también después de cerrar sesión."""
     response.set_cookie(name, value, max_age=settings.LANGUAGE_COOKIE_AGE,
@@ -138,7 +190,8 @@ def set_language(request):
     response = _back(request)
     if language not in dict(settings.LANGUAGES):
         return response
-    if request.user.is_authenticated:
+    # En la vista de solo lectura, el idioma es el del navegador de quien mira, no el de la cuenta.
+    if request.user.is_authenticated and not readonly.viewing(request):
         request.user.language = language
         request.user.save(update_fields=["language"])
     return _remember_language(response, language)
@@ -151,7 +204,7 @@ def set_theme(request):
     response = _back(request)
     if theme not in ("", *THEMES):
         return response
-    if request.user.is_authenticated:
+    if request.user.is_authenticated and not readonly.viewing(request):
         request.user.theme = theme
         request.user.save(update_fields=["theme"])
     return _cookie(response, settings.THEME_COOKIE, theme)

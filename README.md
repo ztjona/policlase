@@ -8,7 +8,8 @@ Aula virtual autoalojada para cursos universitarios con carga matemática.
 - **Cuentas** con usuario y contraseña (django-allauth): estudiantes con el código de un curso abierto
   y docentes por invitación de un colega, confirmación del correo (obligatoria para docentes),
   recuperación de contraseña, límites de intentos y Argon2. Cada docente tiene su espacio: nadie ve ni
-  modifica lo de otro (lo ajeno responde 404).
+  modifica lo de otro (lo ajeno responde 404). Un estudiante puede compartir su cuenta **en solo
+  lectura** con un enlace que vence y que puede revocar en cualquier momento.
 - **Cursos** con código y enlace de inscripción, fecha de cierre opcional y aprobación del docente;
   nombre preferido de cada estudiante.
 - **Un solo formato y un solo editor** (`policlase/v1`, validado por [`policlase-gen`](../policlase-gen)):

@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: policlase\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-30 12:39-0500\n"
+"POT-Creation-Date: 2026-11-05 16:55-0500\n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -127,15 +127,27 @@ msgstr "time zone"
 msgid "tema"
 msgstr "theme"
 
-#: apps/accounts/views.py:94
+#: apps/accounts/views.py:96
 msgid "Enlace de invitación creado. Cópielo y entrégueselo a su colega."
 msgstr "Invitation link created. Copy it and give it to your colleague."
 
-#: apps/accounts/views.py:112
+#: apps/accounts/views.py:114
 msgid "El enlace de invitación dejó de funcionar."
 msgstr "The invitation link no longer works."
 
-#: apps/accounts/views.py:172
+#: apps/accounts/views.py:127
+msgid ""
+"Enlace de solo lectura creado. Cópielo y entrégueselo a la persona que "
+"consultará su cuenta."
+msgstr ""
+"Read-only link created. Copy it and give it to the person who will view "
+"your account."
+
+#: apps/accounts/views.py:142
+msgid "El enlace de solo lectura dejó de funcionar."
+msgstr "The read-only link no longer works."
+
+#: apps/accounts/views.py:225
 msgid "Preferencias guardadas."
 msgstr "Preferences saved."
 
@@ -157,31 +169,36 @@ msgstr "The debate closed on %(when)s."
 msgid "Para leer las respuestas de sus compañeros, publique primero la suya."
 msgstr "To read your classmates' answers, first post your own."
 
-#: apps/activities/debate.py:221
+#: apps/activities/debate.py:205
+#, python-format
+msgid "Estudiante %(n)s"
+msgstr "Student %(n)s"
+
+#: apps/activities/debate.py:238
 msgid "El debate de esta actividad no está abierto."
 msgstr "The debate for this activity is not open."
 
-#: apps/activities/debate.py:235
+#: apps/activities/debate.py:252
 msgid "Escriba su respuesta o su justificación."
 msgstr "Write your answer or your justification."
 
-#: apps/activities/debate.py:260
+#: apps/activities/debate.py:277
 msgid "No puede comentar esta respuesta."
 msgstr "You cannot comment on this answer."
 
-#: apps/activities/debate.py:263
+#: apps/activities/debate.py:280
 msgid "Escriba su comentario."
 msgstr "Write your comment."
 
-#: apps/activities/debate.py:270
+#: apps/activities/debate.py:287
 msgid "Solo su autor puede eliminar un comentario."
 msgstr "Only its author can delete a comment."
 
-#: apps/activities/debate.py:281
+#: apps/activities/debate.py:298
 msgid "No puede reaccionar a esta respuesta."
 msgstr "You cannot react to this answer."
 
-#: apps/activities/debate.py:284
+#: apps/activities/debate.py:301
 msgid "No puede dar «me gusta» a lo que usted publicó."
 msgstr "You cannot like what you posted."
 
@@ -1010,12 +1027,12 @@ msgstr "Submitting the correction opens its review and that of the evaluation."
 msgid "Debate"
 msgstr "Debate"
 
-#: apps/activities/views.py:52 apps/live/sections.py:97 apps/live/views.py:55
+#: apps/activities/views.py:53 apps/live/sections.py:97 apps/live/views.py:55
 #, python-format
 msgid "No se eliminó: %(error)s"
 msgstr "Not deleted: %(error)s"
 
-#: apps/activities/views.py:57
+#: apps/activities/views.py:58
 #, python-format
 msgid ""
 "Evaluación «%(title)s» eliminada, con sus entregas; su archivo se borró de "
@@ -1024,12 +1041,12 @@ msgstr ""
 "Assessment “%(title)s” deleted, with its submissions; its file was deleted "
 "from GitHub."
 
-#: apps/activities/views.py:60
+#: apps/activities/views.py:61
 #, python-format
 msgid "Evaluación «%(title)s» eliminada, con sus entregas."
 msgstr "Assessment “%(title)s” deleted, with its submissions."
 
-#: apps/activities/views.py:62
+#: apps/activities/views.py:63
 #, python-format
 msgid ""
 "Actividad «%(title)s» eliminada, con sus entregas; su archivo se borró de "
@@ -1038,57 +1055,57 @@ msgstr ""
 "Activity “%(title)s” deleted, with its submissions; its file was deleted "
 "from GitHub."
 
-#: apps/activities/views.py:65
+#: apps/activities/views.py:66
 #, python-format
 msgid "Actividad «%(title)s» eliminada, con sus entregas."
 msgstr "Activity “%(title)s” deleted, with its submissions."
 
-#: apps/activities/views.py:90 apps/live/views.py:84
+#: apps/activities/views.py:91 apps/live/views.py:84
 #, python-format
 msgid "No se movió: %(error)s"
 msgstr "Not moved: %(error)s"
 
-#: apps/activities/views.py:139
+#: apps/activities/views.py:140
 #, python-format
 msgid "pegó texto %(n)d vez (%(chars)d caracteres)"
 msgid_plural "pegó texto %(n)d veces (%(chars)d caracteres)"
 msgstr[0] "pasted text %(n)d time (%(chars)d characters)"
 msgstr[1] "pasted text %(n)d times (%(chars)d characters)"
 
-#: apps/activities/views.py:143
+#: apps/activities/views.py:144
 #, python-format
 msgid "intentó pegar %(n)d vez"
 msgid_plural "intentó pegar %(n)d veces"
 msgstr[0] "tried to paste %(n)d time"
 msgstr[1] "tried to paste %(n)d times"
 
-#: apps/activities/views.py:146
+#: apps/activities/views.py:147
 #, python-format
 msgid "salió de la página %(n)d vez"
 msgid_plural "salió de la página %(n)d veces"
 msgstr[0] "left the page %(n)d time"
 msgstr[1] "left the page %(n)d times"
 
-#: apps/activities/views.py:149
+#: apps/activities/views.py:150
 #, python-format
 msgid "estuvo fuera %(total)s en total; la salida más larga duró %(longest)s"
 msgstr "was away %(total)s in total; the longest absence lasted %(longest)s"
 
-#: apps/activities/views.py:234 apps/activities/views.py:242
+#: apps/activities/views.py:235 apps/activities/views.py:243
 msgid "Configuración guardada."
 msgstr "Settings saved."
 
-#: apps/activities/views.py:236
+#: apps/activities/views.py:237
 msgid ""
 "El repaso se cierra antes de abrir, así que los estudiantes no lo verán."
 msgstr "The practice closes before it opens, so students will not see it."
 
-#: apps/activities/views.py:238 apps/activities/views.py:255
+#: apps/activities/views.py:239 apps/activities/views.py:256
 #: apps/grades/views.py:79 apps/grades/views.py:302
 msgid "Revise los campos marcados."
 msgstr "Check the marked fields."
 
-#: apps/activities/views.py:244
+#: apps/activities/views.py:245
 #, python-format
 msgid ""
 "La fecha de entrega corresponde a otro parcial; la actividad cuenta ahora en "
@@ -1096,7 +1113,7 @@ msgid ""
 msgstr ""
 "The due date falls in another term; the activity now counts in “%(row)s”."
 
-#: apps/activities/views.py:246
+#: apps/activities/views.py:247
 msgid ""
 "La revisión termina antes de la fecha de entrega, así que los estudiantes no "
 "la verán. Elija un cierre posterior al vencimiento o «Sin revisión»."
@@ -1104,7 +1121,7 @@ msgstr ""
 "The review ends before the due date, so students will not see it. Choose a "
 "closing time after the due date, or “No review”."
 
-#: apps/activities/views.py:251
+#: apps/activities/views.py:252
 #, python-format
 msgid ""
 "Como la nueva fecha de entrega es posterior, %(n)d intento enviado "
@@ -1119,28 +1136,28 @@ msgstr[1] ""
 "Since the new due date is later, %(n)d automatically submitted attempts were "
 "reopened."
 
-#: apps/activities/views.py:317
+#: apps/activities/views.py:318
 msgid "Prórroga eliminada."
 msgstr "Extension removed."
 
-#: apps/activities/views.py:332
+#: apps/activities/views.py:333
 msgid "Elija el estudiante e indique la nueva fecha."
 msgstr "Choose the student and enter the new date."
 
-#: apps/activities/views.py:334
+#: apps/activities/views.py:335
 msgid "La apertura debe ser anterior al cierre."
 msgstr "The opening must be earlier than the closing."
 
-#: apps/activities/views.py:336
+#: apps/activities/views.py:337
 msgid "La duración propia debe estar entre 5 y 900 minutos."
 msgstr "The own duration must be between 5 and 900 minutes."
 
-#: apps/activities/views.py:340
+#: apps/activities/views.py:341
 #, python-format
 msgid "Prórroga guardada para %(name)s."
 msgstr "Extension saved for %(name)s."
 
-#: apps/activities/views.py:361
+#: apps/activities/views.py:362
 #, python-format
 msgid ""
 "Se generó un nuevo código de acceso, %(code)s; el anterior dejó de ser "
@@ -1149,7 +1166,7 @@ msgstr ""
 "A new access code was generated, %(code)s; the previous one is no longer "
 "valid."
 
-#: apps/activities/views.py:387
+#: apps/activities/views.py:388
 msgid ""
 "Se retiró la publicación. Los estudiantes ya no ven sus notas de esta "
 "evaluación."
@@ -1157,7 +1174,7 @@ msgstr ""
 "The publication was withdrawn. Students no longer see their grades for this "
 "assessment."
 
-#: apps/activities/views.py:394
+#: apps/activities/views.py:395
 msgid ""
 "Se publicaron las notas. Cada estudiante ve ahora su nota y, durante la "
 "revisión, su corrección."
@@ -1165,7 +1182,7 @@ msgstr ""
 "The grades were published. Each student now sees their grade and, during the "
 "review, their correction."
 
-#: apps/activities/views.py:410
+#: apps/activities/views.py:411
 #, python-format
 msgid ""
 "Se guardaron las secciones. La actividad vale ahora %(p)s puntos y se "
@@ -1180,28 +1197,28 @@ msgstr[1] ""
 "The sections were saved. The activity is now worth %(p)s points and %(n)d "
 "submissions were recalculated."
 
-#: apps/activities/views.py:414
+#: apps/activities/views.py:415
 msgid "Todas las secciones están habilitadas."
 msgstr "All sections are enabled."
 
-#: apps/activities/views.py:487
+#: apps/activities/views.py:488
 msgid "Comentario guardado."
 msgstr "Comment saved."
 
-#: apps/activities/views.py:540 apps/activities/views.py:543
+#: apps/activities/views.py:541 apps/activities/views.py:544
 msgid "Diapositiva desconocida."
 msgstr "Unknown slide."
 
-#: apps/activities/views.py:598 apps/live/views.py:277 apps/live/views.py:317
+#: apps/activities/views.py:599 apps/live/views.py:277 apps/live/views.py:317
 msgid "Escriba un número."
 msgstr "Enter a number."
 
-#: apps/activities/views.py:641
+#: apps/activities/views.py:642
 #, python-format
 msgid "Fecha clave «%(name)s» agregada."
 msgstr "Key date “%(name)s” added."
 
-#: apps/activities/views.py:651
+#: apps/activities/views.py:652
 #, python-format
 msgid "«%(name)s» guardada; %(n)d actividad vence en relación con ella."
 msgid_plural ""
@@ -1209,41 +1226,41 @@ msgid_plural ""
 msgstr[0] "“%(name)s” saved; %(n)d activity is due relative to it."
 msgstr[1] "“%(name)s” saved; %(n)d activities are due relative to it."
 
-#: apps/activities/views.py:655
+#: apps/activities/views.py:656
 #, python-format
 msgid "Revise la fecha clave: %(errors)s"
 msgstr "Check the key date: %(errors)s"
 
-#: apps/activities/views.py:663
+#: apps/activities/views.py:664
 #, python-format
 msgid ""
 "Fecha clave «%(name)s» eliminada; %(n)d actividades quedaron con fecha fija."
 msgstr "Key date “%(name)s” deleted; %(n)d activities now have a fixed date."
 
-#: apps/activities/views.py:670
+#: apps/activities/views.py:671
 msgid "No había actividades seleccionadas."
 msgstr "No activities were selected."
 
-#: apps/activities/views.py:677
+#: apps/activities/views.py:678
 msgid "Indique cuántos días mover (positivo: más tarde)."
 msgstr "Enter how many days to move (positive: later)."
 
-#: apps/activities/views.py:680
+#: apps/activities/views.py:681
 #, python-format
 msgid "Se movió %(n)d actividad %(days)+d días."
 msgid_plural "Se movieron %(n)d actividades %(days)+d días."
 msgstr[0] "Moved %(n)d activity %(days)+d days."
 msgstr[1] "Moved %(n)d activities %(days)+d days."
 
-#: apps/activities/views.py:692
+#: apps/activities/views.py:693
 msgid "Elija la fecha clave y un desfase entre -60 y 60 días."
 msgstr "Choose the key date and an offset between -60 and 60 days."
 
-#: apps/activities/views.py:694
+#: apps/activities/views.py:695
 msgid "La revisión debe terminar después de la fecha de entrega."
 msgstr "The review must end after the due date."
 
-#: apps/activities/views.py:712
+#: apps/activities/views.py:713
 #, python-format
 msgid ""
 "%(n)d actividad vence ahora en relación con «%(name)s», con revisión hasta "
@@ -1258,19 +1275,19 @@ msgstr[1] ""
 "%(n)d activities are now due relative to “%(name)s”, with review until that "
 "key date."
 
-#: apps/activities/views.py:717
+#: apps/activities/views.py:718
 #, python-format
 msgid "%(n)d actividad vence ahora en relación con «%(name)s»."
 msgid_plural "%(n)d actividades vencen ahora en relación con «%(name)s»."
 msgstr[0] "%(n)d activity is now due relative to “%(name)s”."
 msgstr[1] "%(n)d activities are now due relative to “%(name)s”."
 
-#: apps/activities/views.py:903
+#: apps/activities/views.py:907
 msgid "Omitió la corrección: ya puede ver la revisión de su evaluación."
 msgstr ""
 "You skipped the correction: you can now see the review of your evaluation."
 
-#: apps/activities/views.py:926
+#: apps/activities/views.py:930
 msgid ""
 "La fecha de entrega venció y su intento se envió automáticamente con lo que "
 "tenía guardado."
@@ -1278,32 +1295,32 @@ msgstr ""
 "The due date has passed and your attempt was submitted automatically with "
 "what you had saved."
 
-#: apps/activities/views.py:927
+#: apps/activities/views.py:931
 msgid "Este intento ya se envió. Recargue la página."
 msgstr "This attempt has already been submitted. Reload the page."
 
-#: apps/activities/views.py:959
+#: apps/activities/views.py:963
 msgid "Se acabó el tiempo. Su evaluación se envió con lo que tenía guardado."
 msgstr "Time is up. Your assessment was submitted with what you had saved."
 
-#: apps/activities/views.py:975
+#: apps/activities/views.py:979
 msgid "Repaso terminado. Debajo están su corrección y las explicaciones."
 msgstr "Practice finished. Your correction and the explanations are below."
 
-#: apps/activities/views.py:976
+#: apps/activities/views.py:980
 msgid "Entrega recibida."
 msgstr "Submission received."
 
-#: apps/activities/views.py:979
+#: apps/activities/views.py:983
 msgid "Borrador guardado."
 msgstr "Draft saved."
 
-#: apps/activities/views.py:1061
+#: apps/activities/views.py:1065
 #, python-format
 msgid "%(title)s · %(n)s"
 msgstr "%(title)s · %(n)s"
 
-#: apps/activities/views.py:1175
+#: apps/activities/views.py:1179
 msgid "Se descartó el borrador."
 msgstr "The draft was discarded."
 
@@ -1402,7 +1419,7 @@ msgid "La fecha de cierre debe ser posterior a la fecha actual."
 msgstr "The closing date must be later than the current date."
 
 #: apps/courses/models.py:27 templates/activities/_debate.html:71
-#: templates/base.html:37
+#: templates/base.html:44
 msgid "docente"
 msgstr "teacher"
 
@@ -2348,7 +2365,7 @@ msgid "Excelente"
 msgstr "Excellent"
 
 #: templates/account/invitations.html:3 templates/account/invitations.html:8
-#: templates/base.html:49
+#: templates/base.html:56
 msgid "Invitar docentes"
 msgstr "Invite teachers"
 
@@ -2376,6 +2393,7 @@ msgid "Enlace de invitación"
 msgstr "Invitation link"
 
 #: templates/account/invitations.html:25
+#: templates/account/readonly_links.html:27
 #, python-format
 msgid "Vence el %(when)s"
 msgstr "Expires on %(when)s"
@@ -2385,6 +2403,7 @@ msgid "El enlace dejará de funcionar. ¿Desea continuar?"
 msgstr "The link will stop working. Do you want to continue?"
 
 #: templates/account/invitations.html:29
+#: templates/account/readonly_links.html:31
 msgid "Revocar"
 msgstr "Revoke"
 
@@ -2397,7 +2416,7 @@ msgid "Cuenta eliminada"
 msgstr "Deleted account"
 
 #: templates/account/preferences.html:3 templates/account/preferences.html:6
-#: templates/base.html:55
+#: templates/base.html:63
 msgid "Preferencias"
 msgstr "Preferences"
 
@@ -2420,6 +2439,96 @@ msgstr ""
 msgid "Guardar"
 msgstr "Save"
 
+#: templates/account/readonly.html:3 templates/account/readonly.html:9
+msgid "Vista de solo lectura"
+msgstr "Read-only view"
+
+#: templates/account/readonly.html:12
+msgid ""
+"Esta página o esta acción no está disponible en la vista de solo lectura, "
+"porque podría modificar la cuenta o mostrar información que el estudiante no "
+"compartió."
+msgstr ""
+"This page or action is not available in the read-only view, because it "
+"could change the account or show information that the student did not share."
+
+#: templates/account/readonly.html:13
+msgid "Volver a los cursos"
+msgstr "Back to the courses"
+
+#: templates/account/readonly.html:15
+msgid ""
+"Usted tiene una sesión iniciada con su propia cuenta. Para abrir la vista de "
+"solo lectura, cierre su sesión o abra el enlace en una ventana privada del "
+"navegador."
+msgstr ""
+"You are signed in with your own account. To open the read-only view, sign "
+"out or open the link in a private browser window."
+
+#: templates/account/readonly.html:17
+msgid ""
+"Este enlace de solo lectura no está vigente. Es posible que haya vencido o "
+"que el estudiante lo haya revocado."
+msgstr ""
+"This read-only link is no longer valid. It may have expired or been revoked "
+"by the student."
+
+#: templates/account/readonly.html:19
+msgid ""
+"La vista de solo lectura terminó. Para volver a entrar, necesita un enlace "
+"vigente de la persona que se lo compartió."
+msgstr ""
+"The read-only view has ended. To enter again, you need a valid link from "
+"the person who shared it with you."
+
+#: templates/account/readonly_links.html:3
+#: templates/account/readonly_links.html:9 templates/base.html:60
+msgid "Compartir en solo lectura"
+msgstr "Share read-only"
+
+#: templates/account/readonly_links.html:11
+#, python-format
+msgid ""
+"Con un enlace de solo lectura, otra persona puede consultar sus cursos, "
+"actividades, entregas y calificaciones sin iniciar sesión y sin poder "
+"modificar nada. Cada enlace vence a los %(days)s días, y puede revocarlo en "
+"cualquier momento."
+msgstr ""
+"With a read-only link, another person can view your courses, activities, "
+"submissions and grades without signing in and without being able to change "
+"anything. Each link expires after %(days)s days, and you can revoke it at "
+"any time."
+
+#: templates/account/readonly_links.html:12
+msgid ""
+"Quien abra el enlace no podrá responder ni enviar actividades, comentar en "
+"los debates, entrar a las clases en vivo, abrir un intento en curso ni "
+"cambiar su contraseña o su correo. Tampoco verá su cédula ni los nombres de "
+"sus compañeros. Entréguelo solo a personas de su confianza."
+msgstr ""
+"Whoever opens the link will not be able to answer or submit activities, "
+"comment in debates, join live classes, open an attempt in progress, or "
+"change your password or email. They will not see your ID number or your "
+"classmates' names either. Give it only to people you trust."
+
+#: templates/account/readonly_links.html:15
+msgid "Crear enlace de solo lectura"
+msgstr "Create read-only link"
+
+#: templates/account/readonly_links.html:20
+msgid "Enlaces vigentes"
+msgstr "Active links"
+
+#: templates/account/readonly_links.html:25
+msgid "Enlace de solo lectura"
+msgstr "Read-only link"
+
+#: templates/account/readonly_links.html:31
+msgid "Quien tenga este enlace dejará de ver su cuenta. ¿Desea continuar?"
+msgstr ""
+"Whoever has this link will no longer be able to view your account. Do you "
+"want to continue?"
+
 #: templates/account/signup.html:4 templates/account/signup.html:6
 #: templates/account/teacher_signup_closed.html:4
 #: templates/account/teacher_signup_closed.html:6
@@ -2427,7 +2536,7 @@ msgid "Crear cuenta de docente"
 msgstr "Create a teacher account"
 
 #: templates/account/signup.html:4 templates/account/signup.html:30
-#: templates/base.html:67
+#: templates/base.html:75
 msgid "Crear cuenta"
 msgstr "Sign up"
 
@@ -5183,7 +5292,7 @@ msgid "Generar propuesta con IA"
 msgstr "Generate a proposal with AI"
 
 #: templates/ai/account.html:3 templates/ai/account.html:9
-#: templates/base.html:48
+#: templates/base.html:55
 msgid "Inteligencia artificial"
 msgstr "Artificial intelligence"
 
@@ -5272,62 +5381,85 @@ msgstr ""
 msgid "principal"
 msgstr "main"
 
-#: templates/base.html:34 templates/courses/student_home.html:3
+#: templates/base.html:35
+msgid "Cursos"
+msgstr "Courses"
+
+#: templates/base.html:36
+msgid "solo lectura"
+msgstr "read-only"
+
+#: templates/base.html:38
+msgid "Salir de la vista"
+msgstr "Leave the view"
+
+#: templates/base.html:41 templates/courses/student_home.html:3
 #: templates/courses/student_home.html:5 templates/courses/teacher_home.html:3
 #: templates/courses/teacher_home.html:6
 msgid "Mis cursos"
 msgstr "My courses"
 
-#: templates/base.html:37 templates/live/results.html:34
+#: templates/base.html:44 templates/live/results.html:34
 msgid "invitado"
 msgstr "guest"
 
-#: templates/base.html:39
+#: templates/base.html:46
 msgid "Menú de usuario"
 msgstr "User menu"
 
-#: templates/base.html:43
+#: templates/base.html:50
 msgid "Salir"
 msgstr "Leave"
 
-#: templates/base.html:46 templates/courses/course_form.html:3
+#: templates/base.html:53 templates/courses/course_form.html:3
 #: templates/courses/course_form.html:6 templates/courses/teacher_home.html:7
 msgid "Nuevo curso"
 msgstr "New course"
 
-#: templates/base.html:51
+#: templates/base.html:58
 msgid "Entrar a clase en vivo"
 msgstr "Join a live class"
 
-#: templates/base.html:52 templates/courses/join.html:3
+#: templates/base.html:59 templates/courses/join.html:3
 #: templates/courses/join.html:6 templates/courses/student_home.html:23
 msgid "Inscribirse en un curso"
 msgstr "Enroll in a course"
 
-#: templates/base.html:56
+#: templates/base.html:64
 msgid "Contraseña"
 msgstr "Password"
 
-#: templates/base.html:57 templates/courses/course_manage.html:52
+#: templates/base.html:65 templates/courses/course_manage.html:52
 #: templates/courses/course_settings.html:110
 msgid "Correo"
 msgstr "Email"
 
-#: templates/base.html:58
+#: templates/base.html:66
 msgid "Administración"
 msgstr "Administration"
 
-#: templates/base.html:59 templates/base.html:88 templates/core/about.html:3
+#: templates/base.html:67 templates/base.html:101 templates/core/about.html:3
 msgid "Acerca de"
 msgstr "About"
 
-#: templates/base.html:61
+#: templates/base.html:69
 msgid "Cerrar sesión"
 msgstr "Log out"
 
-#: templates/base.html:66
+#: templates/base.html:74
 msgid "Iniciar sesión"
 msgstr "Log in"
+
+#: templates/base.html:92
+#, python-format
+msgid ""
+"Esta es una vista de solo lectura de la cuenta de %(name)s. Puede consultar "
+"sus cursos, actividades y calificaciones, pero no es posible responder, "
+"enviar ni modificar nada."
+msgstr ""
+"This is a read-only view of %(name)s's account. You can browse their "
+"courses, activities and grades, but you cannot answer, submit or change "
+"anything."
 
 #: templates/core/about.html:10
 #, python-format

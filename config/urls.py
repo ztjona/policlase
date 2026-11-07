@@ -6,6 +6,11 @@ from django.views.i18n import JavaScriptCatalog
 
 from apps.accounts.views import (
     preferences,
+    readonly_ended,
+    readonly_exit,
+    readonly_link_revoke,
+    readonly_links,
+    readonly_open,
     set_language,
     set_theme,
     student_signup,
@@ -18,7 +23,8 @@ from apps.core.views import about
 
 urlpatterns = [
     # Los navegadores piden /favicon.ico por su cuenta, aunque la página declare otro ícono.
-    path("favicon.ico", RedirectView.as_view(url=settings.STATIC_URL + "img/favicon.ico", permanent=False)),
+    path("favicon.ico", RedirectView.as_view(url=settings.STATIC_URL + "img/favicon.ico", permanent=False),
+         name="favicon"),
     # Antes que allauth.urls: esta ruta reemplaza su registro abierto.
     path("cuenta/signup/", student_signup, name="account_signup"),
     path("cuenta/registro-docente/", teacher_signup_closed, name="teacher_signup_closed"),
@@ -26,6 +32,12 @@ urlpatterns = [
     path("cuenta/invitaciones/", teacher_invitations, name="teacher_invitations"),
     path("cuenta/invitaciones/<int:pk>/revocar/", teacher_invitation_revoke, name="teacher_invitation_revoke"),
     path("cuenta/preferencias/", preferences, name="account_preferences"),
+    path("cuenta/solo-lectura/", readonly_links, name="readonly_links"),
+    path("cuenta/solo-lectura/<int:pk>/revocar/", readonly_link_revoke, name="readonly_link_revoke"),
+    # La vista de solo lectura de quien recibe el enlace (apps.accounts.readonly).
+    path("solo-lectura/salir/", readonly_exit, name="readonly_exit"),
+    path("solo-lectura/terminada/", readonly_ended, name="readonly_ended"),
+    path("solo-lectura/<str:token>/", readonly_open, name="readonly_open"),
     path("idioma/", set_language, name="set_language"),
     path("tema/", set_theme, name="set_theme"),
     path("acerca/", about, name="about"),

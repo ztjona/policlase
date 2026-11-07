@@ -165,6 +165,24 @@ abierto a desconocidos (desde 0.26, tras un bot que usaba correos de terceros):
   invitación vigente no hay formulario. El primer docente se crea con `create_teacher`.
 - **Campo trampa** en los dos registros (`ACCOUNT_SIGNUP_FORM_HONEYPOT_FIELD`), como segunda barrera.
 
+### Vista de solo lectura
+
+Un estudiante deja que otra persona consulte su cuenta sin cambiar nada (`apps/accounts/readonly.py`,
+desde 0.27; «Compartir en solo lectura», en su menú):
+
+- **El enlace lo crea y lo revoca el estudiante** (`ReadOnlyLink`, vence a los 7 días): es su
+  consentimiento. Ni un docente ni un invitado pueden crearlo; el docente vería así los datos de todos
+  sus estudiantes, o lo que el estudiante tiene en los cursos de otros docentes.
+- **No es un inicio de sesión:** la sesión de quien mira guarda solo el token, y cada petición vuelve a
+  comprobarlo, así que revocarlo corta el acceso al instante. Con una sesión propia iniciada no se abre.
+- **Tres barreras independientes:** una lista de páginas permitidas (`ALLOWED`: cursos, actividades
+  con su revisión, calificaciones; nunca la cuenta, las clases en vivo, los intentos en curso ni la
+  administración), solo GET salvo idioma, tema y salir (`WRITABLE`), y cada vista dentro de una
+  transacción que se deshace. Una página nueva queda fuera de la vista hasta que se agrega a `ALLOWED`.
+- Idioma, zona horaria y tema son los del navegador de quien mira; nada se guarda en la cuenta.
+- Quien mira no ve la cédula (marca de agua) ni los nombres de los compañeros del debate, que
+  aparecen como «Estudiante N» (`debate.anonymize`): ellos no dieron su consentimiento.
+
 ### Estado de una clase en vivo
 
 - `engine.py` es la única puerta para cambiar una sesión: `apply(session_id, action, index)` con

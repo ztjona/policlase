@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Compartir en solo lectura" %}{% endblock %}
+{% block page_class %}narrow{% endblock %}
+{% block main %}
+{% comment %} El estudiante crea y revoca los enlaces de solo lectura de su cuenta (apps.accounts.readonly). La
+   plataforma no los envía: el estudiante los copia y los entrega por su cuenta. {% endcomment %}
+<h1>{% translate "Compartir en solo lectura" %}</h1>
+<section class="card stack">
+  <p style="margin:0">{% blocktranslate %}Con un enlace de solo lectura, otra persona puede consultar sus cursos, actividades, entregas y calificaciones sin iniciar sesión y sin poder modificar nada. Cada enlace vence a los {{ days }} días, y puede revocarlo en cualquier momento.{% endblocktranslate %}</p>
+  <p class="small muted" style="margin:0">{% translate "Quien abra el enlace no podrá responder ni enviar actividades, comentar en los debates, entrar a las clases en vivo, abrir un intento en curso ni cambiar su contraseña o su correo. Tampoco verá su cédula ni los nombres de sus compañeros. Entréguelo solo a personas de su confianza." %}</p>
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit">{% translate "Crear enlace de solo lectura" %}</button>
+  </form>
+</section>
+
+{% if links %}
+<h2>{% translate "Enlaces vigentes" %}</h2>
+<section class="card stack">
+  {% for link in links %}
+  <div class="stack">
+    <input type="text" readonly value="{{ link.url }}" onfocus="this.select()"
+           aria-label="{% translate 'Enlace de solo lectura' %}">
+    <div class="spread">
+      <span class="small muted">{% blocktranslate with when=link.expires_at|date:"d M H:i" %}Vence el {{ when }}{% endblocktranslate %}</span>
+      <form method="post" action="{% url 'readonly_link_revoke' link.pk %}">
+        {% csrf_token %}
+        <button class="danger small"
+                onclick="return confirm('{% translate "Quien tenga este enlace dejará de ver su cuenta. ¿Desea continuar?" as msg %}{{ msg|escapejs }}')">{% translate "Revocar" %}</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+{% endblock %}

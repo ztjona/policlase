@@ -73,6 +73,8 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Antes de las preferencias: en la vista de solo lectura mandan las del navegador de quien mira.
+    "apps.accounts.readonly.ReadOnlyViewMiddleware",
     "apps.accounts.middleware.PreferencesMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",

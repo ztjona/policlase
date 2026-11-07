@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Vista de solo lectura" %}{% endblock %}
+{% block page_class %}narrow{% endblock %}
+{% block main %}
+{% comment %} Los avisos de la vista de solo lectura (apps.accounts.readonly): una página que no se abre en ella, un
+   enlace que no está vigente, una sesión ya iniciada y el final de la vista. {% endcomment %}
+<h1>{% translate "Vista de solo lectura" %}</h1>
+<section class="card stack">
+  {% if state == "blocked" %}
+    <p style="margin:0">{% translate "Esta página o esta acción no está disponible en la vista de solo lectura, porque podría modificar la cuenta o mostrar información que el estudiante no compartió." %}</p>
+    <p style="margin:0"><a href="{% url 'home' %}">{% translate "Volver a los cursos" %}</a></p>
+  {% elif state == "signed_in" %}
+    <p style="margin:0">{% translate "Usted tiene una sesión iniciada con su propia cuenta. Para abrir la vista de solo lectura, cierre su sesión o abra el enlace en una ventana privada del navegador." %}</p>
+  {% elif state == "invalid" %}
+    <p style="margin:0">{% translate "Este enlace de solo lectura no está vigente. Es posible que haya vencido o que el estudiante lo haya revocado." %}</p>
+  {% else %}
+    <p style="margin:0">{% translate "La vista de solo lectura terminó. Para volver a entrar, necesita un enlace vigente de la persona que se lo compartió." %}</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -99,3 +99,32 @@ class TeacherInvitation(models.Model):
     @property
     def is_usable(self) -> bool:
         return self.used_at is None and timezone.now() < self.expires_at
+
+
+#: Días que dura un enlace de solo lectura.
+READONLY_DAYS = 7
+
+
+def readonly_expiry():
+    return timezone.now() + timedelta(days=READONLY_DAYS)
+
+
+class ReadOnlyLink(models.Model):
+    """Enlace con el que un estudiante deja que otra persona consulte su cuenta sin modificar nada
+    (`apps.accounts.readonly`).
+
+    Lo crea y lo revoca el propio estudiante: el enlace es su consentimiento. Un docente no puede
+    crearlo por él, porque vería lo que el estudiante tiene en los cursos de otros docentes. Revocar
+    es borrarlo, y uno vencido también se borra: no hace falta guardarlo.
+    """
+
+    token = models.CharField(max_length=43, unique=True, default=new_invitation_token, editable=False)
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="readonly_links")
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(default=readonly_expiry)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.student} · {self.created_at:%Y-%m-%d}"

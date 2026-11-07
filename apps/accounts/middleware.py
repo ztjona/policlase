@@ -14,6 +14,8 @@ from django.conf import settings
 from django.shortcuts import redirect
 from django.utils import timezone, translation
 
+from .readonly import viewing
+
 #: Lo único que ve un invitado: la clase en vivo y lo necesario para mostrarla.
 GUEST_PATHS = ("/en-vivo/", "/static/", "/i18n/", "/idioma/", "/tema/", "/cuenta/logout/", "/acerca/")
 
@@ -32,7 +34,9 @@ def _apply(request, user) -> bool:
     detected = valid_timezone(request.COOKIES.get(settings.TIMEZONE_COOKIE))
     save = False
     tz_name = detected
-    if user.is_authenticated:
+    # En la vista de solo lectura mandan el navegador y las cookies de quien mira, y nada se guarda
+    # en la cuenta del estudiante (apps.accounts.readonly).
+    if user.is_authenticated and not viewing(request):
         if user.language:
             translation.activate(user.language)
             request.LANGUAGE_CODE = user.language
