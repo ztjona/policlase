@@ -48,3 +48,21 @@ class StudentMathTests(SimpleTestCase):
         self.assertIn("<br>", html)
         self.assertIn("[enlace](http://x)", html)                 # sin markdown: ni enlaces ni imágenes
         self.assertEqual(student_math("cuesta $5 y $6"), "cuesta <span class=\"math inline\">5 y </span>6")
+
+
+class SlideTitleTests(SimpleTestCase):
+    """El título de una diapositiva en los índices se corta, pero nunca dentro de una fórmula."""
+
+    def title(self, prompt):
+        from apps.core.templatetags.policlase import slide_title
+
+        return slide_title({"kind": "question", "question": {"prompt": prompt}})
+
+    def test_corta_antes_de_la_formula(self):
+        prompt = "¿En qué punto corta al eje $x$ la recta $2x - 6 = 0$? Escriba solo el valor de $x_{n+1} - x_n$ aquí."
+        self.assertEqual(self.title(prompt), "¿En qué punto corta al eje $x$ la recta $2x - 6 = 0$? Escriba solo el valor de…")
+        self.assertEqual(self.title("Corto: $x$"), "Corto: $x$")
+
+    def test_una_formula_al_comienzo_se_conserva_entera(self):
+        formula = "$" + " + ".join(f"a_{i}" for i in range(30)) + "$"
+        self.assertEqual(self.title(formula + " y algo más"), formula + "…")

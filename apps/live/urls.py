@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import sections, studio, views
+from . import review, sections, studio, views
 from .guests import guest_entry
 
 urlpatterns = [
@@ -44,6 +44,8 @@ urlpatterns = [
     path("en-vivo/<int:pk>/escena/", views.student_fragment, name="student_fragment"),
     path("en-vivo/<int:pk>/responder/", views.student_answer, name="student_answer"),
     path("en-vivo/<int:pk>/retroalimentacion/", views.student_feedback, name="student_feedback"),
+    # estudiante: repaso de una clase terminada
+    path("cursos/<int:course_pk>/clases/<int:pk>/", review.class_review, name="class_review"),
     # ambos
     path("en-vivo/<int:pk>/eventos/", views.events, name="live_events"),
 ]

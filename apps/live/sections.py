@@ -21,6 +21,17 @@ def _link(course):
     return CourseRepo.objects.filter(course=course).select_related("course__owner").first()
 
 
+def ordered(course, linked: bool) -> list[Section]:
+    """Las secciones en el orden de la pestaña Clases. Con GitHub, el de sus carpetas (unidad-2 antes
+    que unidad-10) y al final las que no tienen carpeta; sin GitHub, el de la plataforma."""
+    from apps.github import sync
+
+    sections = list(Section.objects.filter(course=course))
+    if linked:
+        sections.sort(key=lambda s: (not s.github_folder, sync.natural_key(s.github_folder), s.pk))
+    return sections
+
+
 def _title(request) -> str:
     return " ".join(request.POST.get("title", "").split())[:200]
 

@@ -87,8 +87,24 @@ def slide_title(slide):
     for line in str(text).splitlines():
         line = line.strip().lstrip("#").strip()
         if line:
-            return line[:80] + ("…" if len(line) > 80 else "")
+            return _shorten(line, 80)
     return "—"
+
+
+#: Una fórmula de markdown: `$$…$$` o `$…$` (sin contar `\$`).
+_MATH = re.compile(r"\$\$.+?\$\$|(?<!\\)\$.+?(?<!\\)\$")
+
+
+def _shorten(line: str, limit: int) -> str:
+    """Corta en `limit` caracteres, pero nunca dentro de una fórmula: quedaría el TeX a la vista. Si
+    la fórmula cruza el límite, se corta antes de ella (o después, si es lo primero de la línea)."""
+    if len(line) <= limit:
+        return line
+    for m in _MATH.finditer(line):
+        if m.start() < limit < m.end():
+            limit = m.start() or m.end()
+            break
+    return line[:limit].rstrip() + ("…" if limit < len(line) else "")
 
 
 #: Íconos tradicionales (trazos de Material Icons, Apache 2.0) en SVG: se ven igual en todas partes.

@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: policlase\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-05 16:55-0500\n"
+"POT-Creation-Date: 2026-11-18 12:57-0500\n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -78,8 +78,8 @@ msgstr "The projector uses the light theme unless the dark one is chosen."
 #: templates/courses/course_manage.html:52
 #: templates/courses/course_settings.html:108
 #: templates/grades/gradebook.html:22 templates/grades/gradebook.html:37
-#: templates/grades/record.html:51 templates/live/results.html:11
-#: templates/live/results.html:58
+#: templates/grades/record.html:51 templates/live/results.html:12
+#: templates/live/results.html:59
 msgid "Estudiante"
 msgstr "Student"
 
@@ -140,8 +140,8 @@ msgid ""
 "Enlace de solo lectura creado. Cópielo y entrégueselo a la persona que "
 "consultará su cuenta."
 msgstr ""
-"Read-only link created. Copy it and give it to the person who will view "
-"your account."
+"Read-only link created. Copy it and give it to the person who will view your "
+"account."
 
 #: apps/accounts/views.py:142
 msgid "El enlace de solo lectura dejó de funcionar."
@@ -1027,7 +1027,7 @@ msgstr "Submitting the correction opens its review and that of the evaluation."
 msgid "Debate"
 msgstr "Debate"
 
-#: apps/activities/views.py:53 apps/live/sections.py:97 apps/live/views.py:55
+#: apps/activities/views.py:53 apps/live/sections.py:108 apps/live/views.py:56
 #, python-format
 msgid "No se eliminó: %(error)s"
 msgstr "Not deleted: %(error)s"
@@ -1060,7 +1060,7 @@ msgstr ""
 msgid "Actividad «%(title)s» eliminada, con sus entregas."
 msgstr "Activity “%(title)s” deleted, with its submissions."
 
-#: apps/activities/views.py:91 apps/live/views.py:84
+#: apps/activities/views.py:91 apps/live/views.py:85
 #, python-format
 msgid "No se movió: %(error)s"
 msgstr "Not moved: %(error)s"
@@ -1209,7 +1209,7 @@ msgstr "Comment saved."
 msgid "Diapositiva desconocida."
 msgstr "Unknown slide."
 
-#: apps/activities/views.py:599 apps/live/views.py:277 apps/live/views.py:317
+#: apps/activities/views.py:599 apps/live/views.py:279 apps/live/views.py:319
 msgid "Escriba un número."
 msgstr "Enter a number."
 
@@ -1487,11 +1487,11 @@ msgstr "Your request to %(course)s is still waiting for approval."
 msgid "Su solicitud a %(course)s fue rechazada. Hable con su docente."
 msgstr "Your request to %(course)s was rejected. Talk to your teacher."
 
-#: apps/courses/views.py:160 apps/courses/views.py:341
+#: apps/courses/views.py:164 apps/courses/views.py:344
 msgid "Ya tiene un curso con ese código."
 msgstr "You already have a course with that code."
 
-#: apps/courses/views.py:162
+#: apps/courses/views.py:166
 #, python-format
 msgid ""
 "Curso creado. Comparta el código de inscripción %(code)s con sus "
@@ -1500,44 +1500,44 @@ msgstr ""
 "Course created. Share the enrollment code %(code)s with your students; "
 "you'll also find it in the course settings."
 
-#: apps/courses/views.py:187
+#: apps/courses/views.py:192
 msgid "Presentaciones y actividades actualizadas desde GitHub."
 msgstr "Presentations and activities updated from GitHub."
 
-#: apps/courses/views.py:343
+#: apps/courses/views.py:346
 msgid "Datos del curso guardados."
 msgstr "Course details saved."
 
-#: apps/courses/views.py:379
+#: apps/courses/views.py:382
 #, python-format
 msgid "Se actualizó %(n)d inscrito."
 msgid_plural "Se actualizaron %(n)d inscritos."
 msgstr[0] "%(n)d enrolled student was updated."
 msgstr[1] "%(n)d enrolled students were updated."
 
-#: apps/courses/views.py:398
+#: apps/courses/views.py:401
 msgid "Acción desconocida."
 msgstr "Unknown action."
 
-#: apps/courses/views.py:411
+#: apps/courses/views.py:414
 msgid "No había solicitudes seleccionadas."
 msgstr "No requests were selected."
 
-#: apps/courses/views.py:413
+#: apps/courses/views.py:416
 #, python-format
 msgid "%(count)d solicitud aprobada."
 msgid_plural "%(count)d solicitudes aprobadas."
 msgstr[0] "%(count)d request approved."
 msgstr[1] "%(count)d requests approved."
 
-#: apps/courses/views.py:416
+#: apps/courses/views.py:419
 #, python-format
 msgid "%(count)d solicitud rechazada."
 msgid_plural "%(count)d solicitudes rechazadas."
 msgstr[0] "%(count)d request rejected."
 msgstr[1] "%(count)d requests rejected."
 
-#: apps/courses/views.py:428
+#: apps/courses/views.py:431
 #, python-format
 msgid ""
 "%(name)s fue retirado del curso. Puede volver a solicitar la inscripción con "
@@ -1546,20 +1546,20 @@ msgstr ""
 "%(name)s was removed from the course. They can request enrollment again with "
 "the course code."
 
-#: apps/courses/views.py:440
+#: apps/courses/views.py:443
 #, python-format
 msgid "Nuevo código: %(code)s. El anterior dejó de funcionar."
 msgstr "New code: %(code)s. The previous one no longer works."
 
-#: apps/courses/views.py:448
+#: apps/courses/views.py:451
 msgid "El curso acepta solicitudes."
 msgstr "The course is accepting requests."
 
-#: apps/courses/views.py:449
+#: apps/courses/views.py:452
 msgid "El curso ya no acepta solicitudes."
 msgstr "The course no longer accepts requests."
 
-#: apps/courses/views.py:454
+#: apps/courses/views.py:457
 msgid "Fecha de cierre de la inscripción guardada."
 msgstr "Enrollment closing date saved."
 
@@ -1778,7 +1778,7 @@ msgstr "Extracurricular activities"
 msgid "Parcial %(n)d"
 msgstr "Term %(n)d"
 
-#: apps/grades/gradebook.py:342 templates/live/results.html:18
+#: apps/grades/gradebook.py:342 templates/live/results.html:19
 msgid "ausente"
 msgstr "absent"
 
@@ -1955,8 +1955,8 @@ msgstr[1] "%(n)d names are still unassigned."
 msgid "«%(title)s» eliminado, con sus notas."
 msgstr "“%(title)s” deleted, with its grades."
 
-#: apps/live/engine.py:53 templates/activities/_answer.html:31
-#: templates/activities/_answer.html:32
+#: apps/live/engine.py:53 apps/live/review.py:60
+#: templates/activities/_answer.html:31 templates/activities/_answer.html:32
 #: templates/activities/_debate_value.html:6
 #: templates/activities/_question_static.html:17
 #: templates/live/_present_stage.html:84 templates/live/_slide_card.html:24
@@ -1964,8 +1964,8 @@ msgctxt "inicial de verdadero"
 msgid "V"
 msgstr "T"
 
-#: apps/live/engine.py:53 templates/activities/_answer.html:31
-#: templates/activities/_answer.html:32
+#: apps/live/engine.py:53 apps/live/review.py:61
+#: templates/activities/_answer.html:31 templates/activities/_answer.html:32
 #: templates/activities/_debate_value.html:6
 #: templates/activities/_question_static.html:17
 #: templates/live/_present_stage.html:84 templates/live/_slide_card.html:24
@@ -1973,109 +1973,109 @@ msgctxt "inicial de falso"
 msgid "F"
 msgstr "F"
 
-#: apps/live/engine.py:97
+#: apps/live/engine.py:105
 msgid "La clase ya terminó."
 msgstr "The class has already ended."
 
-#: apps/live/engine.py:101
+#: apps/live/engine.py:109
 msgid "La clase está en pausa: reanúdela o termínela."
 msgstr "The class is paused: resume or end it."
 
-#: apps/live/engine.py:114
+#: apps/live/engine.py:122
 msgid "La clase ya empezó."
 msgstr "The class has already started."
 
-#: apps/live/engine.py:121 apps/live/engine.py:134
+#: apps/live/engine.py:129 apps/live/engine.py:141
 msgid "Inicie la clase primero."
 msgstr "Start the class first."
 
-#: apps/live/engine.py:123 apps/live/engine.py:136
+#: apps/live/engine.py:131 apps/live/engine.py:143
 msgid "Cierre la pregunta antes de cambiar de diapositiva."
 msgstr "Close the question before changing slides."
 
-#: apps/live/engine.py:126
+#: apps/live/engine.py:134
 msgid "No hay más diapositivas en esa dirección."
 msgstr "There are no more slides in that direction."
 
-#: apps/live/engine.py:138 apps/live/engine.py:147
+#: apps/live/engine.py:145 apps/live/engine.py:153
 msgid "Esa diapositiva no existe."
 msgstr "That slide doesn't exist."
 
-#: apps/live/engine.py:149
+#: apps/live/engine.py:155
 msgid "No se puede ocultar la diapositiva que está en pantalla."
 msgstr "The slide on screen can't be hidden."
 
-#: apps/live/engine.py:154
+#: apps/live/engine.py:160
 msgid "El bono por rapidez se elige antes de iniciar la clase."
 msgstr "The speed bonus is chosen before starting the class."
 
-#: apps/live/engine.py:159
+#: apps/live/engine.py:165
 msgid "Esta diapositiva no tiene una pregunta lista para abrir."
 msgstr "This slide has no question ready to open."
 
-#: apps/live/engine.py:168 apps/live/engine.py:208
+#: apps/live/engine.py:174 apps/live/engine.py:214
 msgid "La pregunta no está abierta."
 msgstr "The question isn't open."
 
-#: apps/live/engine.py:173
+#: apps/live/engine.py:179
 msgid "Solo se puede pausar una clase en curso."
 msgstr "Only a class in progress can be paused."
 
-#: apps/live/engine.py:182
+#: apps/live/engine.py:188
 msgid "La clase no está en pausa."
 msgstr "The class isn't paused."
 
-#: apps/live/engine.py:196
+#: apps/live/engine.py:202
 msgid "Esta pregunta no tiene límite de tiempo."
 msgstr "This question has no time limit."
 
-#: apps/live/engine.py:203
+#: apps/live/engine.py:209
 msgid "No hay una pregunta abierta o cerrada a la que dar más tiempo."
 msgstr "There's no open or closed question to give more time to."
 
-#: apps/live/engine.py:218
+#: apps/live/engine.py:224
 msgid "Cierre la pregunta antes de mostrar resultados."
 msgstr "Close the question before showing results."
 
-#: apps/live/engine.py:228
+#: apps/live/engine.py:234
 #, python-format
 msgid "Acción desconocida: %(action)s"
 msgstr "Unknown action: %(action)s"
 
-#: apps/live/engine.py:253
+#: apps/live/engine.py:259
 msgid "La clase está en pausa."
 msgstr "The class is paused."
 
-#: apps/live/engine.py:255
+#: apps/live/engine.py:261
 msgid "La pregunta ya no recibe respuestas."
 msgstr "The question no longer accepts answers."
 
-#: apps/live/engine.py:278
+#: apps/live/engine.py:284
 msgid "Ya respondió esta pregunta."
 msgstr "You already answered this question."
 
-#: apps/live/engine.py:338
+#: apps/live/engine.py:344
 msgid "Termine la clase antes de asignar a sus invitados."
 msgstr "End the class before assigning its guests."
 
-#: apps/live/engine.py:340
+#: apps/live/engine.py:346
 msgid "Solo se pueden asignar invitados."
 msgstr "Only guests can be assigned."
 
-#: apps/live/engine.py:342
+#: apps/live/engine.py:348
 #, python-format
 msgid "%(name)s ya participó en esta clase con su cuenta."
 msgstr "%(name)s already took part in this class with their account."
 
-#: apps/live/engine.py:409
+#: apps/live/engine.py:415
 msgid "La retroalimentación no está abierta."
 msgstr "Feedback isn't open."
 
-#: apps/live/engine.py:411
+#: apps/live/engine.py:417
 msgid "Elija una valoración de 1 a 5."
 msgstr "Pick a rating from 1 to 5."
 
-#: apps/live/engine.py:415
+#: apps/live/engine.py:421
 msgid "Ya dejó su retroalimentación. ¡Gracias!"
 msgstr "You already left your feedback. Thank you!"
 
@@ -2126,34 +2126,34 @@ msgstr "Closed"
 msgid "Resultados"
 msgstr "Results"
 
-#: apps/live/sections.py:36
+#: apps/live/sections.py:47
 msgid "Escriba un nombre para la sección."
 msgstr "Enter a name for the section."
 
-#: apps/live/sections.py:44
+#: apps/live/sections.py:55
 msgid "Ya existe una sección con ese nombre."
 msgstr "A section with that name already exists."
 
-#: apps/live/sections.py:49
+#: apps/live/sections.py:60
 #, python-format
 msgid "No se creó: %(error)s"
 msgstr "Not created: %(error)s"
 
-#: apps/live/sections.py:53
+#: apps/live/sections.py:64
 #, python-format
 msgid "Sección «%(title)s» creada."
 msgstr "Section “%(title)s” created."
 
-#: apps/live/sections.py:72
+#: apps/live/sections.py:83
 #, python-format
 msgid "No se renombró: %(error)s"
 msgstr "Not renamed: %(error)s"
 
-#: apps/live/sections.py:77
+#: apps/live/sections.py:88
 msgid "Sección renombrada."
 msgstr "Section renamed."
 
-#: apps/live/sections.py:89
+#: apps/live/sections.py:100
 msgid ""
 "Solo se pueden eliminar secciones vacías: mueva o elimine antes sus "
 "presentaciones y actividades."
@@ -2161,7 +2161,7 @@ msgstr ""
 "Only empty sections can be deleted: first move or delete their presentations "
 "and activities."
 
-#: apps/live/sections.py:100
+#: apps/live/sections.py:111
 msgid "Sección eliminada."
 msgstr "Section deleted."
 
@@ -2282,7 +2282,7 @@ msgstr "Unknown operation."
 msgid "Corrija los errores antes de usar el panel: %(error)s"
 msgstr "Fix the errors before using the panel: %(error)s"
 
-#: apps/live/views.py:59
+#: apps/live/views.py:60
 msgid ""
 "Presentación eliminada y su archivo borrado de GitHub. Las clases ya "
 "dictadas conservan sus resultados."
@@ -2290,39 +2290,39 @@ msgstr ""
 "Presentation deleted and its file removed from GitHub. Classes already "
 "taught keep their results."
 
-#: apps/live/views.py:62
+#: apps/live/views.py:63
 msgid ""
 "Presentación eliminada. Las clases ya dictadas conservan sus resultados."
 msgstr "Presentation deleted. Classes already taught keep their results."
 
-#: apps/live/views.py:95
+#: apps/live/views.py:96
 msgid "Termine o pause la clase antes de eliminarla."
 msgstr "End or pause the class before deleting it."
 
-#: apps/live/views.py:99
+#: apps/live/views.py:100
 msgid "Clase eliminada."
 msgstr "Class deleted."
 
-#: apps/live/views.py:115
+#: apps/live/views.py:116
 msgid ""
 "Hay una clase en pausa en este curso: reanúdela o termínela antes de iniciar "
 "otra."
 msgstr ""
 "This course has a paused class: resume or end it before starting another."
 
-#: apps/live/views.py:117
+#: apps/live/views.py:118
 msgid "Ya hay una clase en vivo en este curso; se abrió esa clase."
 msgstr "There is already a live class in this course; that class was opened."
 
-#: apps/live/views.py:133
+#: apps/live/views.py:134
 msgid "No se pudo generar un PIN disponible. Intente de nuevo."
 msgstr "No available PIN could be generated. Try again."
 
-#: apps/live/views.py:290
+#: apps/live/views.py:292
 msgid "Elija un estudiante inscrito."
 msgstr "Choose an enrolled student."
 
-#: apps/live/views.py:299
+#: apps/live/views.py:301
 #, python-format
 msgid ""
 "«%(guest)s» quedó asignado a %(name)s: %(n)d respuesta pasó a su cuenta."
@@ -2333,34 +2333,34 @@ msgstr[0] ""
 msgstr[1] ""
 "“%(guest)s” was assigned to %(name)s: %(n)d answers moved to their account."
 
-#: apps/live/views.py:338
+#: apps/live/views.py:340
 #, python-format
 msgid "%(n)d respuesta actualizada."
 msgid_plural "%(n)d respuestas actualizadas."
 msgstr[0] "%(n)d answer updated."
 msgstr[1] "%(n)d answers updated."
 
-#: apps/live/views.py:374
+#: apps/live/views.py:376
 msgid "No hay una clase en vivo con ese PIN en sus cursos."
 msgstr "There's no live class with that PIN in your courses."
 
-#: apps/live/views.py:394
+#: apps/live/views.py:396
 msgid "Mal"
 msgstr "Bad"
 
-#: apps/live/views.py:394
+#: apps/live/views.py:396
 msgid "Regular"
 msgstr "So-so"
 
-#: apps/live/views.py:394
+#: apps/live/views.py:396
 msgid "Bien"
 msgstr "Good"
 
-#: apps/live/views.py:394
+#: apps/live/views.py:396
 msgid "Muy bien"
 msgstr "Very good"
 
-#: apps/live/views.py:394
+#: apps/live/views.py:396
 msgid "Excelente"
 msgstr "Excellent"
 
@@ -2449,8 +2449,8 @@ msgid ""
 "porque podría modificar la cuenta o mostrar información que el estudiante no "
 "compartió."
 msgstr ""
-"This page or action is not available in the read-only view, because it "
-"could change the account or show information that the student did not share."
+"This page or action is not available in the read-only view, because it could "
+"change the account or show information that the student did not share."
 
 #: templates/account/readonly.html:13
 msgid "Volver a los cursos"
@@ -2478,8 +2478,8 @@ msgid ""
 "La vista de solo lectura terminó. Para volver a entrar, necesita un enlace "
 "vigente de la persona que se lo compartió."
 msgstr ""
-"The read-only view has ended. To enter again, you need a valid link from "
-"the person who shared it with you."
+"The read-only view has ended. To enter again, you need a valid link from the "
+"person who shared it with you."
 
 #: templates/account/readonly_links.html:3
 #: templates/account/readonly_links.html:9 templates/base.html:60
@@ -3332,7 +3332,7 @@ msgstr "The explanation will be shown when the debate closes."
 
 #: templates/activities/_grade_form.html:6 templates/activities/detail.html:57
 #: templates/activities/stats.html:16 templates/activities/stats.html:92
-#: templates/live/results.html:81
+#: templates/live/results.html:82
 msgid "Nota"
 msgstr "Grade"
 
@@ -3482,7 +3482,7 @@ msgstr "Cell %(n)s"
 #: templates/activities/_question_input.html:90
 #: templates/activities/_question_input.html:92
 #: templates/live/_student_stage.html:78 templates/live/_student_stage.html:80
-#: templates/live/results.html:81
+#: templates/live/results.html:82
 msgid "Respuesta"
 msgstr "Answer"
 
@@ -3600,7 +3600,7 @@ msgstr "Rubric"
 msgid "Índice de la actividad"
 msgstr "Activity outline"
 
-#: templates/activities/_side_outline.html:6
+#: templates/activities/_side_outline.html:6 templates/live/review.html:11
 msgid "Mostrar el índice"
 msgstr "Show the outline"
 
@@ -3608,15 +3608,16 @@ msgstr "Show the outline"
 #: templates/activities/attempt.html:65
 #: templates/activities/attempt_review.html:53
 #: templates/activities/present.html:15 templates/activities/present.html:33
+#: templates/live/review.html:13 templates/live/review.html:45
 msgid "Índice"
 msgstr "Outline"
 
-#: templates/activities/_side_outline.html:9
+#: templates/activities/_side_outline.html:9 templates/live/review.html:14
 msgid "Ocultar el índice"
 msgstr "Hide the outline"
 
 #: templates/activities/_side_outline.html:10
-#: templates/activities/_side_questions.html:11
+#: templates/activities/_side_questions.html:11 templates/live/review.html:15
 msgid "Cerrar"
 msgstr "Close"
 
@@ -3918,6 +3919,7 @@ msgstr "Follow the teacher"
 
 #: templates/activities/attempt_review.html:15
 #: templates/activities/present.html:59 templates/live/_present_stage.html:139
+#: templates/live/review.html:42
 msgid "Anterior"
 msgstr "Previous"
 
@@ -3928,6 +3930,7 @@ msgstr "Submission %(n)s of %(total)s"
 
 #: templates/activities/attempt_review.html:17
 #: templates/activities/present.html:61 templates/live/_present_stage.html:153
+#: templates/live/review.html:44
 msgid "Siguiente"
 msgstr "Next"
 
@@ -4718,7 +4721,7 @@ msgid "Salidas de la página"
 msgstr "Times the page was left"
 
 #: templates/activities/stats.html:49 templates/activities/stats.html:72
-#: templates/live/results.html:81
+#: templates/live/results.html:82
 msgid "Estudiantes"
 msgstr "Students"
 
@@ -4808,6 +4811,7 @@ msgid "enviado al terminar el plazo"
 msgstr "submitted when the time ran out"
 
 #: templates/activities/stats.html:119 templates/ai/_activity_panel.html:18
+#: templates/live/review.html:19
 msgid "Pregunta"
 msgstr "Question"
 
@@ -5399,7 +5403,7 @@ msgstr "Leave the view"
 msgid "Mis cursos"
 msgstr "My courses"
 
-#: templates/base.html:44 templates/live/results.html:34
+#: templates/base.html:44 templates/live/results.html:35
 msgid "invitado"
 msgstr "guest"
 
@@ -5532,6 +5536,7 @@ msgid "Secciones del curso"
 msgstr "Course sections"
 
 #: templates/courses/_course_tabs.html:6
+#: templates/courses/course_detail.html:78
 msgid "Clases"
 msgstr "Classes"
 
@@ -5553,6 +5558,7 @@ msgid "Presentación"
 msgstr "Presentation"
 
 #: templates/courses/_deck_rows.html:9 templates/live/deck_view.html:13
+#: templates/live/review.html:29
 #, python-format
 msgid "%(n)s diapositiva"
 msgid_plural "%(n)s diapositivas"
@@ -5562,6 +5568,7 @@ msgstr[1] "%(n)s slides"
 #: templates/courses/_deck_rows.html:10
 #: templates/courses/_unit_activity_rows.html:13
 #: templates/live/_outline.html:25 templates/live/deck_view.html:13
+#: templates/live/review.html:29
 #, python-format
 msgid "%(n)s pregunta"
 msgid_plural "%(n)s preguntas"
@@ -5911,7 +5918,18 @@ msgstr ""
 msgid "debate abierto"
 msgstr "debate open"
 
-#: templates/courses/course_detail.html:77
+#: templates/courses/course_detail.html:83
+msgid "Otras clases"
+msgstr "Other classes"
+
+#: templates/courses/course_detail.html:84
+#, python-format
+msgid "%(n)s clase"
+msgid_plural "%(n)s clases"
+msgstr[0] "%(n)s class"
+msgstr[1] "%(n)s classes"
+
+#: templates/courses/course_detail.html:95
 msgid "Acerca del curso"
 msgstr "About the course"
 
@@ -6353,7 +6371,7 @@ msgstr ""
 "zero); manual records, from the moment they are recorded. Tests, the exam "
 "and the project will be added with the Assessments tab."
 
-#: templates/grades/gradebook.html:24 templates/live/results.html:13
+#: templates/grades/gradebook.html:24 templates/live/results.html:14
 msgid "Total"
 msgstr "Total"
 
@@ -6568,7 +6586,7 @@ msgstr ""
 msgid "Quitar"
 msgstr "Remove"
 
-#: templates/grades/record.html:77 templates/live/results.html:28
+#: templates/grades/record.html:77 templates/live/results.html:29
 msgid "Sin estudiantes inscritos."
 msgstr "No enrolled students."
 
@@ -6758,7 +6776,7 @@ msgstr "Corrected manually (automatic: %(auto)s). Click to change it."
 msgid "Haga clic para corregir la nota"
 msgstr "Click to correct the grade"
 
-#: templates/live/_grade_cell.html:3 templates/live/results.html:24
+#: templates/live/_grade_cell.html:3 templates/live/results.html:25
 msgid "corregida manualmente"
 msgstr "corrected manually"
 
@@ -6774,7 +6792,8 @@ msgstr ""
 msgid "Abierta a invitados"
 msgstr "Open to guests"
 
-#: templates/live/_live_outline.html:3 templates/live/studio.html:45
+#: templates/live/_live_outline.html:3 templates/live/review.html:10
+#: templates/live/studio.html:45
 msgid "Diapositivas"
 msgstr "Slides"
 
@@ -6816,7 +6835,7 @@ msgstr "Segment"
 msgid "Solución (se muestra en la revisión)"
 msgstr "Solution (shown in the review)"
 
-#: templates/live/_outline.html:26 templates/live/results.html:12
+#: templates/live/_outline.html:26 templates/live/results.html:13
 msgid "encuesta"
 msgstr "survey"
 
@@ -7080,6 +7099,32 @@ msgstr ""
 msgid "Terminar aquí"
 msgstr "End here"
 
+#: templates/live/_review_slide.html:6
+#, python-format
+msgid "Diapositiva %(n)s de %(total)s"
+msgstr "Slide %(n)s of %(total)s"
+
+#: templates/live/_review_slide.html:27
+msgid "Esta pregunta es una encuesta y no tiene una respuesta correcta."
+msgstr "This question is a survey and has no correct answer."
+
+#: templates/live/_review_slide.html:29
+msgid ""
+"La respuesta de esta pregunta se mostrará cuando termine la clase en curso."
+msgstr "The answer to this question will be shown when the class in progress ends."
+
+#: templates/live/_review_slide.html:32
+msgid "Ver la respuesta"
+msgstr "Show the answer"
+
+#: templates/live/_review_slide.html:32
+msgid "Ocultar la respuesta"
+msgstr "Hide the answer"
+
+#: templates/live/_review_slide.html:34 templates/live/_student_stage.html:116
+msgid "Respuesta correcta:"
+msgstr "Correct answer:"
+
 #: templates/live/_slide_card.html:5
 msgid "Al final de la clase"
 msgstr "At the end of the class"
@@ -7226,10 +7271,6 @@ msgstr ""
 "You answered after the time ran out, so it is worth %(p)s %% less in your "
 "grade."
 
-#: templates/live/_student_stage.html:116
-msgid "Respuesta correcta:"
-msgstr "Correct answer:"
-
 #: templates/live/_student_stage.html:118
 #, python-format
 msgid "Tu total: <strong>%(total)s</strong>"
@@ -7316,20 +7357,24 @@ msgstr "maximum %(max)s points"
 msgid "categoría <em>participación</em>"
 msgstr "category <em>participation</em>"
 
-#: templates/live/results.html:12 templates/live/results.html:77
+#: templates/live/results.html:8
+msgid "Ver el repaso que consultan los estudiantes"
+msgstr "View the review that students see"
+
+#: templates/live/results.html:13 templates/live/results.html:78
 msgctxt "abreviatura de pregunta"
 msgid "P"
 msgstr "Q"
 
-#: templates/live/results.html:19 templates/live/results.html:35
+#: templates/live/results.html:20 templates/live/results.html:36
 msgid "Encuesta: respondió"
 msgstr "Survey: answered"
 
-#: templates/live/results.html:23
+#: templates/live/results.html:24
 msgid "Volver a la suma de sus respuestas"
 msgstr "Back to the sum of their answers"
 
-#: templates/live/results.html:24
+#: templates/live/results.html:25
 #, python-format
 msgid ""
 "Nota manual de la clase (suma de sus respuestas: %(sum)s). Haga clic para "
@@ -7338,19 +7383,19 @@ msgstr ""
 "Manual grade for the class (sum of their answers: %(sum)s). Click to change "
 "it."
 
-#: templates/live/results.html:24
+#: templates/live/results.html:25
 msgid "Haga clic para asignar una nota manual en esta clase"
 msgstr "Click to assign a manual grade for this class"
 
-#: templates/live/results.html:31 templates/live/results.html:48
+#: templates/live/results.html:32 templates/live/results.html:49
 msgid "Invitados"
 msgstr "Guests"
 
-#: templates/live/results.html:45
+#: templates/live/results.html:46
 msgid "* Encuesta: se registra lo elegido y no cuenta para la nota."
 msgstr "* Survey: the choice is recorded and does not count toward the grade."
 
-#: templates/live/results.html:45
+#: templates/live/results.html:46
 msgid ""
 "Haga clic en una nota para corregirla manualmente; ✎ identifica las notas "
 "corregidas. También puede corregirse el total, que reemplaza la suma de toda "
@@ -7361,7 +7406,7 @@ msgstr ""
 "can also be corrected; it replaces the sum for the whole class (for example, "
 "for an excused absence). The class leaderboard does not change."
 
-#: templates/live/results.html:49
+#: templates/live/results.html:50
 msgid ""
 "Los invitados no cuentan para ninguna nota. Si un invitado era un estudiante "
 "que aún no se había inscrito, asígnelo a su cuenta: sus respuestas pasan al "
@@ -7371,7 +7416,7 @@ msgstr ""
 "enrolled yet, assign them to their account: their answers move to the "
 "student and the guest account is deleted."
 
-#: templates/live/results.html:53
+#: templates/live/results.html:54
 #, python-format
 msgid ""
 "¿Asignar las respuestas de «%(g)s» al estudiante elegido? La cuenta de "
@@ -7380,23 +7425,23 @@ msgstr ""
 "Assign the answers of “%(g)s” to the chosen student? The guest account is "
 "deleted."
 
-#: templates/live/results.html:60
+#: templates/live/results.html:61
 msgid "— Estudiante ausente —"
 msgstr "— Absent student —"
 
-#: templates/live/results.html:63
+#: templates/live/results.html:64
 msgid "Asignar"
 msgstr "Assign"
 
-#: templates/live/results.html:65
+#: templates/live/results.html:66
 msgid "Se puede asignar cuando termine la clase."
 msgstr "Can be assigned once the class ends."
 
-#: templates/live/results.html:73
+#: templates/live/results.html:74
 msgid "Revisar respuestas"
 msgstr "Review answers"
 
-#: templates/live/results.html:74
+#: templates/live/results.html:75
 msgid ""
 "Si una respuesta correcta no estaba prevista en el ítem, puede aceptarse "
 "para todos los estudiantes que la dieron."
@@ -7404,60 +7449,60 @@ msgstr ""
 "If a correct answer was not anticipated by the item, it can be accepted for "
 "every student who gave it."
 
-#: templates/live/results.html:79
+#: templates/live/results.html:80
 #, python-format
 msgid "%(n)s respuesta distinta"
 msgid_plural "%(n)s respuestas distintas"
 msgstr[0] "%(n)s distinct answer"
 msgstr[1] "%(n)s distinct answers"
 
-#: templates/live/results.html:87
+#: templates/live/results.html:88
 msgid "de"
 msgstr "of"
 
-#: templates/live/results.html:87
+#: templates/live/results.html:88
 #, python-format
 msgid "Corregida manualmente; automática: %(auto)s"
 msgstr "Corrected manually; automatic: %(auto)s"
 
-#: templates/live/results.html:91
+#: templates/live/results.html:92
 msgid "Dar por correcta a todos los que la dieron"
 msgstr "Mark as correct for everyone who gave it"
 
-#: templates/live/results.html:91
+#: templates/live/results.html:92
 msgid "Dar por correcta"
 msgstr "Mark as correct"
 
-#: templates/live/results.html:92
+#: templates/live/results.html:93
 msgid "Dar por incorrecta a todos los que la dieron"
 msgstr "Mark as wrong for everyone who gave it"
 
-#: templates/live/results.html:92
+#: templates/live/results.html:93
 msgid "Dar por incorrecta"
 msgstr "Mark as wrong"
 
-#: templates/live/results.html:93
+#: templates/live/results.html:94
 msgid "Volver a la nota automática"
 msgstr "Back to the automatic grade"
 
-#: templates/live/results.html:106
+#: templates/live/results.html:107
 msgid "Retroalimentación anónima"
 msgstr "Anonymous feedback"
 
-#: templates/live/results.html:109
+#: templates/live/results.html:110
 #, python-format
 msgid "Promedio <strong>%(avg)s</strong> de 5 · %(n)s respuestas."
 msgstr "Average <strong>%(avg)s</strong> out of 5 · %(n)s responses."
 
-#: templates/live/results.html:117
+#: templates/live/results.html:118
 msgid "Comentarios"
 msgstr "Comments"
 
-#: templates/live/results.html:117
+#: templates/live/results.html:118
 msgid "en orden aleatorio"
 msgstr "in random order"
 
-#: templates/live/results.html:121
+#: templates/live/results.html:122
 #, python-format
 msgid ""
 "%(n)s respuesta hasta ahora. El resumen aparece cuando haya al menos "
@@ -7471,6 +7516,21 @@ msgstr[0] ""
 msgstr[1] ""
 "%(n)s responses so far. The summary appears once there are at least %(min)s, "
 "so nobody can work out who answered what."
+
+#: templates/live/review.html:28
+#, python-format
+msgid "Clase del %(when)s"
+msgstr "Class of %(when)s"
+
+#: templates/live/review.html:30
+msgid ""
+"Este repaso no se califica. Puede consultar la respuesta de cada pregunta "
+"con «Ver la respuesta»."
+msgstr "This review is not graded. You can see the answer to each question with “Show the answer”."
+
+#: templates/live/review.html:36
+msgid "Esta clase no tiene diapositivas para repasar."
+msgstr "This class has no slides to review."
 
 #: templates/live/studio.html:3
 #, python-format

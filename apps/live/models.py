@@ -125,6 +125,9 @@ class LiveSession(models.Model):
     phase = models.CharField(max_length=10, choices=Phase.choices, default=Phase.CONTENT)
     #: Índices de las preguntas que ya se abrieron; volver a una muestra sus resultados.
     opened = models.JSONField(default=list)
+    #: Índices de las diapositivas que se proyectaron. El repaso de la clase (`review.py`) muestra
+    #: solo estas: lo que el docente no alcanzó a mostrar puede ser parte de la próxima clase.
+    shown = models.JSONField(default=list)
     opened_at = models.DateTimeField(null=True, blank=True)
     closes_at = models.DateTimeField(null=True, blank=True)
     paused_at = models.DateTimeField(null=True, blank=True)

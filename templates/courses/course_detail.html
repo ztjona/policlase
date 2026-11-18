@@ -73,6 +73,24 @@
   <p class="small"><a href="{% url 'my_grades' course.pk %}">{% translate "Calificaciones" %}</a></p>
 {% endif %}
 
+{% if class_groups %}
+  {# Las clases terminadas, para repasarlas (live/review.html). Solo la unidad de la última clase viene desplegada. #}
+  <h2>{% translate "Clases" %}</h2>
+  {% for g in class_groups %}
+    {% if g.section or class_groups|length > 1 %}
+      <details class="unit" {% if g.current %}open{% endif %}>
+        <summary>
+          <span class="unit-title">{% if g.section %}{{ g.section.title }}{% else %}{% translate "Otras clases" %}{% endif %}</span>
+          <span class="chip">{% blocktranslate count n=g.sessions|length %}{{ n }} clase{% plural %}{{ n }} clases{% endblocktranslate %}</span>
+        </summary>
+        <div class="unit-body review-rows">{% include "live/_review_rows.html" with sessions=g.sessions %}</div>
+      </details>
+    {% else %}
+      <div class="card review-rows">{% include "live/_review_rows.html" with sessions=g.sessions %}</div>
+    {% endif %}
+  {% endfor %}
+{% endif %}
+
 {% if course.description %}
   <h2>{% translate "Acerca del curso" %}</h2>
   <div class="card">{{ course.description|linebreaks }}</div>

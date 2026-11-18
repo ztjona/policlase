@@ -1256,3 +1256,143 @@ class UnifiedClassTests(LiveBase):
         self.client.force_login(self.teacher)
         self.assertContains(self.client.get(reverse("present_fragment", args=[session.pk])), "Encuesta: 1 respuestas")
         self.assertContains(self.client.get(reverse("session_results", args=[session.pk])), "Encuesta: se registra")
+
+
+class ClassReviewTests(LiveBase):
+    """Repaso de una clase terminada (review.py): lo que se proyectó, con la respuesta de cada pregunta
+    a pedido, sin notas ni puntos."""
+
+    def taught(self):
+        """Una clase que proyecta las diapositivas 1 a 4 (abre solo la primera pregunta) y termina."""
+        session = self.start()
+        self.goto_first_question(session)
+        for action in ("open", "close", "reveal", "next", "next"):
+            engine.apply(session.pk, action)
+        engine.apply(session.pk, "end")
+        session.refresh_from_db()
+        return session
+
+    def review(self, session, user=None):
+        self.client.force_login(user or self.ana)
+        return self.client.get(reverse("class_review", args=[self.course.pk, session.pk]))
+
+    def test_se_registra_lo_que_se_proyecto(self):
+        session = self.start()
+        self.assertEqual(session.shown, [])                            # la sala de espera no cuenta
+        engine.apply(session.pk, "start")
+        engine.apply(session.pk, "next")
+        session = engine.apply(session.pk, "goto", index=6)
+        self.assertEqual(session.shown, [0, 1, 6])
+        session = engine.apply(session.pk, "prev")                     # volver no repite
+        self.assertEqual(session.shown, [0, 1, 5, 6])
+
+    def test_el_estudiante_repasa_lo_proyectado_con_las_respuestas(self):
+        session = self.taught()
+        page = self.review(session)
+        self.assertEqual(page.status_code, 200)
+        html = page.content.decode()
+        bolzano, iterations = session.slides[1], session.slides[3]
+        self.assertIn("Este repaso no se califica", html)
+        # La respuesta de cada pregunta proyectada, también la que no se abrió.
+        right = next(o for o in bolzano["question"]["options"] if o["key"] in bolzano["solution"]["correct"])
+        self.assertRegex(html, r'class="option o\d is-answer"')
+        self.assertIn(right["text"], html)
+        self.assertEqual(html.count('class="when-closed"'), 2)         # las preguntas 1 y 3
+        self.assertIn(f'<li>{iterations["solution"]["solution"]}</li>', html.replace("\n", ""))
+        # Lo que no se proyectó no aparece; las notas del docente y los puntos, tampoco.
+        self.assertNotIn(session.slides[4]["question"]["prompt"][:30], html)
+        self.assertNotIn(session.slides[0]["notes"][:20], html)
+        self.assertNotIn(" pt ", html)
+        self.assertNotIn("¿Cómo estuvo la clase?", html)
+
+    def test_aparece_en_la_pagina_del_curso(self):
+        session = self.taught()
+        self.client.force_login(self.ana)
+        page = self.client.get(reverse("course_detail", args=[self.course.pk]))
+        self.assertContains(page, reverse("class_review", args=[self.course.pk, session.pk]))
+        # El docente lo encuentra en los resultados de la clase.
+        self.client.force_login(self.teacher)
+        page = self.client.get(reverse("session_results", args=[session.pk]))
+        self.assertContains(page, reverse("class_review", args=[self.course.pk, session.pk]))
+
+    def test_una_clase_iniciada_por_error_no_se_repasa(self):
+        session = self.start()
+        engine.apply(session.pk, "start")
+        engine.apply(session.pk, "end")
+        self.assertEqual(self.review(session).status_code, 404)
+        page = self.client.get(reverse("course_detail", args=[self.course.pk]))
+        self.assertNotContains(page, reverse("class_review", args=[self.course.pk, session.pk]))
+
+    def test_una_clase_sin_terminar_no_se_repasa(self):
+        session = self.start()
+        self.goto_first_question(session)
+        engine.apply(session.pk, "next")
+        self.assertEqual(self.review(session).status_code, 404)
+        engine.apply(session.pk, "pause")
+        self.assertEqual(self.review(session).status_code, 404)
+
+    def test_sin_respuestas_mientras_hay_una_clase_con_esas_preguntas(self):
+        first = self.taught()
+        self.client.post(reverse("session_start", args=[self.course.pk, self.deck.pk]))   # la misma, otra vez
+        page = self.review(first)
+        self.assertNotContains(page, 'class="when-closed"')
+        self.assertNotContains(page, "is-answer")
+        self.assertContains(page, "se mostrará cuando termine la clase en curso")
+
+    def test_las_preguntas_salen_en_su_version_vigente(self):
+        session = self.taught()
+        # El docente corrige la clave de la primera pregunta después de la clase.
+        compiled = self.deck.compiled
+        question = compiled["slides"][1]
+        question["solution"]["correct"] = [question["question"]["options"][0]["key"]]
+        Deck.objects.filter(pk=self.deck.pk).update(compiled=compiled)
+        html = self.review(session).content.decode()
+        self.assertRegex(html, r'class="option o0 is-answer"')
+        self.assertEqual(len(re.findall(r"is-answer", html)), 1)
+        # Sin la presentación, todo sale de la copia de la clase.
+        self.deck.delete()
+        html = self.review(session).content.decode()
+        self.assertNotRegex(html, r'class="option o0 is-answer"')
+        self.assertIn("is-answer", html)
+
+    def test_acceso(self):
+        session = self.taught()
+        self.assertEqual(self.review(session, self.teacher).status_code, 200)   # su docente
+        for user in (self.outsider, make_user("otra", User.Role.TEACHER)):
+            self.assertEqual(self.review(session, user).status_code, 404, user.username)
+        # Un invitado vuelve a su clase o sale (accounts.middleware), nunca ve el repaso.
+        self.assertEqual(self.review(session, make_user("visita", User.Role.GUEST)).status_code, 302)
+        other = Course.objects.create(owner=self.teacher, name="Otro", code="OT-1")
+        self.client.force_login(self.ana)
+        self.assertEqual(self.client.get(reverse("class_review", args=[other.pk, session.pk])).status_code, 404)
+        self.client.logout()
+        self.assertEqual(self.client.get(reverse("class_review", args=[self.course.pk, session.pk])).status_code, 302)
+
+    def test_vista_de_solo_lectura(self):
+        from apps.accounts.models import ReadOnlyLink
+
+        session = self.taught()
+        link = ReadOnlyLink.objects.create(student=self.ana)
+        self.client.logout()
+        self.client.get(reverse("readonly_open", args=[link.token]))
+        page = self.client.get(reverse("class_review", args=[self.course.pk, session.pk]))
+        self.assertContains(page, "Ver la respuesta")
+
+    def test_las_clases_anteriores_se_estiman(self):
+        import importlib
+
+        from django.apps import apps as django_apps
+
+        migration = importlib.import_module("apps.live.migrations.0009_shown_slides")
+        slides = self.deck.slides
+        slides[2]["hidden"] = True
+        session = LiveSession.objects.create(course=self.course, deck=self.deck, title="x", slides=slides,
+                                             status=Status.ENDED, index=3, opened=[5])
+        lobby = LiveSession.objects.create(course=self.course, deck=self.deck, title="y", slides=slides,
+                                           status=Status.ENDED, index=0)
+        LiveSession.objects.filter(pk=lobby.pk).update(status=Status.LOBBY)
+        migration.backfill(django_apps, None)
+        session.refresh_from_db()
+        lobby.refresh_from_db()
+        self.assertEqual(session.shown, [0, 1, 3, 4, 5])               # hasta la pregunta abierta, sin la oculta
+        self.assertEqual(lobby.shown, [])

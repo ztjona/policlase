@@ -1,0 +1,8 @@
+{% load i18n %}
+{# Las clases que se pueden repasar, en orden de fecha (página del curso). #}
+{% for s in sessions %}
+  <div class="deck-row">
+    <div class="deck-info"><a href="{% url 'class_review' course.pk s.pk %}"><strong>{{ s.title }}</strong></a></div>
+    <span class="small muted">{{ s.started_at|default:s.created_at|date:"D d M" }}</span>
+  </div>
+{% endfor %}

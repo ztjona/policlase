@@ -22,6 +22,7 @@ from apps.courses.models import Enrollment
 from . import engine
 from .guests import qr_svg
 from .models import Deck, LiveSession, Response, Section, SessionGrade
+from .review import reviewable
 
 Phase = LiveSession.Phase
 Status = LiveSession.Status
@@ -257,6 +258,7 @@ def session_results(request, pk):
         "rows": rows, "guests": guests, "max_points": max_points, "absent": absent,
         "has_survey": any(q["question"].get("survey") for _, q in questions),
         "feedback": engine.feedback_summary(session) if session.has_feedback else None,
+        "reviewable": reviewable(session),
     })
 
 

@@ -5,6 +5,7 @@
 <div class="muted small"><a href="{% url 'course_manage' course.pk %}">{{ course.name }}</a></div>
 <h1>{{ session.title }}</h1>
 <p class="muted">{{ session.started_at|default:session.created_at|date:"DATETIME_FORMAT" }} · {% blocktranslate with max=max_points|floatformat:"-1" %}máximo {{ max }} puntos{% endblocktranslate %} · {% translate "categoría <em>participación</em>" %}</p>
+{% if reviewable %}<p class="small"><a href="{% url 'class_review' course.pk session.pk %}">{% translate "Ver el repaso que consultan los estudiantes" %}</a></p>{% endif %}
 <div class="card table-wrap" id="notas">
   <table>
     <thead><tr>

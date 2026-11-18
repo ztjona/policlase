@@ -109,7 +109,9 @@ def enrollment_dismiss(request, pk):
 @login_required
 def course_detail(request, pk):
     """Página del curso para estudiantes aprobados (y para su docente)."""
+    from apps.github.models import CourseRepo
     from apps.live.models import LiveSession
+    from apps.live.review import class_groups
 
     course = get_object_or_404(Course.objects.select_related("owner"), pk=pk)
     if not can_view_course(request.user, course):
@@ -119,6 +121,8 @@ def course_detail(request, pk):
     return render(request, "courses/course_detail.html", {
         "course": course,
         "live": LiveSession.objects.active().filter(course=course).first(),
+        # Las clases terminadas, para repasarlas (apps/live/review.py).
+        "class_groups": class_groups(course, linked=CourseRepo.objects.filter(course=course).exists()),
         "activities": [r for r in rows if not r["activity"].is_evaluation],
         "evaluations": sorted([r for r in rows if r["activity"].is_evaluation],
                               key=lambda r: r["activity"].opens_at or timezone.now()),
@@ -177,7 +181,8 @@ def course_manage(request, pk, tab="clases"):
     `course_settings`."""
     from apps.github import sync
     from apps.github.models import CourseRepo
-    from apps.live.models import Deck, LiveSession, Section
+    from apps.live.models import Deck, LiveSession
+    from apps.live.sections import ordered as ordered_sections
 
     course = owned_course(request, pk)
     link = CourseRepo.objects.filter(course=course).first()
@@ -208,9 +213,7 @@ def course_manage(request, pk, tab="clases"):
         for d in decks:
             d.taught = taught.get(d.pk, [])
         key = (lambda d: sync.natural_key(d.github_path)) if link else (lambda d: d.pk)
-        sections = list(Section.objects.filter(course=course))
-        if link:
-            sections.sort(key=lambda s: (not s.github_folder, sync.natural_key(s.github_folder), s.pk))
+        sections = ordered_sections(course, linked=bool(link))
         # Las secciones primero y lo que no tiene sección al final: la unidad en curso no queda
         # enterrada bajo una lista creciente de presentaciones sin sección.
         groups = [{"section": s,

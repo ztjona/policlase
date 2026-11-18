@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: policlase\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-16 15:56-0500\n"
+"POT-Creation-Date: 2026-11-18 12:57-0500\n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -24,54 +24,55 @@ msgstr "Students can follow your position"
 msgid "sin conexión"
 msgstr "offline"
 
-#: static/js/activity-teacher.js:49
+#: static/js/activity-teacher.js:51
 msgid "Buscando las respuestas por calificar…"
 msgstr "Looking for answers to grade…"
 
-#: static/js/activity-teacher.js:52
+#: static/js/activity-teacher.js:54
 msgid "No hay respuestas que esperen una propuesta."
 msgstr "No answers are waiting for a proposal."
 
-#: static/js/activity-teacher.js:54
+#: static/js/activity-teacher.js:56
 #, javascript-format
 msgid "%s de %s propuestas generadas"
 msgstr "%s of %s proposals generated"
 
-#: static/js/activity-teacher.js:55
+#: static/js/activity-teacher.js:57
 #, javascript-format
 msgid "%s con error"
 msgstr "%s with errors"
 
-#: static/js/activity-teacher.js:68
+#: static/js/activity-teacher.js:70
 msgid "Listo. Revíselas en «Revisar por pregunta»."
 msgstr "Done. Review them in “Review by question”."
 
-#: static/js/activity-teacher.js:72 static/js/activity-teacher.js:98
+#: static/js/activity-teacher.js:74 static/js/activity-teacher.js:100
 #: static/js/debate.js:61
 msgid "Sin conexión. Inténtelo de nuevo."
 msgstr "No connection. Please try again."
 
-#: static/js/activity-teacher.js:81
+#: static/js/activity-teacher.js:83
 msgid "Consultando a la IA…"
 msgstr "Asking the AI…"
 
-#: static/js/activity-teacher.js:84
+#: static/js/activity-teacher.js:86
 msgid "No se pudo generar la propuesta."
 msgstr "The proposal could not be generated."
 
-#: static/js/activity-teacher.js:97
+#: static/js/activity-teacher.js:99
 msgid "La propuesta está lista. Revise la nota y el comentario, y guárdelos."
-msgstr "The proposal is ready. Review the grade and the comment, and save them."
+msgstr ""
+"The proposal is ready. Review the grade and the comment, and save them."
 
-#: static/js/activity-teacher.js:150 static/js/activity.js:70
+#: static/js/activity-teacher.js:152 static/js/activity.js:111
 msgid "Guardando…"
 msgstr "Saving…"
 
-#: static/js/activity-teacher.js:157
+#: static/js/activity-teacher.js:159
 msgid "calificada"
 msgstr "graded"
 
-#: static/js/activity-teacher.js:160
+#: static/js/activity-teacher.js:162
 msgid "Sin conexión: no se guardó."
 msgstr "Offline: not saved."
 
@@ -79,7 +80,7 @@ msgstr "Offline: not saved."
 msgid "En esta respuesta no está permitido pegar texto."
 msgstr "Pasting text is not allowed in this answer."
 
-#: static/js/activity.js:59
+#: static/js/activity.js:100
 msgid ""
 "Su sesión se cerró y los últimos cambios no se guardaron. Copie sus "
 "respuestas recientes, recargue la página e ingrese de nuevo."
@@ -87,7 +88,7 @@ msgstr ""
 "Your session ended and your latest changes were not saved. Copy your recent "
 "answers, reload the page and sign in again."
 
-#: static/js/activity.js:60
+#: static/js/activity.js:101
 msgid ""
 "Este borrador ya no está abierto; es posible que se haya enviado desde otra "
 "pestaña. Recargue la página."
@@ -95,7 +96,7 @@ msgstr ""
 "This draft is no longer open; it may have been submitted from another tab. "
 "Reload the page."
 
-#: static/js/activity.js:61
+#: static/js/activity.js:102
 msgid ""
 "El servidor no pudo guardar los cambios. Puede seguir escribiendo; se "
 "volverá a intentar automáticamente."
@@ -103,34 +104,34 @@ msgstr ""
 "The server could not save your changes. You can keep writing; it will retry "
 "automatically."
 
-#: static/js/activity.js:62
+#: static/js/activity.js:103
 msgid ""
 "Sin conexión: no se guardó. Puede seguir escribiendo; se volverá a intentar "
 "automáticamente."
 msgstr "Offline: not saved. You can keep writing; it will retry automatically."
 
-#: static/js/activity.js:85
+#: static/js/activity.js:126
 #, javascript-format
 msgid "Guardado automáticamente a las %s"
 msgstr "Saved automatically at %s"
 
-#: static/js/activity.js:149
+#: static/js/activity.js:192
 msgid "Subiendo imagen…"
 msgstr "Uploading image…"
 
-#: static/js/activity.js:167
+#: static/js/activity.js:210
 msgid "No se pudo subir la imagen. Revise su conexión e intente de nuevo."
 msgstr "The image could not be uploaded. Check your connection and try again."
 
-#: static/js/activity.js:170
+#: static/js/activity.js:213
 msgid "Imagen guardada."
 msgstr "Image saved."
 
-#: static/js/activity.js:228
+#: static/js/activity.js:271
 msgid "Sin conexión: no se pudo enviar. Se volverá a intentar automáticamente."
 msgstr "Offline: could not be sent. It will retry automatically."
 
-#: static/js/activity.js:256
+#: static/js/activity.js:299
 msgid ""
 "Todavía no ha respondido esta pregunta. Si la cierra ahora, ya no podrá "
 "responderla. ¿Cerrarla?"
@@ -138,39 +139,43 @@ msgstr ""
 "You have not answered this question yet. If you close it now, you will not "
 "be able to answer it. Close it?"
 
-#: static/js/activity.js:314
+#: static/js/activity.js:357
 msgid "Sin conexión: no se pudo comprobar. Inténtelo de nuevo."
 msgstr "No connection: it could not be checked. Please try again."
 
-#: static/js/activity.js:398
+#: static/js/activity.js:441
 #, javascript-format
 msgid "Queda %s pregunta sin responder, que vale cero."
 msgid_plural "Quedan %s preguntas sin responder, que valen cero."
 msgstr[0] "%s question is unanswered and is worth zero."
 msgstr[1] "%s questions are unanswered and are worth zero."
 
-#: static/js/activity.js:400
+#: static/js/activity.js:443
 #, javascript-format
 msgid "%s pregunta está marcada para revisar."
 msgid_plural "%s preguntas están marcadas para revisar."
 msgstr[0] "%s question is marked for review."
 msgstr[1] "%s questions are marked for review."
 
-#: static/js/activity.js:478
+#: static/js/activity.js:481
 msgid "Quedan 10 minutos de evaluación."
 msgstr "10 minutes of the assessment remain."
 
-#: static/js/activity.js:478
+#: static/js/activity.js:481
 msgid "Quedan 2 minutos de evaluación."
 msgstr "2 minutes of the assessment remain."
 
-#: static/js/activity.js:496
+#: static/js/activity.js:499
 msgid "Se acabó el tiempo. Se está enviando la evaluación…"
 msgstr "Time is up. The assessment is being submitted…"
 
-#: static/js/activity.js:544
+#: static/js/activity.js:547
 msgid "el comienzo de la actividad"
 msgstr "the beginning of the activity"
+
+#: static/js/class-review.js:30
+msgid "Diapositiva %(n)s de %(total)s"
+msgstr "Slide %(n)s of %(total)s"
 
 #: static/js/debate.js:56
 msgid "No se pudo registrar el «me gusta»."
@@ -341,21 +346,21 @@ msgstr "One-line option"
 msgid "Afirmación en una línea"
 msgstr "One-line statement"
 
-#: static/js/studio.js:639
+#: static/js/studio.js:642
 msgid ""
 "El texto se reemplazará por la plantilla del otro tipo. ¿Desea continuar?"
 msgstr ""
 "The text will be replaced with the other type's template. Do you want to "
 "continue?"
 
-#: static/js/studio.js:644
+#: static/js/studio.js:647
 msgid "Nueva actividad"
 msgstr "New activity"
 
-#: static/js/studio.js:644
+#: static/js/studio.js:647
 msgid "Nueva presentación"
 msgstr "New presentation"
 
-#: static/js/studio.js:653
+#: static/js/studio.js:656
 msgid "El archivo supera 512 KB."
 msgstr "The file is larger than 512 KB."

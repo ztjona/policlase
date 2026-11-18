@@ -975,6 +975,28 @@ button.like.on { color: var(--accent); border-color: var(--accent); background: 
 .explain .when-open, .explain[open] .when-closed { display: none; }
 .explain[open] .when-open { display: inline; }
 .explain-body { margin-top: 10px; border-left: 3px solid var(--ok); padding: 4px 0 4px 14px; }
+
+/* Repaso de una clase (live/review.html): una diapositiva a la vez y la barra de navegación abajo, siempre
+   a la vista. La opción correcta se marca solo al abrir «Ver la respuesta». */
+.review-slide { scroll-margin-top: 12px; }
+.review-stage { font-size: clamp(16px, 1.5vw, 21px); padding: 6px 0 10px; max-width: none; justify-content: flex-start; }
+.review-stage h1 { font-size: 1.6em; }
+.review.one-by-one .review-num { display: none; }
+.review-slide .option .mark { display: none; margin-left: auto; font-weight: 900; }
+.review-slide:has(.reveal[open]) .option:not(.is-answer) { opacity: .35; }
+.review-slide:has(.reveal[open]) .option.is-answer { outline: .18em solid var(--ok); outline-offset: .12em; }
+.review-slide:has(.reveal[open]) .option .mark { display: inline; }
+.review-note { margin: 0; }
+.answer-lines { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.answer-tag { display: inline-block; min-width: 1.6em; padding: 0 .35em; border-radius: 6px; text-align: center;
+  font-family: var(--mono); font-weight: 800; background: var(--ok-soft); color: var(--ok); }
+.review-nav { position: sticky; bottom: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+  justify-content: center; margin-top: 12px; padding: 10px 0; background: var(--ground); border-top: 1px solid var(--rule); }
+.review-nav .progress { min-width: 9em; text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; }
+.review-toc .toc-num { display: inline-block; min-width: 1.8em; color: var(--muted); font-variant-numeric: tabular-nums; }
+.review-rows { padding: 4px 14px; }
+.review-rows .deck-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--rule); }
+.review-rows .deck-row:last-child { border-bottom: 0; }
 .debate-summary { align-items: center; gap: 8px; }
 .radio-row input.when-input { width: auto; flex: 0 1 auto; white-space: nowrap; }
 #debate-settings .radio-row { white-space: nowrap; flex-wrap: wrap; }

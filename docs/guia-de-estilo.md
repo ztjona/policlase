@@ -140,7 +140,7 @@ Reglas de interacción:
 |---|---|
 | `accounts` | usuarios (estudiante, docente, invitado), registro, preferencias (idioma, zona horaria, tema) |
 | `courses` | cursos, inscripción con código y aprobación, **reglas de acceso** (`access.py`) |
-| `live` | secciones, presentaciones, el **editor único** de presentaciones y actividades (`studio.py`), clases en vivo (`engine.py`), resultados, nota manual de una clase, invitados, retroalimentación |
+| `live` | secciones, presentaciones, el **editor único** de presentaciones y actividades (`studio.py`), clases en vivo (`engine.py`), resultados, nota manual de una clase, invitados, retroalimentación, repaso de las clases terminadas (`review.py`) |
 | `github` | cuentas (token cifrado), vínculo curso-carpeta, sincronización |
 | `grades` | parciales, tabla de ponderaciones, reglas de aprobación, fechas clave, registros manuales (`matching.py` empareja listas pegadas), cálculo de notas (`gradebook.py`) |
 | `activities` | actividades, intentos (`engine.py`), respuestas calificadas, imágenes entregadas (`images.py`) |
@@ -176,7 +176,7 @@ desde 0.27; «Compartir en solo lectura», en su menú):
 - **No es un inicio de sesión:** la sesión de quien mira guarda solo el token, y cada petición vuelve a
   comprobarlo, así que revocarlo corta el acceso al instante. Con una sesión propia iniciada no se abre.
 - **Tres barreras independientes:** una lista de páginas permitidas (`ALLOWED`: cursos, actividades
-  con su revisión, calificaciones; nunca la cuenta, las clases en vivo, los intentos en curso ni la
+  con su revisión, repaso de las clases, calificaciones; nunca la cuenta, las clases en vivo, los intentos en curso ni la
   administración), solo GET salvo idioma, tema y salir (`WRITABLE`), y cada vista dentro de una
   transacción que se deshace. Una página nueva queda fuera de la vista hasta que se agrega a `ALLOWED`.
 - Idioma, zona horaria y tema son los del navegador de quien mira; nada se guarda en la cuenta.
@@ -192,6 +192,28 @@ desde 0.27; «Compartir en solo lectura», en su menú):
   interesa al proyector.
 - El flujo SSE envía solo versiones; cada página pide su fragmento HTML. Todos los flujos de una clase
   comparten un sondeo por proceso y devuelven la conexión al pool tras cada consulta.
+
+### Repaso de las clases
+
+Terminada una clase, sus estudiantes la repasan desde la página del curso (`apps/live/review.py`,
+desde 0.28): una diapositiva a la vez, con un índice y las flechas del teclado, y la respuesta de
+cada pregunta tras «Ver la respuesta». Es material de estudio y no una actividad:
+
+- **Sin nota ni registro.** No se responde, no se guarda nada y no se muestran puntos, tiempos, el
+  marcador ni lo que respondió cada uno. Tampoco las notas del docente ni la retroalimentación.
+- **Solo lo que se proyectó** (`LiveSession.shown`, que `engine` anota en cada cambio de
+  diapositiva): lo que el docente no alcanzó a mostrar, u ocultó en esa clase, puede ser parte de la
+  próxima. Las clases anteriores a 0.28 se estiman hasta la diapositiva más avanzada que se conoce
+  (donde terminó o la última pregunta abierta). Las preguntas proyectadas muestran su respuesta
+  aunque no se hayan abierto: el docente suele resolverlas en la pizarra.
+- Una clase iniciada por error (menos de dos diapositivas proyectadas) no aparece, y una sin
+  terminar (en la sala de espera, en curso o en pausa) tampoco.
+- **Ninguna respuesta durante una clase:** mientras una clase del curso no termine, sus preguntas
+  (por `item_id`) no muestran la respuesta en ningún repaso, porque podrían estar abiertas.
+- **Preguntas en su versión vigente:** cada una se toma de la presentación actual por su `item_id`,
+  para que una clave corregida después de la clase llegue al repaso; el contenido, como se proyectó.
+- La página del curso lista las clases por unidad, con solo la unidad de la última clase
+  desplegada. El docente llega al repaso desde los resultados de la clase.
 
 ### Actividades y notas
 

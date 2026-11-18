@@ -6,8 +6,8 @@ que el enlace exista y esté vigente, de modo que revocarlo corta el acceso de i
 
 Tres barreras independientes impiden que algo se modifique:
 
-1. Solo se abren las páginas de `ALLOWED`: los cursos, las actividades con su revisión y las
-   calificaciones. La cuenta, las clases en vivo, los intentos en curso y la administración responden
+1. Solo se abren las páginas de `ALLOWED`: los cursos, las actividades con su revisión, el repaso de
+   las clases terminadas y las calificaciones. La cuenta, las clases en vivo, los intentos en curso y la administración responden
    con un aviso. Es una lista de lo permitido y no de lo prohibido: una página nueva queda fuera hasta
    que se decida incluirla.
 2. Solo se aceptan GET y HEAD, salvo para salir de la vista y para cambiar el idioma o el tema, que en
@@ -33,7 +33,7 @@ SESSION_KEY = "policlase_readonly"
 
 #: Las páginas que se pueden abrir en la vista de solo lectura (nombres de URL).
 ALLOWED = frozenset({
-    "home", "course_detail", "activity_student", "my_grades", "upload_file",
+    "home", "course_detail", "activity_student", "class_review", "my_grades", "upload_file",
     "about", "favicon", "javascript-catalog", "set_language", "set_theme",
     "readonly_open", "readonly_exit",
 })

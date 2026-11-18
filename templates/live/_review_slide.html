@@ -1,0 +1,42 @@
+{% load i18n policlase %}
+{% comment %} Una diapositiva del repaso de una clase (review.html). Las opciones correctas llevan `is-answer`, que
+   solo se nota al abrir «Ver la respuesta» (app.css). Sin puntos, tiempos ni notas del docente. {% endcomment %}
+<section class="card review-slide" id="d{{ e.number }}" data-slide>
+  <div class="small muted review-num">{% blocktranslate with n=e.number total=slides|length %}Diapositiva {{ n }} de {{ total }}{% endblocktranslate %}</div>
+  {% with s=e.slide %}
+    <div class="slide review-stage">
+      {% if s.kind == "content" %}
+        {{ s.markdown|md }}
+      {% else %}
+        {% if s.stem %}<div>{{ s.stem|md }}</div>{% endif %}
+        <div class="prompt">{{ s.question.prompt|md }}</div>
+        {% if s.question.options %}
+          <div class="options">
+            {% for o in s.question.options %}
+              <div class="option o{{ forloop.counter0 }}{% if o.key in e.correct_keys %} is-answer{% endif %}"><span class="tag">{{ forloop.counter0|letter }}</span><span>{{ o.text|md_inline }}</span>{% if o.key in e.correct_keys %}<span class="mark" aria-hidden="true">✓</span>{% endif %}</div>
+            {% endfor %}
+          </div>
+        {% elif s.question.statements %}
+          <ol>{% for st in s.question.statements %}<li>{{ st.text|md_inline }}</li>{% endfor %}</ol>
+        {% endif %}
+      {% endif %}
+    </div>
+    {% if s.kind == "question" %}
+      {% if e.survey %}
+        <p class="small muted review-note">{% translate "Esta pregunta es una encuesta y no tiene una respuesta correcta." %}</p>
+      {% elif e.withheld %}
+        <p class="small muted review-note">{% translate "La respuesta de esta pregunta se mostrará cuando termine la clase en curso." %}</p>
+      {% elif e.answer %}
+        <details class="explain reveal">
+          <summary class="btn secondary small"><span class="when-closed">{% translate "Ver la respuesta" %}</span><span class="when-open">{% translate "Ocultar la respuesta" %}</span></summary>
+          <div class="explain-body">
+            <strong>{% translate "Respuesta correcta:" %}</strong>
+            <ul class="answer-lines">
+              {% for a in e.answer %}<li>{% if a.tag %}<span class="answer-tag">{{ a.tag }}</span> {% endif %}{{ a.text|md_inline }}</li>{% endfor %}
+            </ul>
+          </div>
+        </details>
+      {% endif %}
+    {% endif %}
+  {% endwith %}
+</section>

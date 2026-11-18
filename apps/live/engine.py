@@ -77,6 +77,14 @@ def game_score(points: float, elapsed_ms: int, limit_s: float | None, speed_bonu
     return round(1000 * points * factor)
 
 
+def _show(session: LiveSession, index: int) -> None:
+    """Llevar la clase a esa diapositiva y anotar que se proyectó (el repaso muestra solo eso)."""
+    session.index = index
+    session.phase = _phase_for(session, index)
+    if index not in session.shown:
+        session.shown = sorted([*session.shown, index])
+
+
 def _step(session: LiveSession, start: int, direction: int) -> int | None:
     """Siguiente diapositiva visible en esa dirección (las ocultas se saltan)."""
     i = start + direction
@@ -113,8 +121,8 @@ def apply(session_id: int, action: str, index: int | None = None) -> LiveSession
         if session.status != Status.LOBBY:
             raise ActionError(_("La clase ya empezó."))
         first = 0 if not session.slides[0].get("hidden") else _step(session, 0, 1)
-        session.status, session.started_at, session.index = Status.LIVE, now, first or 0
-        session.phase = _phase_for(session, session.index)
+        session.status, session.started_at = Status.LIVE, now
+        _show(session, first or 0)
 
     elif action in ("next", "prev"):
         if session.status != Status.LIVE:
@@ -124,8 +132,7 @@ def apply(session_id: int, action: str, index: int | None = None) -> LiveSession
         target = _step(session, session.index, 1 if action == "next" else -1)
         if target is None:
             raise ActionError(_("No hay más diapositivas en esa dirección."))
-        session.index = target
-        session.phase = _phase_for(session, target)
+        _show(session, target)
         session.opened_at = session.closes_at = None
 
     elif action == "goto":
@@ -137,8 +144,7 @@ def apply(session_id: int, action: str, index: int | None = None) -> LiveSession
         if index is None or not 0 <= index <= last:
             raise ActionError(_("Esa diapositiva no existe."))
         session.slides[index]["hidden"] = False
-        session.index = index
-        session.phase = _phase_for(session, index)
+        _show(session, index)
         session.opened_at = session.closes_at = None
 
     elif action in ("hide", "show"):

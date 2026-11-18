@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load static i18n policlase %}
+{% block title %}{{ session.title }}{% endblock %}
+{% block page_class %}attempt-page{% endblock %}
+{% block main %}
+{% comment %} Repaso de una clase terminada (apps/live/review.py): el índice a la izquierda, como en una actividad, y
+   una diapositiva a la vez (static/js/class-review.js). Sin JavaScript, las diapositivas van una debajo de otra. {% endcomment %}
+<div class="attempt-layout">
+  <nav class="attempt-side" id="side-outline" aria-label="{% translate 'Diapositivas' %}">
+    <button type="button" class="icon-btn side-rail" data-side-expand hidden title="{% translate 'Mostrar el índice' %}" aria-label="{% translate 'Mostrar el índice' %}">{% icon "chevron_right" 20 %}</button>
+    <div class="side-body">
+      <div class="side-head"><h2>{% translate "Índice" %}</h2>
+        <button type="button" class="icon-btn side-collapse" data-side-collapse hidden title="{% translate 'Ocultar el índice' %}" aria-label="{% translate 'Ocultar el índice' %}">{% icon "chevron_left" 18 %}</button>
+        <button type="button" class="icon-btn side-close" data-side-close title="{% translate 'Cerrar' %}" aria-label="{% translate 'Cerrar' %}">{% icon "close" 16 %}</button></div>
+      <ol class="toc review-toc">
+        {% for e in slides %}
+          <li><a href="#d{{ e.number }}" data-goto="{{ e.number }}"><span class="toc-num">{{ e.number }}</span>{{ e.slide|slide_title|md_inline }}</a>
+            {% if e.slide.kind == "question" %}<span class="toc-count">{% translate "Pregunta" %}</span>{% endif %}</li>
+        {% endfor %}
+      </ol>
+    </div>
+  </nav>
+
+  <div class="attempt-main">
+    <div class="small"><a class="muted" href="{% url 'course_detail' course.pk %}">← {{ course.name }}</a></div>
+    <h1>{{ session.title }}</h1>
+    <p class="muted">{% blocktranslate with when=session.started_at|default:session.created_at|date:"DATE_FORMAT" %}Clase del {{ when }}{% endblocktranslate %}{% if section %} · {{ section.title }}{% endif %}
+      · {% blocktranslate count n=slides|length %}{{ n }} diapositiva{% plural %}{{ n }} diapositivas{% endblocktranslate %}{% if questions %} · {% blocktranslate count n=questions %}{{ n }} pregunta{% plural %}{{ n }} preguntas{% endblocktranslate %}{% endif %}</p>
+    {% if answers %}<p class="small muted">{% translate "Este repaso no se califica. Puede consultar la respuesta de cada pregunta con «Ver la respuesta»." %}</p>{% endif %}
+
+    <div class="review" data-review>
+      {% for e in slides %}
+        {% include "live/_review_slide.html" %}
+      {% empty %}
+        <p class="muted">{% translate "Esta clase no tiene diapositivas para repasar." %}</p>
+      {% endfor %}
+    </div>
+
+    {% if slides %}
+      <div class="review-nav" data-review-nav hidden>
+        <button type="button" class="secondary" data-prev>{% icon "chevron_left" 18 %} {% translate "Anterior" %}</button>
+        <span class="progress" data-pos aria-live="polite"></span>
+        <button type="button" data-next>{% translate "Siguiente" %} {% icon "chevron_right" 18 %}</button>
+        <button type="button" class="secondary side-toggle" data-side-open="side-outline" hidden>{% translate "Índice" %}</button>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script defer src="{% static 'js/side-panels.js' %}"></script>
+<script defer src="{% static 'js/class-review.js' %}"></script>
+{% endblock %}
