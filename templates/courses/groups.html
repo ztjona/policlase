@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% load i18n policlase %}
+{% block title %}{% translate "Grupos" %} · {{ course.name }}{% endblock %}
+{% block main %}
+{% comment %} Los grupos del curso (courses.views.course_groups): cada uno con sus integrantes, para editarlo, y al
+   final el formulario de un grupo nuevo. Un estudiante puede estar en varios grupos. {% endcomment %}
+<div class="muted small"><a href="{% url 'course_settings' course.pk %}#grupos">← {% translate "Configuración del curso" %}</a></div>
+<h1>{% translate "Grupos" %}</h1>
+<p class="muted">{% translate "Arme los grupos del curso, por ejemplo los equipos de un proyecto. Un estudiante puede estar en varios grupos. En la configuración de cada actividad se elige a qué grupos va dirigida y qué secciones recibe cada grupo." %}</p>
+
+{% if not students %}
+  <p class="muted">{% translate "Aún no hay estudiantes aprobados." %}</p>
+{% endif %}
+
+{% for g in groups %}
+  <section class="card stack" id="grupo-{{ g.pk }}">
+    <div class="spread">
+      <h2 style="margin:0">{{ g.name }}</h2>
+      <span class="small muted">{% blocktranslate count n=g.roster|length %}{{ n }} integrante{% plural %}{{ n }} integrantes{% endblocktranslate %}{% if g.uses %} · {% blocktranslate count n=g.uses %}lo usa {{ n }} actividad{% plural %}lo usan {{ n }} actividades{% endblocktranslate %}{% endif %}</span>
+    </div>
+    <p class="small" style="margin:0">{% for m in g.roster %}{{ m.last_name }}, {{ m.first_name }}{% if not forloop.last %} · {% endif %}{% empty %}<span class="muted">{% translate "Sin integrantes." %}</span>{% endfor %}</p>
+    <details>
+      <summary class="small">{% translate "Editar el grupo" %}</summary>
+      <form method="post" class="stack" style="margin-top:10px" data-dirty>
+        {% csrf_token %}<input type="hidden" name="group" value="{{ g.pk }}">
+        <label style="margin:0">{% translate "Nombre" %} <input type="text" name="name" value="{{ g.name }}" maxlength="80" required></label>
+        {% include "courses/_group_members.html" with chosen=g.member_ids %}
+        <div class="row"><button name="action" value="save" class="small" data-dirty-enable>{% translate "Guardar el grupo" %}</button></div>
+      </form>
+      {% if g.uses %}
+        <p class="small muted">{% translate "Para eliminar este grupo, quítelo antes de los destinatarios y de las secciones de las actividades que lo usan." %}</p>
+      {% else %}
+        <form method="post" style="margin-top:8px"
+              onsubmit="return confirm('{% blocktranslate with name=g.name asvar msg %}¿Eliminar el grupo «{{ name }}»? Sus integrantes siguen inscritos en el curso.{% endblocktranslate %}{{ msg|escapejs }}')">
+          {% csrf_token %}<input type="hidden" name="group" value="{{ g.pk }}">
+          <button name="action" value="delete" class="danger small">{% translate "Eliminar el grupo" %}</button>
+        </form>
+      {% endif %}
+    </details>
+  </section>
+{% endfor %}
+
+{% if students %}
+<section class="card stack" id="nuevo">
+  <h2 style="margin:0">{% translate "Nuevo grupo" %}</h2>
+  <form method="post" class="stack">
+    {% csrf_token %}
+    <label style="margin:0">{% translate "Nombre" %} <input type="text" name="name" maxlength="80" required placeholder="{% translate 'p. ej. Grupo 1: metro' %}"></label>
+    {% include "courses/_group_members.html" with chosen=no_members %}
+    <div class="row"><button name="action" value="create">{% translate "Crear el grupo" %}</button></div>
+  </form>
+</section>
+{% endif %}
+
+{% if groups and alone %}
+  <h2>{% translate "Sin grupo" %} <span class="chip">{{ alone|length }}</span></h2>
+  <p class="small">{% for s in alone %}{{ s.last_name }}, {{ s.first_name }}{% if not forloop.last %} · {% endif %}{% endfor %}</p>
+{% endif %}
+{% endblock %}

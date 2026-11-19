@@ -4,6 +4,24 @@
 {% block main %}
 {% include "courses/_student_head.html" with tab="actividades" %}
 
+{% if infos %}
+  {# Lo que se lee (documentos sin preguntas: el enunciado de un proyecto, unas indicaciones), primero. #}
+  <h2>{% translate "Información" %}</h2>
+  <div class="card table-wrap">
+    <table>
+      <tbody>
+        {% for a in infos %}
+          <tr>
+            <td><a href="{% url 'activity_student' course.pk a.pk %}"><strong>{{ a.title }}</strong></a>
+              {% if a.section %}<div class="small muted">{{ a.section.title }}</div>{% endif %}</td>
+            <td class="small">{% if a.opens_at %}{% blocktranslate with when=a.opens_at|date:"D d M" %}desde el {{ when }}{% endblocktranslate %}{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+
 {% if evaluations %}
   <h2>{% translate "Evaluaciones" %}</h2>
   <div class="card table-wrap">
@@ -30,7 +48,7 @@
 {% endif %}
 
 {% if activities %}
-  {% if evaluations %}<h2>{% translate "Actividades" %}</h2>{% endif %}
+  {% if evaluations or infos %}<h2>{% translate "Actividades" %}</h2>{% endif %}
   <div class="card table-wrap">
     <table>
       <tbody>
@@ -54,7 +72,7 @@
       </tbody>
     </table>
   </div>
-{% elif not evaluations %}
+{% elif not evaluations and not infos %}
   <p class="muted">{% translate "Aún no hay actividades publicadas." %}</p>
 {% endif %}
 

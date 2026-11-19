@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% load i18n policlase %}
+{% block title %}{{ activity.title }}{% endblock %}
+{% block main %}
+{% comment %} Información (`Activity.is_info`): un documento sin preguntas, como el enunciado de un proyecto. Solo se
+   lee: no tiene intentos, fecha de entrega ni nota. {% endcomment %}
+<div class="muted small"><a href="{% url 'course_detail' course.pk %}">← {{ course.name }}</a></div>
+<h1>{{ activity.title }}</h1>
+<p class="small muted"><span class="chip">{% translate "Información" %}</span>
+  {% if activity.section %}{{ activity.section.title }} · {% endif %}{% translate "Para leer: no tiene preguntas, entrega ni nota." %}</p>
+{% if activity.compiled.instructions %}<div class="card">{{ activity.compiled.instructions|md }}</div>{% endif %}
+{% for item in blocks %}{% include "activities/_block_head.html" with index=None %}{% endfor %}
+{% endblock %}

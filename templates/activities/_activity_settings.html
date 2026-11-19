@@ -13,6 +13,7 @@
     <span class="helptext">{% translate "El parcial se propone según la fecha de entrega, y la ponderación muestra las filas de ese parcial. Si la fecha de entrega corresponde a otro parcial, la actividad pasa a la fila del mismo nombre en ese parcial." %} <a href="{% url 'grading_settings' course.pk %}">{% translate "Editar ponderaciones" %}</a></span>
     {% if mismatch %}<div class="notice small">{% blocktranslate with p=mismatch.name row=activity.category %}Vence en «{{ p }}», pero cuenta en «{{ row }}»: ese parcial no tiene una fila con el mismo nombre. Elija la fila que corresponde.{% endblocktranslate %}</div>{% endif %}</div>
   <div>{{ form.opens_at.label_tag }}{{ form.opens_at }}{{ form.opens_at.errors }}<span class="helptext">{{ form.opens_at.help_text }}</span></div>
+  {% include "activities/_audience_field.html" %}
 
   <fieldset class="due">
     <legend>{{ form.due_mode.label }}</legend>

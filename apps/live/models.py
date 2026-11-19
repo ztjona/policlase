@@ -128,6 +128,9 @@ class LiveSession(models.Model):
     #: Índices de las diapositivas que se proyectaron. El repaso de la clase (`review.py`) muestra
     #: solo estas: lo que el docente no alcanzó a mostrar puede ser parte de la próxima clase.
     shown = models.JSONField(default=list)
+    #: El repaso llega hasta esta diapositiva (índice, incluida); vacío, hasta la última proyectada. El
+    #: docente lo fija cuando no alcanzó a explicar el final: lo proyectado no se borra.
+    review_through = models.PositiveIntegerField(null=True, blank=True)
     opened_at = models.DateTimeField(null=True, blank=True)
     closes_at = models.DateTimeField(null=True, blank=True)
     paused_at = models.DateTimeField(null=True, blank=True)

@@ -267,7 +267,53 @@ def session_results(request, pk):
         "feedback": engine.feedback_summary(session) if session.has_feedback else None,
         "reviewable": reviewable(session),
         "answer_count": sum(len(a) for a in by_student.values()),
+        **_review_options(session),
     })
+
+
+def _review_options(session) -> dict:
+    """Las diapositivas proyectadas, para elegir hasta dónde llega el repaso."""
+    from apps.core.templatetags.policlase import slide_title
+
+    from .review import in_review, projected
+
+    indices = projected(session)
+    last = in_review(session)[-1:] or indices[-1:]
+    options = [{"index": i, "number": i + 1, "title": slide_title(session.slides[i]),
+                "selected": [i] == last, "last": i == indices[-1]} for i in indices]
+    return {"review_options": options, "review_count": len(in_review(session))}
+
+
+@teacher_required
+@require_POST
+def session_review(request, pk):
+    """El título de una clase terminada y hasta qué diapositiva llega su repaso (por ejemplo, si
+    proyectó el final sin alcanzar a explicarlo). No se borra nada: lo proyectado sigue ahí."""
+    from .review import in_review, projected
+
+    session = _own_session(request, pk)
+    back = reverse("session_results", args=[session.pk]) + "#repaso"
+    if session.status != LiveSession.Status.ENDED:
+        messages.error(request, _("La clase todavía no termina."))
+        return redirect(back)
+    title = " ".join(request.POST.get("title", "").split())[:200]
+    if not title:
+        messages.error(request, _("Escriba el título de la clase."))
+        return redirect(back)
+    indices = projected(session)
+    raw = request.POST.get("through", "")
+    through = int(raw) if raw.isdigit() and int(raw) in indices else None
+    if indices and through == indices[-1]:
+        through = None                                 # hasta la última proyectada: sin límite
+    session.title, session.review_through = title, through
+    session.save(update_fields=["title", "review_through"])
+    if through is None:
+        messages.success(request, _("Se guardaron el título y el repaso: los estudiantes repasan todas las diapositivas "
+                                    "proyectadas (%(total)d).") % {"total": len(indices)})
+    else:
+        messages.success(request, _("Se guardaron el título y el repaso: los estudiantes repasan %(n)d de las %(total)d "
+                                    "diapositivas proyectadas.") % {"n": len(in_review(session)), "total": len(indices)})
+    return redirect(back)
 
 
 @teacher_required

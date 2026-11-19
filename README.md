@@ -21,7 +21,7 @@ Aula virtual autoalojada para cursos universitarios con carga matemática.
   regresiva a la vista; pausar y retomar, reabrir, bono por rapidez solo en el marcador, invitados por
   enlace o QR y retroalimentación anónima. Las notas del docente se ven solo en un tooltip de sus controles.
   Terminada la clase, los estudiantes la **repasan** desde la pestaña Clases del curso: las diapositivas que se
-  proyectaron y la respuesta de cada pregunta, sin nota.
+  proyectaron (hasta donde el docente indique) y la respuesta de cada pregunta, sin nota.
 - **Actividades** (deberes y talleres): fechas fijas o relativas a una fecha clave, intentos, atrasos
   bloqueados o penalizados con envío automático al vencer, preguntas con tiempo, entregas de imágenes,
   **debate** entre compañeros, revisión con explicaciones y prórrogas por estudiante.
@@ -29,6 +29,10 @@ Aula virtual autoalojada para cursos universitarios con carga matemática.
   distinto para cada estudiante, notas que el docente publica, revisión hasta unos días después y
   **corrección** opcional (volver a resolverla completa, en su propia fila de la ponderación).
 - **Repasos** sin nota, con «Comprobar» por pregunta y explicaciones.
+- **Información**: un documento sin preguntas (el enunciado de un proyecto) se publica para leerlo,
+  sin entregas, fecha ni nota.
+- **Grupos** que arma el docente: actividades dirigidas a ciertos grupos, secciones propias de cada
+  grupo y preguntas repartidas entre los integrantes, sin que los archivos nombren grupos.
 - **Calificación**: automática por tipo de pregunta, manual por pregunta o por estudiante, y
   **asistida por IA** (DeepSeek) en las respuestas abiertas: la IA propone y el docente decide.
 - **Entregas y estadísticas**: tabla ordenable con avance y señales (pegar, salir de la página y por

@@ -78,7 +78,49 @@ class ReviewMixin:
                     and activity.review_mode != Activity.Review.ALWAYS)
 
 
-class ActivitySettingsForm(ReviewMixin, PeriodRowMixin, forms.ModelForm):
+class AudienceMixin:
+    """Los destinatarios (`Activity.groups`): todos los estudiantes, o los integrantes de ciertos grupos."""
+
+    def setup_audience(self, course):
+        from django.db.models import Count
+        from django.utils.translation import ngettext
+
+        from apps.courses.models import StudentGroup
+
+        field = self.fields["groups"]
+        field.queryset = StudentGroup.objects.filter(course=course).annotate(size=Count("members"))
+        field.required = False
+        field.label_from_instance = lambda g: ngettext("%(name)s (%(n)d integrante)", "%(name)s (%(n)d integrantes)",
+                                                       g.size) % {"name": g.name, "n": g.size}
+
+
+class InfoSettingsForm(AudienceMixin, forms.ModelForm):
+    """Una información (un documento sin preguntas): si está publicada, desde cuándo y para quiénes. No
+    tiene fecha de entrega ni ponderación."""
+
+    class Meta:
+        model = Activity
+        fields = ["published", "opens_at", "groups"]
+        widgets = {"opens_at": DATETIME, "groups": forms.CheckboxSelectMultiple}
+        labels = {"opens_at": _("Disponible desde")}
+
+    def __init__(self, *args, course, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setup_audience(course)
+        self.fields["opens_at"].help_text = _("Si se deja vacío, se ve desde que se publica.")
+
+    def save(self, commit=True):
+        activity = super().save(commit=False)
+        # Sin preguntas no hay nada que entregar ni calificar.
+        activity.category, activity.due_milestone, activity.due_at = None, None, None
+        activity.due_from_opening = False
+        if commit:
+            activity.save()
+            self.save_m2m()
+        return activity
+
+
+class ActivitySettingsForm(AudienceMixin, ReviewMixin, PeriodRowMixin, forms.ModelForm):
     """Lo que la plataforma decide de una actividad: ponderación, fechas, revisión, atrasos e intentos."""
 
     DUE_NONE, DUE_FIXED, DUE_MILESTONE, DUE_OPENING = "none", "fixed", "milestone", "opening"
@@ -95,8 +137,9 @@ class ActivitySettingsForm(ReviewMixin, PeriodRowMixin, forms.ModelForm):
         model = Activity
         fields = ["category", "published", "opens_at", "due_milestone", "due_offset_days", "due_time",
                   "due_at", *REVIEW_FIELDS, "debate_mode", "debate_until",
-                  "late_policy", "late_penalty", "max_attempts", "auto_submit"]
+                  "late_policy", "late_penalty", "max_attempts", "auto_submit", "groups"]
         widgets = {
+            "groups": forms.CheckboxSelectMultiple,
             "opens_at": DATETIME, "due_at": DATETIME, "due_milestone": TaggedSelect(), "due_time": TIME,
             "debate_mode": forms.RadioSelect, "debate_until": DATETIME,
             "due_offset_days": forms.NumberInput(attrs={"min": "-60", "max": "60"}),
@@ -109,6 +152,7 @@ class ActivitySettingsForm(ReviewMixin, PeriodRowMixin, forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["category"].queryset = Category.objects.filter(period__course=course).select_related("period")
         self.fields["category"].empty_label = _("— Sin ponderación (no cuenta) —")
+        self.setup_audience(course)
         milestones = Milestone.objects.filter(course=course)
         self.fields["due_milestone"].queryset = milestones
         self.fields["due_milestone"].empty_label = _("— Elija una fecha clave —")
@@ -225,10 +269,11 @@ class ActivitySettingsForm(ReviewMixin, PeriodRowMixin, forms.ModelForm):
         self.rebound = rebind(activity)
         if commit:
             activity.save()
+            self.save_m2m()
         return activity
 
 
-class EvaluationSettingsForm(ReviewMixin, PeriodRowMixin, forms.ModelForm):
+class EvaluationSettingsForm(AudienceMixin, ReviewMixin, PeriodRowMixin, forms.ModelForm):
     """Una evaluación: el día (el de una fecha clave, o uno fijo), su horario, la duración por
     estudiante, el código de acceso y la revisión, que empieza al publicar las notas."""
 
@@ -243,8 +288,9 @@ class EvaluationSettingsForm(ReviewMixin, PeriodRowMixin, forms.ModelForm):
     class Meta:
         model = Activity
         fields = ["category", "published", "due_milestone", "due_offset_days", "opens_time", "due_time",
-                  "duration_min", "require_code", "shuffle_parts", "allow_correction", *REVIEW_FIELDS]
+                  "duration_min", "require_code", "shuffle_parts", "allow_correction", *REVIEW_FIELDS, "groups"]
         widgets = {
+            "groups": forms.CheckboxSelectMultiple,
             "due_milestone": TaggedSelect(), "opens_time": TIME, "due_time": TIME,
             "due_offset_days": forms.NumberInput(attrs={"min": "-60", "max": "60"}),
             "duration_min": forms.NumberInput(attrs={"min": "5", "max": "600", "placeholder": "90"}),
@@ -256,6 +302,7 @@ class EvaluationSettingsForm(ReviewMixin, PeriodRowMixin, forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["category"].queryset = Category.objects.filter(period__course=course).select_related("period")
         self.fields["category"].empty_label = _("— Sin ponderación (no cuenta) —")
+        self.setup_audience(course)
         milestones = Milestone.objects.filter(course=course)
         self.fields["due_milestone"].queryset = milestones
         self.fields["due_milestone"].empty_label = _("— Elija una fecha clave —")
@@ -327,11 +374,12 @@ class EvaluationSettingsForm(ReviewMixin, PeriodRowMixin, forms.ModelForm):
             from . import engine
 
             activity.save()
+            self.save_m2m()
             engine.sync_correction(activity, category=self.cleaned_data.get("correction_category"))
         return activity
 
 
-class PracticeSettingsForm(forms.ModelForm):
+class PracticeSettingsForm(AudienceMixin, forms.ModelForm):
     """Un repaso: cuándo abre (unos días antes de una fecha clave, o desde una fecha fija) y, si se
     quiere, cuándo se cierra. No tiene ponderación, intentos ni atrasos: no cuenta para la nota."""
 
@@ -344,8 +392,9 @@ class PracticeSettingsForm(forms.ModelForm):
 
     class Meta:
         model = Activity
-        fields = ["published", "due_milestone", "opens_at", "due_at"]
-        widgets = {"opens_at": DATETIME, "due_at": DATETIME, "due_milestone": forms.Select(attrs={"class": "compact"})}
+        fields = ["published", "due_milestone", "opens_at", "due_at", "groups"]
+        widgets = {"opens_at": DATETIME, "due_at": DATETIME, "due_milestone": forms.Select(attrs={"class": "compact"}),
+                   "groups": forms.CheckboxSelectMultiple}
         labels = {"due_at": _("Se cierra (opcional)")}
 
     def __init__(self, *args, course, **kwargs):
@@ -353,6 +402,7 @@ class PracticeSettingsForm(forms.ModelForm):
         self.fields["due_milestone"].queryset = Milestone.objects.filter(course=course)
         self.fields["due_milestone"].empty_label = _("— Elija una fecha clave —")
         self.fields["due_milestone"].label = _("Fecha clave")
+        self.setup_audience(course)
         self.fields["opens_at"].label = _("Disponible desde")
         self.fields["due_at"].help_text = _("Si se deja vacío, el repaso sigue disponible.")
         instance = self.instance
@@ -385,4 +435,5 @@ class PracticeSettingsForm(forms.ModelForm):
         self.closes_before = bool(opens and closes and closes <= opens)
         if commit:
             activity.save()
+            self.save_m2m()
         return activity

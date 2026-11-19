@@ -4,18 +4,19 @@
 {% block main %}
 {% include "activities/_activity_head.html" %}
 
-{% include "activities/_timeline.html" %}
+{% if not activity.is_info %}{% include "activities/_timeline.html" %}{% endif %}
 
 <div class="grid two">
-  {% if activity.is_evaluation %}{% include "activities/_evaluation_settings.html" %}{% elif activity.is_practice %}{% include "activities/_practice_settings.html" %}{% else %}{% include "activities/_activity_settings.html" %}{% endif %}
+  {% if activity.is_info %}{% include "activities/_info_settings.html" %}{% elif activity.is_evaluation %}{% include "activities/_evaluation_settings.html" %}{% elif activity.is_practice %}{% include "activities/_practice_settings.html" %}{% else %}{% include "activities/_activity_settings.html" %}{% endif %}
 
   <section class="card stack">
     <h2>{% translate "Contenido" %}</h2>
     {% if parts %}
       <form method="post" action="{% url 'activity_parts' course.pk activity.pk %}" class="stack parts-form" id="parts" data-dirty>
-        {% csrf_token %}
+        {% csrf_token %}<input type="hidden" name="rules" value="1">
         <h3 style="margin:0">{% translate "Secciones de la actividad" %}</h3>
         <span class="helptext" style="margin:0">{% translate "Desmarque las secciones que no se realizaron. Una sección deshabilitada no se muestra a los estudiantes ni cuenta para la nota. Las respuestas que los estudiantes ya hubieran registrado en ella se conservan y vuelven a aparecer si la habilita de nuevo; las entregas ya enviadas se recalculan." %}</span>
+        <span class="helptext" style="margin:0">{% if course_groups %}{% translate "Una sección marcada «Solo para» ciertos grupos la reciben únicamente sus integrantes, por ejemplo las preguntas sobre el proyecto de cada grupo. Con «Cada estudiante responde», cada uno recibe solo esa cantidad de ítems de la sección, distintos de los de sus compañeros de grupo mientras alcancen. Ambas cosas se deciden cuando cada estudiante empieza y no cambian después." %}{% else %}{% url 'course_groups' course.pk as groups_url %}{% blocktranslate %}Con «Cada estudiante responde», cada uno recibe solo esa cantidad de ítems de la sección, al azar, y no cambian después. Si <a href="{{ groups_url }}">arma grupos</a>, puede dar secciones solo a ciertos grupos y los ítems se reparten sin repetirse dentro de cada grupo.{% endblocktranslate %}{% endif %}</span>
         {% for g in parts %}
           <fieldset class="part">
             {% if g.title %}<legend><label class="radio-row"><input type="checkbox" data-part-all> {{ g.title|md_inline }}</label></legend>{% endif %}
@@ -23,6 +24,21 @@
               <label class="radio-row small"><input type="checkbox" name="enabled" value="{{ e.item_id }}"{% if e.item_id not in disabled %} checked{% endif %}>
                 {{ e.title|md_inline }} <span class="muted">· {% blocktranslate with p=e.points|floatformat:"-2" %}{{ p }} pts{% endblocktranslate %}</span></label>
             {% endfor %}
+            {% if course_groups or g.items|length > 1 %}
+              <div class="part-rules small">
+                {% if course_groups %}
+                  <span class="muted">{% translate "Solo para:" %}</span>
+                  {% for grp in course_groups %}<label class="inline-check"><input type="checkbox" name="groups-{{ g.number }}" value="{{ grp.pk }}"{% if grp.pk in g.groups %} checked{% endif %}> {{ grp.name }}</label>{% endfor %}
+                  {% if not g.groups %}<span class="muted">({% translate "sin marcar: todos" %})</span>{% endif %}
+                {% endif %}
+                {% if g.items|length > 1 %}
+                  <label class="inline-check">{% translate "Cada estudiante responde" %}
+                    <input type="number" name="deal-{{ g.number }}" min="1" max="{{ g.items|length|add:'-1' }}" value="{{ g.deal|default:'' }}"
+                           class="compact-input deal-input" placeholder="{{ g.items|length }}" aria-label="{% translate 'Ítems que responde cada estudiante' %}">
+                    {% blocktranslate count n=g.items|length %}de {{ n }} ítem{% plural %}de {{ n }} ítems{% endblocktranslate %}</label>
+                {% endif %}
+              </div>
+            {% endif %}
           </fieldset>
         {% endfor %}
         <div class="row"><button type="submit" class="small" data-dirty-enable>{% translate "Guardar secciones" %}</button></div>
@@ -39,7 +55,7 @@
   </section>
 </div>
 
-{% if not activity.is_practice %}
+{% if not activity.is_practice and not activity.is_info %}
 <section class="card stack" id="extensions">
   <h2 style="margin:0">{% translate "Prórrogas" %}</h2>
   <span class="helptext" style="margin:0">{% if activity.is_evaluation %}{% translate "Un horario propio para un estudiante, por ejemplo si rinde la evaluación otro día, y, si necesita más tiempo, su propia duración." %}{% else %}{% translate "Una fecha de entrega propia para un estudiante. Si su intento ya se había enviado automáticamente, vuelve a quedar abierto." %}{% endif %}</span>

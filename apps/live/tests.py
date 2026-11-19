@@ -1334,6 +1334,37 @@ class ClassReviewTests(LiveBase):
         self.assertNotIn(" pt ", html)
         self.assertNotIn("¿Cómo estuvo la clase?", html)
 
+    def test_el_docente_corta_el_repaso_y_corrige_el_titulo(self):
+        from .review import projected
+
+        session = self.taught()
+        later = "iteraciones garantizan"                                # la pregunta de la diapositiva 4
+        self.client.force_login(self.teacher)
+        results = self.client.get(reverse("session_results", args=[session.pk]))
+        self.assertContains(results, "El repaso llega hasta")
+        self.assertContains(results, "(la última proyectada)")
+        url = reverse("session_review", args=[session.pk])
+        self.client.post(url, {"title": "  Bisección   (primera parte) ", "through": "1"})
+        session.refresh_from_db()
+        self.assertEqual((session.title, session.review_through), ("Bisección (primera parte)", 1))
+        html = self.review(session).content.decode()
+        self.assertIn("Bisección (primera parte)", html)
+        self.assertNotIn(later, html)                                   # después del límite
+        # Hasta la última proyectada: sin límite. Nada se había borrado.
+        self.client.force_login(self.teacher)
+        self.client.post(url, {"title": "Bisección", "through": str(projected(session)[-1])})
+        session.refresh_from_db()
+        self.assertIsNone(session.review_through)
+        self.assertIn(later, self.review(session).content.decode())
+        # Un límite que deja menos de dos diapositivas saca la clase del repaso.
+        self.client.force_login(self.teacher)
+        self.client.post(url, {"title": "Bisección", "through": "0"})
+        self.assertEqual(self.review(session).status_code, 404)
+        self.client.force_login(self.ana)
+        self.assertNotContains(self.client.get(reverse("course_classes", args=[self.course.pk])), "Bisección")
+        # Solo el docente del curso.
+        self.assertEqual(self.client.post(url, {"title": "Otra"}).status_code, 403)
+
     def test_aparece_en_la_pestana_clases_del_curso(self):
         self.client.force_login(self.ana)
         classes = reverse("course_classes", args=[self.course.pk])

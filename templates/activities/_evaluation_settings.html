@@ -14,6 +14,7 @@
     <span class="helptext">{% translate "El parcial se propone según la fecha de la evaluación." %} <a href="{% url 'grading_settings' course.pk %}">{% translate "Editar ponderaciones" %}</a></span>
     {% if mismatch %}<div class="notice small">{% blocktranslate with p=mismatch.name row=activity.category %}La evaluación es en «{{ p }}», pero cuenta en «{{ row }}», y ese parcial no tiene una fila con el mismo nombre. Elija la fila que corresponde.{% endblocktranslate %}</div>{% endif %}
   </div>
+  {% include "activities/_audience_field.html" %}
 
   <fieldset class="due">
     <legend>{{ form.day_mode.label }}</legend>

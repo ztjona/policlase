@@ -4,6 +4,9 @@ no se muestran puntos, tiempos ni lo que respondió cada uno.
 
 - **Lo que se proyectó y nada más** (`LiveSession.shown`): lo que el docente no alcanzó a mostrar, u
   ocultó en esa clase, puede ser parte de la próxima. La retroalimentación final no se repasa.
+- **Hasta donde el docente diga** (`LiveSession.review_through`): si proyectó el final sin
+  explicarlo, en los resultados de la clase elige la última diapositiva del repaso. Lo demás no se
+  borra: ampliar el límite lo devuelve.
 - Una clase que se inició por error y se terminó sin pasar de la primera diapositiva no aparece.
 - **Preguntas en su versión vigente:** cada pregunta se toma de la presentación actual por su
   `item_id`, de modo que una clave corregida después de la clase llega al repaso. El contenido se
@@ -32,12 +35,30 @@ MIN_SHOWN = 2
 LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 
-def counts(shown) -> bool:
-    return len(shown or []) >= MIN_SHOWN
+def counts(shown, through=None) -> bool:
+    return len([i for i in shown or [] if through is None or i <= through]) >= MIN_SHOWN
 
 
 def reviewable(session: LiveSession) -> bool:
-    return session.status == Status.ENDED and counts(session.shown)
+    return session.status == Status.ENDED and counts(session.shown, session.review_through)
+
+
+def projected(session: LiveSession) -> list[int]:
+    """Los índices de las diapositivas proyectadas que se pueden repasar, en orden: sin la
+    retroalimentación ni las ocultas."""
+    out = []
+    for index in sorted(set(session.shown or [])):
+        if 0 <= index < len(session.slides):
+            slide = session.slides[index]
+            if slide["kind"] != "feedback" and not slide.get("hidden"):
+                out.append(index)
+    return out
+
+
+def in_review(session: LiveSession) -> list[int]:
+    """Lo proyectado hasta el límite que fijó el docente (`review_through`)."""
+    through = session.review_through
+    return [i for i in projected(session) if through is None or i <= through]
 
 
 def withheld_items(course) -> set[str]:
@@ -74,12 +95,8 @@ def slides_of(session: LiveSession, withheld: set[str]) -> list[dict]:
     if session.deck is not None:
         current = {s["item_id"]: s for s in session.deck.slides if s.get("kind") == "question"}
     out = []
-    for index in sorted(set(session.shown)):
-        if not 0 <= index < len(session.slides):
-            continue
+    for index in in_review(session):
         slide = session.slides[index]
-        if slide["kind"] == "feedback" or slide.get("hidden"):
-            continue
         entry = {"slide": slide, "number": len(out) + 1, "correct_keys": set()}
         if slide["kind"] == "question":
             slide = entry["slide"] = current.get(slide["item_id"], slide)
@@ -99,8 +116,9 @@ def class_groups(course, linked: bool) -> list[dict]:
 
     sessions = [s for s in (LiveSession.objects.filter(course=course, status=Status.ENDED)
                             .order_by("started_at", "created_at")
-                            .values("pk", "title", "started_at", "created_at", "shown", "deck__section_id"))
-                if counts(s["shown"])]
+                            .values("pk", "title", "started_at", "created_at", "shown", "review_through",
+                                    "deck__section_id"))
+                if counts(s["shown"], s["review_through"])]
     if not sessions:
         return []
     by_section: dict[int | None, list[dict]] = {}

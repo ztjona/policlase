@@ -132,6 +132,16 @@ class Activity(models.Model):
     #: si las había, se conservan y reaparecen al habilitarlos. Vale para todos los intentos, también
     #: los ya enviados. (El nombre de la columna es de cuando solo dejaban de calificarse.)
     ungraded_items = models.JSONField(default=list, db_default=[], blank=True)
+    #: Destinatarios: los grupos que ven la actividad; sin grupos, todos los estudiantes. Quien no es
+    #: destinatario no la ve ni recibe un cero; quien ya la había empezado la conserva.
+    groups = models.ManyToManyField("courses.StudentGroup", blank=True, related_name="activities",
+                                    verbose_name=_("destinatarios"))
+    #: Ítems de ciertos grupos, por `item_id` (pk de los grupos): solo los integrantes de esos grupos
+    #: los reciben al empezar. Se elige por partes en la configuración; el archivo no nombra grupos.
+    item_groups = models.JSONField(default=dict, db_default={}, blank=True)
+    #: Reparto, por `item_id`: cada estudiante recibe ese número de ítems de su parte, distintos de los
+    #: de sus compañeros de grupo y fijos desde que empieza (`groups.personal_content`).
+    deal = models.JSONField(default=dict, db_default={}, blank=True)
     #: Preguntas de debate (`debate: true`): el foro abre al vencer la fecha de entrega y se cierra
     #: según `debate_mode`: con la revisión (por omisión), en `debate_until` o cuando el docente lo
     #: cierra («Cerrar el debate ahora» lo fija en ese momento). Al cerrarse se muestran la
@@ -155,6 +165,12 @@ class Activity(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+    @property
+    def is_info(self) -> bool:
+        """Información: un documento sin ítems, como el enunciado de un proyecto o unas indicaciones.
+        Se lee y nada más: no tiene intentos, fecha de entrega ni nota, sea cual sea su `use`."""
+        return not any(block.get("kind", "item") == "item" for block in self.compiled.get("items", []))
 
     @property
     def points(self) -> float:
@@ -354,7 +370,7 @@ class Activity(models.Model):
         """Una actividad publicada se ve desde que abre; una evaluación publicada, desde antes, para
         que el estudiante sepa cuándo es (pero solo se empieza en su horario)."""
         now = now or timezone.now()
-        if self.is_evaluation:
+        if self.is_evaluation and not self.is_info:
             return self.published
         return self.published and (self.opens_at is None or self.opens_at <= now)
 

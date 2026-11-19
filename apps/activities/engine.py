@@ -42,7 +42,7 @@ from django.utils.translation import gettext as _
 from policlase_gen.grading import grade
 
 from . import images, outline
-from .models import Activity, Answer, Attempt, Extension, SkippedCorrection, Upload
+from .models import Activity, Answer, Attempt, Extension, SkippedCorrection, Upload, graded_points
 
 REVIEW_TYPES = {"open", "image"}
 #: Tope de texto de una respuesta abierta: un párrafo largo, no un documento.
@@ -88,6 +88,9 @@ class State:
 
 def state(activity: Activity, student, now=None) -> State:
     now = now or timezone.now()
+    if activity.is_info:
+        # Información: se lee y nada más.
+        return State(attempts=[], draft=None, counted=None, can_start=False, reason="", late=False, reveal=False)
     finalize_overdue(activity, now, student=student)
     attempts = list(Attempt.objects.filter(activity=activity, student=student).order_by("number"))
     submitted = [a for a in attempts if a.submitted_at]
@@ -234,6 +237,8 @@ def deadline(attempt: Attempt):
 def can_answer(activity: Activity, submitted: int, now, student=None) -> tuple[bool, str, bool]:
     """(¿puede responder?, motivo si no, ¿sería atrasado?). Con `student`, según su prórroga."""
     opens, due = window(activity, student.pk) if student is not None else (activity.opens_at, activity.due_at)
+    if activity.is_info:
+        return False, _("Esta información no tiene preguntas que responder."), False
     if activity.is_practice:
         if not activity.is_visible(now):
             return False, _("El repaso todavía no está disponible."), False
@@ -299,23 +304,39 @@ def start(activity: Activity, student, code: str | None = None) -> Attempt:
     if activity.is_evaluation and activity.require_code:
         check_code(activity, student, code)
     try:
-        content = activity.compiled
-        if activity.is_evaluation and activity.shuffle_parts:
-            # Su propio orden de las partes, fijo desde que empieza: el intento guarda su copia.
-            content = outline.shuffle_parts(content, f"{activity.pk}:{student.pk}")
-        elif activity.correction_of_id:
-            # La corrección: la versión vigente de la evaluación, en el orden de partes que tuvo el estudiante.
-            exam = activity.correction_of
-            content = exam.compiled
-            if exam.shuffle_parts:
-                content = outline.shuffle_parts(content, f"{exam.pk}:{student.pk}")
         with transaction.atomic():
+            content = _content_for(activity, student, current.attempts)
             return Attempt.objects.create(
                 activity=activity, student=student, number=len(current.attempts) + 1,
-                content=content, max_points=activity.points,
+                content=content, max_points=graded_points(content, activity.disabled),
             )
     except IntegrityError:          # doble clic: ya hay un borrador
         return Attempt.objects.get(activity=activity, student=student, submitted_at=None)
+
+
+def _content_for(activity: Activity, student, attempts: list[Attempt]) -> dict:
+    """La copia del contenido que guarda el intento: solo las partes de sus grupos, los ítems que le
+    tocan en las partes que se reparten (los mismos de sus intentos anteriores) y, en una evaluación
+    que lo pide, sus partes en su propio orden. Todo queda fijo desde que empieza."""
+    from . import audience
+
+    if activity.correction_of_id:
+        # La corrección: la versión vigente de la evaluación, con las partes y los ítems que tuvo en ella
+        # y en el mismo orden.
+        exam = activity.correction_of
+        previous = [a.content for a in Attempt.objects.filter(activity=exam, student=student)]
+        content = audience.personal_content(exam, student, exam.compiled, previous)
+        if exam.shuffle_parts:
+            content = outline.shuffle_parts(content, f"{exam.pk}:{student.pk}")
+        return content
+    if audience.personalized(activity):
+        # Un estudiante a la vez: dos compañeros que empiezan juntos no reciben los mismos ítems.
+        list(Activity.objects.select_for_update().filter(pk=activity.pk).values_list("pk", flat=True))
+    content = audience.personal_content(activity, student, activity.compiled, [a.content for a in attempts])
+    if activity.is_evaluation and activity.shuffle_parts:
+        # Su propio orden de las partes, fijo desde que empieza: el intento guarda su copia.
+        content = outline.shuffle_parts(content, f"{activity.pk}:{student.pk}")
+    return content
 
 
 # ------------------------------------------------------------------------ respuestas

@@ -21,7 +21,7 @@
       {% if activity.is_practice %}<span class="chip">{% translate "Repaso" %}</span> {% translate "Sin nota y sin tiempo." %}
       {% elif activity.is_evaluation %}{% blocktranslate with when=activity.due_at|date:"H:i" %}Se cierra a las {{ when }}{% endblocktranslate %}
       {% elif activity.due_at %}{% blocktranslate with when=activity.due_at|date:"D d M Y, H:i" %}Entrega: {{ when }}{% endblocktranslate %}{% else %}{% translate "Sin fecha de entrega" %}{% endif %}
-      · {% blocktranslate with n=activity.points|floatformat:"-2" %}{{ n }} puntos{% endblocktranslate %}
+      · {% blocktranslate with n=points|floatformat:"-2" %}{{ n }} puntos{% endblocktranslate %}
     </p>
     {% if late %}<div class="notice">{% blocktranslate with p=activity.late_penalty %}La fecha de entrega ya pasó: si envía ahora, su nota tendrá un {{ p }} % de penalización.{% endblocktranslate %}</div>{% endif %}
     {% if blocked %}<div class="notice">{{ blocked }} {% translate "Este borrador ya no se puede enviar." %}
@@ -40,8 +40,8 @@
           {% if not activity.is_evaluation %}data-pointer-url="{% url 'attempt_pointer' course.pk activity.pk %}"{% endif %}
           {% if remaining_ms is not None %}data-remaining-ms="{{ remaining_ms }}"{% endif %} data-autosave>
       {% csrf_token %}
-      {# El botón por omisión del formulario (Enter en un campo de texto): guarda. Sin él, Enter pulsaría el primer botón
-         de la página, que puede ser «Responder» o «Abrir la pregunta» de una pregunta con tiempo. #}
+      {% comment %} El botón por omisión del formulario (Enter en un campo de texto): guarda. Sin él, Enter pulsaría el
+         primer botón de la página, que puede ser «Responder» o «Abrir la pregunta» de una pregunta con tiempo. {% endcomment %}
       <button type="submit" name="action" value="save" class="sr-only" tabindex="-1" aria-hidden="true">{% translate "Guardar borrador" %}</button>
       <input type="hidden" name="form" value="attempt">
       <input type="hidden" name="telemetry" value="">

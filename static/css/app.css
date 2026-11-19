@@ -910,6 +910,16 @@ textarea.code.pasted { min-height: 0; }
 fieldset.part { border: 1px solid var(--rule); border-radius: var(--radius); padding: 6px 10px 8px; margin: 0; display: flex; flex-direction: column; gap: 2px; }
 fieldset.part legend { padding: 0 4px; font-weight: 600; font-size: .9rem; }
 fieldset.part .radio-row input { accent-color: var(--accent); }
+/* Grupos y reparto de una sección (configuración de la actividad). */
+.part-rules { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 4px; padding-top: 6px;
+  border-top: 1px dashed var(--rule); }
+.inline-check { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-weight: 400; }
+.inline-check input[type=checkbox] { accent-color: var(--accent); margin: 0; }
+input.deal-input { width: 4.5em; }
+/* Integrantes de un grupo: casillas en columnas. */
+.member-grid { columns: 15rem; column-gap: 24px; }
+.member-grid .radio-row { break-inside: avoid; padding: 2px 0; }
+.group-chip { background: var(--accent-soft); }
 .q-block.timed-open { border: 2px solid var(--warn); border-radius: var(--radius); padding: 10px 12px; }
 .q-block.timed-closed { opacity: .85; }
 .timer-bar { align-items: center; gap: 12px; }

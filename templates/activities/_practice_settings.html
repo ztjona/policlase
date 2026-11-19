@@ -18,6 +18,7 @@
     <div class="practice-fixed">{{ form.opens_at.label_tag }}{{ form.opens_at }}{{ form.opens_at.errors }}</div>
   </fieldset>
   <div>{{ form.due_at.label_tag }}{{ form.due_at }}{{ form.due_at.errors }}<span class="helptext">{{ form.due_at.help_text }}</span></div>
+  {% include "activities/_audience_field.html" %}
   <div class="row"><button type="submit" data-dirty-enable>{% translate "Guardar" %}</button>
     {% if activity.opens_at %}<span class="small muted">{% blocktranslate with when=activity.opens_at|date:"D d M Y, H:i" %}Disponible desde: {{ when }}{% endblocktranslate %}</span>{% endif %}</div>
 </form>

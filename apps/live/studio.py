@@ -292,7 +292,10 @@ def _save(request, course, link, kind, content, source, section, document, repor
                              % {"images": ", ".join(missing)})
     content.source, content.compiled = source, compiled
     content.save()
-    if kind == ACTIVITY and content.is_evaluation:
+    if kind == ACTIVITY and content.is_info:
+        messages.success(request, _("«%(title)s» guardada como información: no tiene preguntas, así que los estudiantes "
+                                    "solo la leen, sin entregas, fecha ni nota.") % {"title": content.title})
+    elif kind == ACTIVITY and content.is_evaluation:
         from apps.activities.engine import sync_correction
         sync_correction(content)                         # la corrección sigue al contenido de la evaluación
         messages.success(request, _("Evaluación «%(title)s» guardada: %(questions)d preguntas, %(points)s puntos.")
@@ -310,6 +313,10 @@ def _save(request, course, link, kind, content, source, section, document, repor
     if link:
         messages.info(request, _("Confirmado en GitHub: %(path)s") % {"path": content.github_path})
     if kind == ACTIVITY:
+        if new and content.is_info:
+            messages.info(request, _("Publíquela cuando los estudiantes deban verla y, si es para ciertos grupos, "
+                                     "elija los destinatarios."))
+            return redirect("activity_settings", course_pk=course.pk, pk=content.pk)
         if new and content.is_evaluation:
             messages.info(request, _("Asigne la fecha, el horario y la ponderación, y publique la evaluación."))
         elif new:

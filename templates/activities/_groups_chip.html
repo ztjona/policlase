@@ -1,0 +1,2 @@
+{% load i18n %}{% comment %} Los grupos a los que va dirigida una actividad (sin grupos, a todos: no se muestra nada).
+   Conviene precargar `groups`. {% endcomment %}{% with gs=activity.groups.all %}{% if gs %}<span class="chip group-chip" title="{% translate 'Solo la ven los integrantes de estos grupos' %}">{{ gs|join:", " }}</span>{% endif %}{% endwith %}

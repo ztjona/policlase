@@ -107,6 +107,28 @@ def hidden_blocks(content: dict, disabled) -> set:
     return out
 
 
+def without_items(content: dict, drop) -> dict:
+    """El contenido sin esos ítems ni sus soluciones (las diapositivas que los siguen), y sin las
+    secciones que se quedan sin ítems, con su enunciado. Así se arma la copia de un estudiante que no
+    recibe ciertas partes (`audience.personal_content`). `left_out` registra los ítems que faltan, para
+    que la revisión no agregue sus soluciones desde la versión actual."""
+    drop = set(drop or [])
+    if not drop:
+        return content
+    hidden = hidden_blocks(content, drop)
+    out, skipping = [], False
+    for block in content.get("items", []):
+        kind = block.get("kind", "item")
+        if kind == "item":
+            skipping = block.get("item_id") in drop
+        if block.get("at") in hidden or (kind == "solution" and skipping):
+            continue
+        out.append(block)
+    points = sum(float(b.get("points") or 0) for b in out if b.get("kind", "item") == "item")
+    return {**content, "items": out, "points": points,
+            "left_out": sorted(drop | set(content.get("left_out") or []))}
+
+
 def shuffle_parts(content: dict, seed: str) -> dict:
     """El mismo contenido con sus partes en otro orden, para un estudiante. Una parte empieza en un
     segmento y llega hasta el siguiente, con su contenido, sus ítems y sus soluciones: dentro de ella
@@ -142,13 +164,14 @@ def for_review(content: dict, current: dict, disabled=None) -> list[dict]:
     final, si ese ítem no está en el intento). Con `disabled`, sin lo que el estudiante no vio."""
     disabled = set(disabled or [])
     hidden = hidden_blocks(content, disabled)
+    left_out = set(content.get("left_out") or [])      # ítems de otros grupos o que no le tocaron
     after: dict[str, list] = {}
     anchor = ""
     for block in current.get("items", []):
         kind = block.get("kind", "item")
         if kind == "item":
             anchor = block.get("item_id", "")
-        elif kind == "solution" and anchor not in disabled:
+        elif kind == "solution" and anchor not in disabled and anchor not in left_out:
             after.setdefault(anchor, []).append(block)
     out = list(after.pop("", []))
     for block in content.get("items", []):

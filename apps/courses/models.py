@@ -111,6 +111,30 @@ class Enrollment(models.Model):
         return (str(self.student.first_name or "").split() or [""])[0]
 
 
+class StudentGroup(models.Model):
+    """Un grupo de estudiantes del curso, por ejemplo el equipo de un proyecto. Lo arma el docente, y
+    un estudiante puede estar en varios. Sirve para dirigir una actividad a ciertos grupos
+    (`Activity.groups`) y para dar a cada grupo sus propias partes de una actividad
+    (`Activity.item_groups`). Los archivos de contenido nunca nombran grupos: el emparejamiento se
+    hace en la plataforma."""
+
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="student_groups")
+    name = models.CharField(_("nombre"), max_length=80)
+    members = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name="student_groups",
+                                     verbose_name=_("integrantes"))
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["pk"]
+        verbose_name = _("grupo")
+        constraints = [
+            models.UniqueConstraint(fields=["course", "name"], name="unique_group_name_per_course"),
+        ]
+
+    def __str__(self) -> str:
+        return self.name
+
+
 #: Partículas que forman parte del primer apellido: «De la Torre», «Del Pozo», «San Martín».
 SURNAME_PARTICLES = {"de", "del", "la", "las", "los", "san", "santa", "da", "das", "do", "dos", "van", "von", "y"}
 

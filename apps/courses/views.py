@@ -15,7 +15,7 @@ from django.views.decorators.http import require_POST
 
 from .access import can_view_course, owned_course, teacher_required
 from .forms import AcceptingUntilForm, CourseForm, JoinForm
-from .models import Course, Enrollment
+from .models import Course, Enrollment, StudentGroup
 
 Status = Enrollment.Status
 
@@ -117,25 +117,34 @@ def course_detail(request, pk):
         # Pendiente o rechazado ven lo mismo que un curso ajeno: nada.
         raise Http404
     rows = _student_activities(course, request.user)
+    work = [r for r in rows if not r["activity"].is_info]
     return render(request, "courses/course_detail.html", {
         "course": course,
         "live": LiveSession.objects.active().filter(course=course).first(),
-        "activities": [r for r in rows if not r["activity"].is_evaluation],
-        "evaluations": sorted([r for r in rows if r["activity"].is_evaluation],
+        # Lo que se lee (sin preguntas), arriba y lo más reciente primero.
+        "infos": sorted([r["activity"] for r in rows if r["activity"].is_info],
+                        key=lambda a: a.opens_at or a.created_at, reverse=True),
+        "activities": [r for r in work if not r["activity"].is_evaluation],
+        "evaluations": sorted([r for r in work if r["activity"].is_evaluation],
                               key=lambda r: r["activity"].opens_at or timezone.now()),
         "now": timezone.now(),
     })
 
 
 def _student_activities(course, user) -> list[dict]:
-    """Actividades visibles, con lo que le toca al estudiante: lo pendiente primero."""
-    from apps.activities import engine
+    """Actividades visibles para este estudiante (las de sus grupos, si van dirigidas a algunos), con
+    lo que le toca: lo pendiente primero. Su docente las ve todas."""
+    from apps.activities import audience, engine
     from apps.activities.models import Activity
 
     now = timezone.now()
+    mine = audience.member_groups(course.pk, user.pk)
     rows = []
-    for activity in Activity.objects.filter(course=course, published=True).select_related("category__period"):
+    for activity in (Activity.objects.filter(course=course, published=True)
+                     .select_related("category__period", "section").prefetch_related("groups")):
         if not activity.is_visible(now):
+            continue
+        if user.pk != course.owner_id and not audience.reaches(activity, user, mine):
             continue
         state = engine.state(activity, user, now)
         # Un repaso no es una tarea pendiente: no tiene nota ni vence.
@@ -202,7 +211,7 @@ def course_manage(request, pk, tab="clases"):
         decks = list(Deck.objects.filter(course=course))
         # Las evaluaciones no son material de una unidad: viven en la pestaña Evaluaciones.
         activities = list(Activity.objects.filter(course=course).exclude(kind=Activity.Kind.EVALUATION)
-                          .select_related("category"))
+                          .select_related("category").prefetch_related("groups"))
         from apps.accounts.models import User
 
         taught: dict[int, list] = {}
@@ -304,9 +313,13 @@ def _activities_tab(course, enrolled: int, wanted: str = "") -> dict:
                                             distinct=True),
                             to_review=Count("attempts__answer_rows",
                                             filter=Q(attempts__answer_rows__needs_review=True))))
-    for a in activities:
+    approved = set(course.enrollments.filter(status="approved").values_list("student_id", flat=True))
+    for a in activities.prefetch_related("groups__members"):
+        if a.is_info:
+            continue                                   # se lee, no se califica: está en la pestaña Clases
         if keep(a.category):
             a.mismatch = mismatch(a, periods)
+            a.reach = _reach(a, approved)
             rows[a.category.period_id if a.category_id else None].append(
                 {"kind": "activity", "item": a, "day": day_of(a)})
     for r in ManualRecord.objects.filter(course=course).select_related("category__period", "section"):
@@ -336,6 +349,14 @@ def _activities_tab(course, enrolled: int, wanted: str = "") -> dict:
         group["open"] = group["period"] is None or group["period"] == current or bool(wanted and group["count"])
     return {"activity_groups": groups, "has_activities": any(g["count"] for g in groups), "enrolled": enrolled,
             "filters": names, "wanted": wanted, "row_colors": row_colors(course)}
+
+
+def _reach(activity, approved: set[int]) -> int:
+    """A cuántos inscritos llega la actividad: todos, o los integrantes de sus grupos."""
+    from apps.activities.audience import audience_ids
+
+    ids = audience_ids(activity)
+    return len(approved) if ids is None else len(ids & approved)
 
 
 @teacher_required
@@ -368,7 +389,96 @@ def course_settings(request, pk):
         "github_url": reverse("github_account"),
         "approved": [e for e in enrollments if e.status == Status.APPROVED],
         "rejected": [e for e in enrollments if e.status == Status.REJECTED],
+        "group_count": StudentGroup.objects.filter(course=course).count(),
     })
+
+
+@teacher_required
+def course_groups(request, pk):
+    """Los grupos del curso, por ejemplo los equipos de un proyecto: los arma el docente y un estudiante
+    puede estar en varios. Un grupo que alguna actividad usa (como destinatario o en una de sus
+    secciones) no se elimina: la actividad quedaría a la vista de todos, o la sección sin quién la reciba."""
+    course = owned_course(request, pk)
+    approved = [e.student for e in course.enrollments.filter(status=Status.APPROVED).select_related("student")
+                .order_by("student__last_name", "student__first_name")]
+    approved_ids = {s.pk for s in approved}
+    if request.method == "POST":
+        action = request.POST.get("action")
+        group = None
+        if action in ("save", "delete"):
+            group = get_object_or_404(StudentGroup, pk=request.POST.get("group"), course=course)
+        if action == "delete":
+            used = len(_group_uses(course).get(group.pk, ()))
+            if used:
+                messages.error(request, ngettext(
+                    "No se eliminó «%(name)s»: lo usa %(n)d actividad. Quítelo de sus destinatarios y de sus secciones "
+                    "antes de eliminarlo.",
+                    "No se eliminó «%(name)s»: lo usan %(n)d actividades. Quítelo de sus destinatarios y de sus "
+                    "secciones antes de eliminarlo.", used) % {"name": group.name, "n": used})
+            else:
+                name = group.name
+                group.delete()
+                messages.success(request, _("Se eliminó el grupo «%(name)s».") % {"name": name})
+            return redirect("course_groups", pk=pk)
+        if action not in ("save", "create"):
+            messages.error(request, _("Acción desconocida."))
+            return redirect("course_groups", pk=pk)
+        name = " ".join(request.POST.get("name", "").split())[:80]
+        wanted = set(request.POST.getlist("members"))
+        members = [s for s in approved if str(s.pk) in wanted]
+        same = StudentGroup.objects.filter(course=course, name__iexact=name)
+        if group is not None:
+            same = same.exclude(pk=group.pk)
+        if not name:
+            messages.error(request, _("Escriba el nombre del grupo."))
+        elif same.exists():
+            messages.error(request, _("Ya hay un grupo llamado «%(name)s».") % {"name": name})
+        else:
+            with transaction.atomic():
+                if group is None:
+                    group = StudentGroup.objects.create(course=course, name=name)
+                else:
+                    group.name = name
+                    group.save(update_fields=["name"])
+                # El formulario solo lista a los inscritos: quien se retiró del curso conserva su lugar.
+                outside = [m for m in group.members.all() if m.pk not in approved_ids]
+                group.members.set(members + outside)
+            text = (ngettext("Grupo «%(name)s» creado con %(n)d integrante.", "Grupo «%(name)s» creado con %(n)d integrantes.",
+                             len(members)) if action == "create" else
+                    ngettext("Grupo «%(name)s» guardado: %(n)d integrante.", "Grupo «%(name)s» guardado: %(n)d integrantes.",
+                             len(members)))
+            messages.success(request, text % {"name": name, "n": len(members)})
+        return redirect("course_groups", pk=pk)
+
+    uses = _group_uses(course)
+    groups = list(StudentGroup.objects.filter(course=course).prefetch_related("members"))
+    memberships: dict[int, list[str]] = {}
+    for g in groups:
+        g.roster = sorted((m for m in g.members.all() if m.pk in approved_ids),
+                          key=lambda m: (m.last_name.lower(), m.first_name.lower()))
+        g.member_ids = {m.pk for m in g.roster}
+        g.uses = len(uses.get(g.pk, ()))
+        for m in g.roster:
+            memberships.setdefault(m.pk, []).append(g.name)
+    return render(request, "courses/groups.html", {
+        "course": course, "groups": groups, "students": approved, "memberships": memberships,
+        "alone": [s for s in approved if s.pk not in memberships], "no_members": set(),
+    })
+
+
+def _group_uses(course) -> dict[int, set[int]]:
+    """Grupo → las actividades que lo usan, como destinatario o en alguna de sus secciones."""
+    from apps.activities.models import Activity
+
+    out: dict[int, set[int]] = {}
+    for activity_id, group_id in Activity.groups.through.objects.filter(activity__course=course) \
+            .values_list("activity_id", "studentgroup_id"):
+        out.setdefault(group_id, set()).add(activity_id)
+    for activity_id, item_groups in Activity.objects.filter(course=course).values_list("pk", "item_groups"):
+        for ids in (item_groups or {}).values():
+            for group_id in ids:
+                out.setdefault(int(group_id), set()).add(activity_id)
+    return out
 
 
 @teacher_required

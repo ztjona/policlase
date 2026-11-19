@@ -25,7 +25,7 @@
               {% elif now <= a.due_at %}<span class="chip live">{% translate "en curso" %}</span>
               {% elif a.published_at %}<span class="chip ok">{% translate "notas publicadas" %}</span>
               {% else %}<span class="chip warn">{% translate "por publicar" %}</span>{% endif %}</td>
-            <td class="center">{{ a.sent }} / {{ enrolled }}</td>
+            <td class="center">{{ a.sent }} / {{ a.reach }}</td>
           </tr>
         {% endfor %}
       </tbody>
@@ -49,7 +49,7 @@
                 {% if a.due_milestone %}<div class="muted">{% blocktranslate with name=a.due_milestone.name count n=a.days_before %}{{ n }} día antes de «{{ name }}»{% plural %}{{ n }} días antes de «{{ name }}»{% endblocktranslate %}</div>{% endif %}
                 {% if a.due_at %}<div class="muted">{% blocktranslate with when=a.due_at|date:"D d M, H:i" %}hasta el {{ when }}{% endblocktranslate %}</div>{% endif %}
               {% else %}<span class="muted">{% translate "por definir" %}</span>{% endif %}</td>
-            <td class="center">{{ a.sent }} / {{ enrolled }}</td>
+            <td class="center">{{ a.sent }} / {{ a.reach }}</td>
           </tr>
         {% endfor %}
       </tbody>

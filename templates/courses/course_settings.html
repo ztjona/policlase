@@ -56,6 +56,12 @@
   <a class="btn secondary" href="{% url 'grading_settings' course.pk %}">{% translate "Ponderaciones y aprobación" %}</a>
 </section>
 
+<h2 id="grupos">{% translate "Grupos" %}{% if group_count %} <span class="chip">{{ group_count }}</span>{% endif %}</h2>
+<section class="card spread">
+  <span>{% translate "Los grupos del curso, por ejemplo los equipos de un proyecto. Una actividad puede ir dirigida a ciertos grupos, y cada grupo puede recibir sus propias secciones." %}</span>
+  <a class="btn secondary" href="{% url 'course_groups' course.pk %}">{% translate "Administrar los grupos" %}</a>
+</section>
+
 <h2 id="github">{% translate "Sincronización con GitHub" %}</h2>
 <section class="card stack">
   {% if not github_account %}

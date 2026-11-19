@@ -5,21 +5,30 @@
     <span class="grip" title="{% translate 'Arrastre para mover a otra sección' %}">{% icon "grip" 16 %}</span>
     <span class="row-kind" title="{% translate 'Actividad' %}">{% icon "task" 16 %}</span>
     <div class="deck-info">
-      <a href="{% url 'activity_detail' course.pk a.pk %}"><strong>{{ a.title }}</strong></a>
+      <a href="{% if a.is_info %}{% url 'activity_settings' course.pk a.pk %}{% else %}{% url 'activity_detail' course.pk a.pk %}{% endif %}"><strong>{{ a.title }}</strong></a>
+      {% if a.is_info %}<span class="chip">{% translate "Información" %}</span>{% endif %}
+      {% include "activities/_groups_chip.html" with activity=a %}
       {% if a.category %}<span class="weight-chip c{{ row_colors|get_item:a.category.name }}">{{ a.category.name }}</span>{% endif %}
       {% if a.is_practice %}<span class="chip">{% translate "Repaso" %}</span>{% endif %}
       {% if not a.published %}<span class="chip warn">{% translate "Borrador" %}</span>{% endif %}
       <div class="small muted">
+        {% if a.is_info %}{% translate "sin preguntas: se lee, sin entrega ni nota" %}{% if a.opens_at %} · {% blocktranslate with when=a.opens_at|date:"D d M" %}disponible desde el {{ when }}{% endblocktranslate %}{% endif %}
+        {% else %}
         {% blocktranslate count n=a.questions|length %}{{ n }} pregunta{% plural %}{{ n }} preguntas{% endblocktranslate %} ·
         {% blocktranslate with p=a.points|floatformat:"-2" %}{{ p }} puntos{% endblocktranslate %} ·
         {% if a.is_practice %}{% translate "sin nota" %}{% if a.opens_at %} · {% blocktranslate with when=a.opens_at|date:"D d M" %}disponible desde el {{ when }}{% endblocktranslate %}{% endif %}
         {% elif a.due_at %}{% blocktranslate with when=a.due_at|date:"D d M, H:i" %}vence {{ when }}{% endblocktranslate %}{% else %}{% translate "sin fecha" %}{% endif %}
+        {% endif %}
       </div>
     </div>
     <div class="row-actions">
       <a class="icon-btn" href="{% url 'activity_edit' course.pk a.pk %}" title="{% translate 'Editar contenido' %}" aria-label="{% translate 'Editar contenido' %}">{% icon "edit" %}</a>
-      <a class="icon-btn" href="{% url 'activity_present' course.pk a.pk %}" title="{% translate 'Presentar en clase. Los estudiantes pueden seguir su avance o continuar a su propio ritmo.' %}" aria-label="{% translate 'Presentar en clase' %}">{% icon "play" %}</a>
-      <a class="icon-btn primary" href="{% url 'activity_detail' course.pk a.pk %}" title="{% translate 'Configuración y entregas' %}" aria-label="{% translate 'Configuración y entregas' %}">{% icon "results" %}</a>
+      {% if a.is_info %}
+        <a class="icon-btn primary" href="{% url 'activity_settings' course.pk a.pk %}" title="{% translate 'Configuración' %}" aria-label="{% translate 'Configuración' %}">{% icon "gear" %}</a>
+      {% else %}
+        <a class="icon-btn" href="{% url 'activity_present' course.pk a.pk %}" title="{% translate 'Presentar en clase. Los estudiantes pueden seguir su avance o continuar a su propio ritmo.' %}" aria-label="{% translate 'Presentar en clase' %}">{% icon "play" %}</a>
+        <a class="icon-btn primary" href="{% url 'activity_detail' course.pk a.pk %}" title="{% translate 'Configuración y entregas' %}" aria-label="{% translate 'Configuración y entregas' %}">{% icon "results" %}</a>
+      {% endif %}
     </div>
   </div>
 {% endfor %}

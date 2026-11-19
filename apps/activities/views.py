@@ -17,14 +17,15 @@ from django.views.decorators.http import require_POST
 
 from apps.accounts import readonly
 from apps.courses.access import is_approved, owned_course, teacher_required
-from apps.courses.models import Course, Enrollment
+from apps.courses.models import Course, Enrollment, StudentGroup
 from apps.grades import gradebook
 from apps.grades.forms import MilestoneForm
 from apps.grades.models import Milestone, Period
 
-from . import engine, images, outline, stats, timeline
-from .forms import ActivitySettingsForm, EvaluationSettingsForm, PracticeSettingsForm
+from . import audience, engine, images, outline, stats, timeline
+from .forms import ActivitySettingsForm, EvaluationSettingsForm, InfoSettingsForm, PracticeSettingsForm
 from .models import Activity, Answer, Attempt, Extension, SkippedCorrection, Upload, new_access_code
+from .models import graded_points as models_graded
 
 def _course_link(course):
     from apps.github.models import CourseRepo
@@ -196,8 +197,10 @@ def activity_detail(request, course_pk, pk):
     (`activity_settings`), para no cambiar algo cuando solo se quiere mirar los resultados."""
     course = owned_course(request, course_pk)
     activity = _activity(course, pk)
+    if activity.is_info:
+        return redirect("activity_settings", course_pk=course.pk, pk=activity.pk)    # no recibe entregas
     engine.finalize_overdue(activity)
-    students = _approved(course)
+    students = audience.audience(activity, _approved(course))
     rows, sorts = _sorted_results(_results(activity, students), request.GET)
     review = [q for q in activity.questions if q["type"] in engine.REVIEW_TYPES]
     pending = {}
@@ -226,10 +229,16 @@ def activity_settings(request, course_pk, pk):
         # Sus fechas y su fila se configuran en la evaluación, de la que depende.
         return redirect(reverse("activity_settings", args=[course.pk, activity.correction_of_id]) + "#correction")
     gradebook.ensure_defaults(course)
-    form_class = (EvaluationSettingsForm if activity.is_evaluation else PracticeSettingsForm if activity.is_practice
-                  else ActivitySettingsForm)
+    form_class = (InfoSettingsForm if activity.is_info else EvaluationSettingsForm if activity.is_evaluation
+                  else PracticeSettingsForm if activity.is_practice else ActivitySettingsForm)
     form = form_class(request.POST or None, instance=activity, course=course)
-    if request.method == "POST" and activity.is_practice:
+    if request.method == "POST" and activity.is_info:
+        if form.is_valid():
+            form.save()
+            messages.success(request, _("Configuración guardada."))
+            return redirect("activity_settings", course_pk=course.pk, pk=activity.pk)
+        messages.error(request, _("Revise los campos marcados."))
+    elif request.method == "POST" and activity.is_practice:
         if form.is_valid():
             form.save()
             messages.success(request, _("Configuración guardada."))
@@ -262,7 +271,8 @@ def activity_settings(request, course_pk, pk):
         "submitted": Attempt.objects.filter(activity=activity, submitted_at__isnull=False)
                                     .values("student").distinct().count(),
         "milestones": Milestone.objects.filter(course=course),
-        "parts": outline.parts(activity.compiled), "disabled": activity.disabled,
+        "parts": _parts(activity), "disabled": activity.disabled,
+        "course_groups": list(StudentGroup.objects.filter(course=course)),
         "full_points": float(activity.compiled.get("points") or 0),
         "now": timezone.now(),
         "extensions": Extension.objects.filter(activity=activity).select_related("student"),
@@ -276,7 +286,7 @@ def activity_stats(request, course_pk, pk):
     course = owned_course(request, course_pk)
     activity = get_object_or_404(Activity, pk=pk, course=course)
     engine.finalize_overdue(activity)
-    students = _approved(course)
+    students = audience.audience(activity, _approved(course))
     counted = engine.counted_attempts(activity)
     ids = [counted[s.pk].pk for s in students if s.pk in counted]
     attempts = list(Attempt.objects.filter(pk__in=ids).select_related("student").prefetch_related("answer_rows"))
@@ -397,14 +407,42 @@ def evaluation_publish(request, course_pk, pk):
     return redirect(reverse("activity_detail", args=[course.pk, activity.pk]) + "#apply")
 
 
+def _parts(activity) -> list[dict]:
+    """Las secciones de la actividad (`outline.parts`) con sus grupos y su reparto, para el formulario."""
+    rules = audience.part_rules(activity, activity.compiled)
+    parts = outline.parts(activity.compiled)
+    for number, (part, rule) in enumerate(zip(parts, rules)):
+        part.update({"number": number, "groups": rule["groups"], "deal": rule["deal"]})
+    return parts
+
+
 @teacher_required
 @require_POST
 def activity_parts(request, course_pk, pk):
-    """Qué secciones están habilitadas. Una deshabilitada no se muestra al estudiante ni cuenta para
-    la nota; las entregas ya enviadas se recalculan y las respuestas no se tocan."""
+    """Qué secciones están habilitadas y, si el curso tiene grupos, qué grupos recibe cada una y cuántos
+    ítems de ella responde cada estudiante. Una deshabilitada no se muestra al estudiante ni cuenta
+    para la nota; las entregas ya enviadas se recalculan y las respuestas no se tocan. Los grupos y el
+    reparto se aplican a los intentos que empiecen desde ahora."""
     course, activity = _own_activity(request, course_pk, pk)
     enabled = set(request.POST.getlist("enabled"))
     every = {i["item_id"] for i in activity.compiled.get("items", []) if i.get("kind", "item") == "item"}
+    if request.POST.get("rules"):
+        known = set(StudentGroup.objects.filter(course=course).values_list("pk", flat=True))
+        item_groups, deal = {}, {}
+        for number, part in enumerate(audience.part_rules(activity, activity.compiled)):
+            chosen = sorted(int(g) for g in request.POST.getlist(f"groups-{number}") if g.isdigit() and int(g) in known)
+            try:
+                n = int(request.POST.get(f"deal-{number}") or 0)
+            except ValueError:
+                n = 0
+            n = n if 0 < n < len(part["items"]) else 0      # repartir todos los ítems es no repartir
+            for item_id in part["items"]:
+                if chosen:
+                    item_groups[item_id] = chosen
+                if n:
+                    deal[item_id] = n
+        activity.item_groups, activity.deal = item_groups, deal
+        activity.save(update_fields=["item_groups", "deal"])
     count = engine.set_disabled(activity, every - enabled)
     if activity.ungraded_items:
         messages.success(request, ngettext(
@@ -722,11 +760,17 @@ def dates_panel(request, course_pk):
 
     milestones = [{"milestone": m, "form": MilestoneForm(instance=m, prefix=f"m{m.pk}"),
                    "count": m.activities.count()} for m in Milestone.objects.filter(course=course)]
-    activities = list(Activity.objects.filter(course=course).select_related("due_milestone", "review_milestone",
-                                                                            "category__period", "course__owner")
-                      .annotate(sent=Count("attempts__student", filter=Q(attempts__submitted_at__isnull=False),
-                                           distinct=True),
-                                working=Count("attempts", filter=Q(attempts__submitted_at__isnull=True))))
+    approved = {s.pk for s in _approved(course)}
+    activities = [a for a in Activity.objects.filter(course=course)
+                  .select_related("due_milestone", "review_milestone", "category__period", "course__owner")
+                  .prefetch_related("groups__members")
+                  .annotate(sent=Count("attempts__student", filter=Q(attempts__submitted_at__isnull=False),
+                                       distinct=True),
+                            working=Count("attempts", filter=Q(attempts__submitted_at__isnull=True)))
+                  if not a.is_info]                    # la información no vence: no tiene fechas que mover
+    for a in activities:
+        ids = audience.audience_ids(a)
+        a.reach = len(approved) if ids is None else len(ids & approved)
     evaluations = sorted([a for a in activities if a.is_evaluation],
                          key=lambda a: (a.opens_at is None, a.opens_at or timezone.now()))
     practices = sorted([a for a in activities if a.is_practice],
@@ -736,7 +780,6 @@ def dates_panel(request, course_pk):
         "activities": [a for a in activities if a.kind == Activity.Kind.ACTIVITY], "evaluations": evaluations,
         "practices": practices,
         "milestone_choices": Milestone.objects.filter(course=course), "now": timezone.now(),
-        "enrolled": len(_approved(course)),
     })
 
 
@@ -794,6 +837,8 @@ def _student_activity(request, course_pk, pk) -> Activity:
     # está inscrito): 404, igual que lo ajeno.
     if not is_approved(request.user, course) or not activity.is_visible():
         raise Http404
+    if not audience.reaches(activity, request.user):      # dirigida a grupos de los que no es parte
+        raise Http404
     return activity
 
 
@@ -802,13 +847,22 @@ def activity_student(request, course_pk, pk):
     from . import debate
 
     activity = _student_activity(request, course_pk, pk)
+    if activity.is_info:
+        # Información: solo su contenido, para leerlo.
+        return render(request, "activities/info.html", {
+            "course": activity.course, "activity": activity,
+            "blocks": [b for b in audience.visible_content(activity, request.user).get("items", [])
+                       if b.get("kind") in ("content", "segment")],
+        })
     state = engine.state(activity, request.user)
     counted = state.counted
     now = timezone.now()
     if counted:
         blocks = outline.for_review(counted.content, activity.compiled if state.solutions else {}, activity.disabled)
     else:
-        blocks = outline.for_review(activity.compiled, activity.compiled, activity.disabled)
+        # Sin entrega, lo que le corresponde: sin las partes de otros grupos.
+        mine = audience.visible_content(activity, request.user)
+        blocks = outline.for_review(mine, mine, activity.disabled)
     # Cada solución, como la explicación de su ítem; la de un ítem en debate espera a que se cierre.
     blocks = outline.with_explanations(blocks, debate.hidden_items(activity, now))
     rows = engine.answer_rows(counted) if counted else []
@@ -817,7 +871,14 @@ def activity_student(request, course_pk, pk):
     debates = _debates(request, activity, state, now)
     # El foro va junto a su pregunta en la revisión; si la revisión no se muestra, en su propia sección.
     inline = bool(counted and state.reveal) or bool(not counted and state.solutions)
+    if state.attempts:
+        points = state.attempts[-1].max_points       # los de su copia: sus partes y los ítems que le tocaron
+    elif audience.personalized(activity):
+        points = models_graded(audience.personal_content(activity, request.user, activity.compiled), activity.disabled)
+    else:
+        points = activity.points
     return render(request, "activities/student.html", {
+        "points": points,
         "course": activity.course, "activity": activity, "state": state, "rows": rows, "blocks": blocks,
         "tl": timeline.lanes(activity, now, request.user),
         "debates": debates, "debates_inline": inline, "now": now,
@@ -994,6 +1055,7 @@ def attempt_form(request, course_pk, pk):
         explanations = outline.explanations(draft.content, activity.compiled, activity.disabled)
         explained = _explained(rows, explanations)
     return render(request, "activities/attempt.html", {
+        "points": models_graded(draft.content, activity.disabled),      # los de su copia: sus partes y sus ítems
         "explanations": explanations, "explained": explained,
         "course": activity.course, "activity": activity, "attempt": draft,
         "rows": rows, "errors": errors, "late": late, "blocked": reason,

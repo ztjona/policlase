@@ -1,0 +1,12 @@
+{% load i18n policlase %}
+{% comment %} Casillas de los inscritos para elegir los integrantes de un grupo. `chosen`: los ya elegidos. Junto a
+   cada estudiante, los grupos en los que ya está (puede estar en varios). {% endcomment %}
+<fieldset class="due">
+  <legend>{% translate "Integrantes" %}</legend>
+  <div class="member-grid">
+    {% for s in students %}
+      <label class="radio-row small"><input type="checkbox" name="members" value="{{ s.pk }}"{% if s.pk in chosen %} checked{% endif %}>
+        <span>{{ s.last_name }}, {{ s.first_name }}{% with others=memberships|get_item:s.pk %}{% if others %} <span class="muted">· {{ others|join:", " }}</span>{% endif %}{% endwith %}</span></label>
+    {% endfor %}
+  </div>
+</fieldset>

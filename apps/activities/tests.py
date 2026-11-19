@@ -2203,3 +2203,251 @@ class CorrectionAndTimelineTests(ActivityBase):
         page = self.client.get(reverse("activity_student", args=[self.course.pk, self.exam.pk]))
         self.assertContains(page, "Continuar la corrección")
         self.assertNotContains(page, "Omitir la corrección y ver la revisión")
+
+
+INFO = r"""schema: policlase/v1
+title: 'Proyecto 1: enunciado'
+use: activity
+slides:
+  - markdown: '## El problema'
+  - markdown: 'Diseñe el horario del metro.'
+"""
+
+
+class InfoTests(ActivityBase):
+    """Un documento sin preguntas es una información: se lee, sin intentos, fecha ni nota."""
+
+    def setUp(self):
+        super().setUp()
+        from policlase_gen import document as content_format
+
+        document, _report, _use = content_format.load_text(INFO)
+        self.info = Activity.objects.create(course=self.course, title="Proyecto 1: enunciado", source=INFO,
+                                            compiled=content_format.compile_content(document), published=True,
+                                            category=self.course.periods.first().categories.get(name="Proyecto"))
+
+    def test_se_lee_arriba_y_no_se_entrega(self):
+        self.assertTrue(self.info.is_info)
+        self.assertFalse(self.activity.is_info)
+        self.client.force_login(self.ana)
+        page = self.client.get(reverse("course_detail", args=[self.course.pk])).content.decode()
+        self.assertIn("Información", page)
+        self.assertLess(page.index("Proyecto 1: enunciado"), page.index("Deber 1"))      # arriba
+        own = self.client.get(reverse("activity_student", args=[self.course.pk, self.info.pk]))
+        self.assertContains(own, "Diseñe el horario del metro.")
+        self.assertNotContains(own, "Comenzar")
+        with self.assertRaises(engine.ActionError):
+            engine.start(self.info, self.ana)
+        self.assertFalse(Attempt.objects.filter(activity=self.info).exists())
+
+    def test_no_cuenta_en_las_notas_ni_en_la_pestana_actividades(self):
+        Activity.objects.filter(pk=self.info.pk).update(due_at=timezone.now() - timedelta(days=1))
+        cells = gradebook.course_grades(self.course, [self.ana])[0].periods[0].cells
+        proyecto = next(c for c in cells if c.category.name == "Proyecto")
+        self.assertIsNone(proyecto.fraction)                                  # ni un cero
+        self.client.force_login(self.teacher)
+        tab = self.client.get(reverse("course_activities", args=[self.course.pk]))
+        self.assertNotContains(tab, "Proyecto 1: enunciado")
+        units = self.client.get(reverse("course_manage", args=[self.course.pk]))
+        self.assertContains(units, "Proyecto 1: enunciado")
+        self.assertContains(units, "sin preguntas: se lee, sin entrega ni nota")
+        detail = self.client.get(reverse("activity_detail", args=[self.course.pk, self.info.pk]))
+        self.assertRedirects(detail, reverse("activity_settings", args=[self.course.pk, self.info.pk]))
+
+    def test_su_configuracion_quita_la_ponderacion(self):
+        self.client.force_login(self.teacher)
+        response = self.client.post(reverse("activity_settings", args=[self.course.pk, self.info.pk]),
+                                    {"published": "on", "opens_at": ""})
+        self.assertEqual(response.status_code, 302)
+        self.info.refresh_from_db()
+        self.assertIsNone(self.info.category)
+        self.assertTrue(self.info.published)
+
+    def test_lo_que_vale_cero_no_cuenta(self):
+        """Todos los ítems deshabilitados: la actividad no vale nada y no se cuenta como cero."""
+        engine.set_disabled(self.activity, {"D1-a", "D1-foto"})
+        Activity.objects.filter(pk=self.activity.pk).update(due_at=timezone.now() - timedelta(days=1))
+        cells = gradebook.course_grades(self.course, [self.ana])[0].periods[0].cells
+        self.assertIsNone(next(c for c in cells if c.category == self.deberes).fraction)
+
+    def test_el_editor_la_guarda_como_informacion(self):
+        self.client.force_login(self.teacher)
+        response = self.client.post(reverse("activity_new", args=[self.course.pk]), {"source": INFO})
+        created = Activity.objects.exclude(pk__in=[self.activity.pk, self.info.pk]).get()
+        self.assertRedirects(response, reverse("activity_settings", args=[self.course.pk, created.pk]),
+                             fetch_redirect_response=False)
+        page = self.client.get(response.url)
+        self.assertContains(page, "guardada como información")
+
+
+DEFENSE = r"""schema: policlase/v1
+title: 'Proyecto 1: defensa'
+use: evaluation
+slides:
+  - markdown: '## Indicaciones'
+  - segment: { title: 'Análisis A' }
+  - markdown: 'Sobre su solución del metro.'
+  - item: { id: A1, questions: [{ id: q1, type: numeric, prompt: 'a1', solution: 1, grading: { atol: 0 } }] }
+  - solution: 'Explicación de A1'
+  - item: { id: A2, questions: [{ id: q1, type: numeric, prompt: 'a2', solution: 2, grading: { atol: 0 } }] }
+  - item: { id: A3, questions: [{ id: q1, type: numeric, prompt: 'a3', solution: 3, grading: { atol: 0 } }] }
+  - item: { id: A4, questions: [{ id: q1, type: numeric, prompt: 'a4', solution: 4, grading: { atol: 0 } }] }
+  - segment: { title: 'Análisis B' }
+  - markdown: 'Sobre su solución del GPS acústico.'
+  - item: { id: B1, questions: [{ id: q1, type: numeric, prompt: 'b1', solution: 5, grading: { atol: 0 } }] }
+  - item: { id: B2, questions: [{ id: q1, type: numeric, prompt: 'b2', solution: 6, grading: { atol: 0 } }] }
+  - segment: { title: 'Común' }
+  - item: { id: C1, questions: [{ id: q1, type: numeric, prompt: 'c1', solution: 7, grading: { atol: 0 } }] }
+"""
+
+
+class GroupsTests(ActivityBase):
+    """Grupos: destinatarios de una actividad, secciones de cada grupo y reparto de ítems."""
+
+    def setUp(self):
+        super().setUp()
+        from policlase_gen import document as content_format
+
+        from apps.courses.models import StudentGroup
+
+        self.carla, self.dario = make_user("carla"), make_user("dario")
+        for s in (self.carla, self.dario):
+            Enrollment.objects.create(course=self.course, student=s, status=Enrollment.Status.APPROVED)
+        self.metro = StudentGroup.objects.create(course=self.course, name="Grupo 1: metro")
+        self.metro.members.set([self.ana, self.bruno, self.carla])
+        self.gps = StudentGroup.objects.create(course=self.course, name="Grupo 2: GPS")
+        self.gps.members.set([self.dario])
+        document, report, _use = content_format.load_text(DEFENSE)
+        self.assertEqual(report.errors, [])
+        self.defense = Activity(course=self.course, title="Proyecto 1: defensa", source=DEFENSE,
+                                compiled=content_format.compile_content(document), published=True,
+                                category=self.course.periods.first().categories.get(name="Proyecto"),
+                                opens_at=timezone.now() - timedelta(minutes=5), due_at=timezone.now() + timedelta(hours=2))
+        self.defense.set_kind("evaluation")
+        self.defense.require_code = False
+        self.defense.item_groups = {"A1": [self.metro.pk], "A2": [self.metro.pk], "A3": [self.metro.pk],
+                                    "A4": [self.metro.pk], "B1": [self.gps.pk], "B2": [self.gps.pk]}
+        self.defense.save()
+
+    @staticmethod
+    def ids(attempt):
+        return [b["item_id"] for b in attempt.content["items"] if b.get("kind", "item") == "item"]
+
+    def text(self, attempt):
+        return " ".join(str(b.get("markdown") or b.get("title") or "") for b in attempt.content["items"])
+
+    def test_cada_grupo_recibe_solo_su_parte(self):
+        ana = engine.start(self.defense, self.ana)
+        self.assertEqual(self.ids(ana), ["A1", "A2", "A3", "A4", "C1"])
+        self.assertNotIn("GPS", self.text(ana))
+        self.assertEqual(ana.max_points, 5)
+        dario = engine.start(self.defense, self.dario)
+        self.assertEqual(self.ids(dario), ["B1", "B2", "C1"])
+        self.assertNotIn("Análisis A", self.text(dario))                   # la parte entera, con su enunciado
+        self.assertNotIn("metro", self.text(dario))
+        self.assertEqual(dario.max_points, 3)
+        # Su revisión no trae la explicación de A1, que es de otro grupo.
+        blocks = outline.for_review(dario.content, self.defense.compiled)
+        self.assertNotIn("Explicación de A1", " ".join(str(b.get("markdown", "")) for b in blocks))
+        engine.save_draft(dario, {"B1.q1": "5", "B2.q1": "6", "C1.q1": "7"})
+        self.assertEqual(engine.submit(dario).fraction, 1.0)
+
+    def test_el_reparto_no_repite_dentro_del_grupo_y_queda_fijo(self):
+        from . import audience
+
+        self.defense.deal = {i: 1 for i in ("A1", "A2", "A3", "A4")}
+        self.defense.save()
+        got = []
+        for student in (self.ana, self.bruno, self.carla):
+            attempt = engine.start(self.defense, student)
+            a_items = [i for i in self.ids(attempt) if i.startswith("A")]
+            self.assertEqual(len(a_items), 1)
+            self.assertIn("C1", self.ids(attempt))                         # lo que no se reparte, completo
+            self.assertEqual(attempt.max_points, 2)
+            got.append(a_items[0])
+        self.assertEqual(len(set(got)), 3)                                 # distintos dentro del grupo
+        first = Attempt.objects.get(activity=self.defense, student=self.ana)
+        again = audience.personal_content(self.defense, self.ana, self.defense.compiled, [first.content])
+        self.assertEqual([b["item_id"] for b in again["items"] if b.get("kind", "item") == "item"], self.ids(first))
+
+    def test_mas_integrantes_que_items_repite_lo_menos_posible(self):
+        from apps.courses.models import StudentGroup
+
+        self.defense.deal = {"B1": 1, "B2": 1}
+        self.defense.save()
+        StudentGroup.objects.get(pk=self.gps.pk).members.set([self.dario, self.ana, self.bruno, self.carla])
+        taken = [next(i for i in self.ids(engine.start(self.defense, s)) if i.startswith("B"))
+                 for s in (self.dario, self.ana, self.bruno, self.carla)]
+        self.assertEqual(sorted(taken), ["B1", "B1", "B2", "B2"])
+
+    def test_destinatarios_solo_su_grupo_ve_y_cuenta(self):
+        self.activity.groups.set([self.gps])
+        self.client.force_login(self.ana)
+        self.assertNotContains(self.client.get(reverse("course_detail", args=[self.course.pk])), "Deber 1")
+        self.assertEqual(self.client.get(reverse("activity_student", args=[self.course.pk, self.activity.pk])).status_code, 404)
+        self.client.force_login(self.dario)
+        self.assertContains(self.client.get(reverse("course_detail", args=[self.course.pk])), "Deber 1")
+        Activity.objects.filter(pk=self.activity.pk).update(due_at=timezone.now() - timedelta(days=1))
+        ana, dario = gradebook.course_grades(self.course, [self.ana, self.dario])
+        deberes = lambda g: next(c for c in g.periods[0].cells if c.category == self.deberes)
+        self.assertIsNone(deberes(ana).fraction)                            # no es para su grupo: ni un cero
+        self.assertEqual(deberes(dario).fraction, 0.0)                      # es para el suyo y no entregó
+        self.client.force_login(self.teacher)
+        results = self.client.get(reverse("activity_detail", args=[self.course.pk, self.activity.pk]))
+        self.assertContains(results, "dario")
+        self.assertNotContains(results, "bruno")
+        tab = self.client.get(reverse("course_activities", args=[self.course.pk]))
+        self.assertContains(tab, "0 / 1")                                   # entregas sobre sus destinatarios
+        self.assertContains(tab, "Grupo 2: GPS")
+
+    def test_quien_ya_la_habia_empezado_la_conserva(self):
+        attempt = engine.start(self.activity, self.ana)
+        self.answer_all(attempt)
+        engine.submit(attempt)
+        self.activity.groups.set([self.gps])
+        self.client.force_login(self.ana)
+        self.assertEqual(self.client.get(reverse("activity_student", args=[self.course.pk, self.activity.pk])).status_code, 200)
+        cells = gradebook.course_grades(self.course, [self.ana])[0].periods[0].cells
+        self.assertIsNotNone(next(c for c in cells if c.category == self.deberes).fraction)
+
+    def test_la_configuracion_guarda_destinatarios_secciones_y_reparto(self):
+        self.client.force_login(self.teacher)
+        page = self.client.get(reverse("activity_settings", args=[self.course.pk, self.defense.pk]))
+        self.assertContains(page, "Destinatarios")
+        self.assertContains(page, "Grupo 1: metro (3 integrantes)")
+        self.assertContains(page, 'name="groups-0"')
+        self.assertContains(page, 'name="deal-0"')
+        response = self.client.post(reverse("activity_parts", args=[self.course.pk, self.defense.pk]), {
+            "rules": "1", "enabled": ["A1", "A2", "A3", "A4", "B1", "B2", "C1"],
+            "groups-0": [str(self.metro.pk)], "deal-0": "2", "groups-1": [str(self.gps.pk)], "deal-1": "5"})
+        self.assertEqual(response.status_code, 302)
+        self.defense.refresh_from_db()
+        self.assertEqual(self.defense.item_groups, {"A1": [self.metro.pk], "A2": [self.metro.pk], "A3": [self.metro.pk],
+                                                    "A4": [self.metro.pk], "B1": [self.gps.pk], "B2": [self.gps.pk]})
+        self.assertEqual(self.defense.deal, {"A1": 2, "A2": 2, "A3": 2, "A4": 2})    # repartir 5 de 2 es no repartir
+
+    def test_la_pagina_de_grupos(self):
+        from apps.courses.models import StudentGroup
+
+        self.client.force_login(self.teacher)
+        url = reverse("course_groups", args=[self.course.pk])
+        page = self.client.get(url)
+        self.assertContains(page, "Grupo 1: metro")
+        self.assertContains(page, "3 integrantes")
+        self.client.post(url, {"action": "create", "name": "Grupo 3", "members": [self.ana.pk, self.outsider.pk]})
+        created = StudentGroup.objects.get(name="Grupo 3")
+        self.assertEqual(list(created.members.all()), [self.ana])            # solo inscritos
+        self.client.post(url, {"action": "create", "name": "grupo 3"})
+        self.assertEqual(StudentGroup.objects.filter(course=self.course).count(), 3)   # nombre repetido
+        self.client.post(url, {"action": "save", "group": created.pk, "name": "Grupo 3: puente",
+                               "members": [self.bruno.pk, self.carla.pk]})
+        created.refresh_from_db()
+        self.assertEqual(created.name, "Grupo 3: puente")
+        self.assertEqual(set(created.members.all()), {self.bruno, self.carla})
+        # En uso (por la defensa), no se elimina; sin uso, sí.
+        self.client.post(url, {"action": "delete", "group": self.metro.pk})
+        self.assertTrue(StudentGroup.objects.filter(pk=self.metro.pk).exists())
+        self.client.post(url, {"action": "delete", "group": created.pk})
+        self.assertFalse(StudentGroup.objects.filter(pk=created.pk).exists())
+        self.client.force_login(self.ana)
+        self.assertEqual(self.client.get(url).status_code, 403)

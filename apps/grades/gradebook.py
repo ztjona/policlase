@@ -9,7 +9,9 @@ falte, pero un parcial no pasa de 20. La fracción de una fila es el promedio de
 (o de las clases en vivo del parcial, para la participación) y de sus registros manuales:
 
 - una actividad cuenta desde que vence, o desde que el estudiante la entregó; vencida y sin
-  entregar, vale cero. La que cuenta es la última entrega.
+  entregar, vale cero. La que cuenta es la última entrega. Una actividad dirigida a ciertos grupos
+  (`Activity.groups`) cuenta solo para sus destinatarios y para quien la entregó. Lo que vale cero
+  puntos (una información, sin preguntas, o una actividad con todo deshabilitado) no cuenta.
 - una clase en vivo terminada cuenta para todos los inscritos: faltar vale cero. Si el docente le
   puso una nota manual a un estudiante en esa clase (`SessionGrade`), cuenta esa.
 - un registro manual (`ManualRecord`) cuenta desde que existe: quien no tiene nota registrada,
@@ -283,11 +285,13 @@ def course_grades(course, students, now=None, published_only=False) -> list[Stud
 
     # Actividades: la fracción de la última entrega de cada estudiante. Antes, los borradores que
     # quedaron abiertos al vencer se envían (activities.engine.finalize_overdue).
-    from apps.activities import engine
+    from apps.activities import audience, engine
 
-    activities = list(Activity.objects.filter(course=course, published=True, category__isnull=False)
-                      .exclude(kind=Activity.Kind.PRACTICE)                 # un repaso no tiene nota
-                      .select_related("course__owner"))
+    activities = [a for a in Activity.objects.filter(course=course, published=True, category__isnull=False)
+                  .exclude(kind=Activity.Kind.PRACTICE)                     # un repaso no tiene nota
+                  .select_related("course__owner").prefetch_related("groups__members")
+                  if a.points > 0]                                          # sin puntos, nada que calificar
+    reach = {a.pk: audience.audience_ids(a) for a in activities}           # None: todos los estudiantes
     for activity in activities:
         engine.finalize_overdue(activity, now)
     last: dict[tuple[int, int], Attempt] = {}
@@ -346,6 +350,10 @@ def course_grades(course, students, now=None, published_only=False) -> list[Stud
                             continue
                         attempt = last.get((activity.pk, student.pk))
                         day = day_of(activity)
+                        if attempt is not None and not attempt.max_points:
+                            continue                     # no recibió ningún ítem que valga puntos
+                        if attempt is None and reach[activity.pk] is not None and student.pk not in reach[activity.pk]:
+                            continue                     # no es para su grupo: ni la ve ni recibe un cero
                         if attempt is not None:
                             values.append(attempt.fraction or 0.0)
                             cell.pending += 1 if attempt.pending else 0

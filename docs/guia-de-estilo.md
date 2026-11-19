@@ -212,6 +212,10 @@ cada pregunta tras «Ver la respuesta». Es material de estudio y no una activid
   (por `item_id`) no muestran la respuesta en ningún repaso, porque podrían estar abiertas.
 - **Preguntas en su versión vigente:** cada una se toma de la presentación actual por su `item_id`,
   para que una clave corregida después de la clase llegue al repaso; el contenido, como se proyectó.
+- **Hasta donde el docente diga** (`LiveSession.review_through`, desde 0.29): si proyectó el final
+  sin alcanzar a explicarlo, en los resultados de la clase («Título y repaso») elige la última
+  diapositiva del repaso y, si hace falta, corrige el título de la clase. Es un límite, no un borrado:
+  ampliarlo devuelve lo demás. Un límite que deja menos de dos diapositivas saca la clase del repaso.
 - La pestaña Clases lista las clases por unidad, con solo la unidad de la última clase
   desplegada. El docente llega al repaso desde los resultados de la clase.
 
@@ -287,8 +291,26 @@ cada pregunta tras «Ver la respuesta». Es material de estudio y no una activid
   (con las fechas en que se dictaron, cada una enlazada a sus resultados) y actividades. La pestaña Actividades es todo lo que se
   califica, por parcial y en orden de fecha: clases dictadas, actividades y registros manuales,
   filtrable por fila de la ponderación. El estudiante ve en «Calificaciones» la nota de cada uno.
+- **Información** (`Activity.is_info`, desde 0.29): un documento de actividad sin ítems (el
+  enunciado de un proyecto, unas indicaciones) se lee y nada más, sin intentos, fecha ni nota. No hay
+  un tipo aparte que elegir: lo decide el contenido, y el validador lo avisa (`I088`). El estudiante
+  la ve al comienzo de su pestaña Actividades; el docente, en su unidad de la pestaña Clases (no en
+  Actividades ni en Evaluaciones, que son lo que se califica y lo que vence). Lo que vale cero puntos
+  —una información o una actividad con todo deshabilitado— no cuenta en las notas, ni como cero.
+- **Grupos** (`courses.StudentGroup`, `activities/audience.py`, desde 0.29): los arma el docente en
+  la configuración del curso, y un estudiante puede estar en varios. Los archivos nunca nombran
+  grupos: el emparejamiento vive en la plataforma, por `item_id`, como las secciones deshabilitadas.
+  Una actividad puede ir dirigida a ciertos grupos (`Activity.groups`): los demás no la ven ni
+  reciben un cero, y quien ya la había empezado la conserva; las entregas se cuentan sobre sus
+  destinatarios. Una sección puede ser solo de ciertos grupos (`Activity.item_groups`) y repartirse
+  (`Activity.deal`): cada estudiante recibe N de sus ítems, distintos de los de sus compañeros de
+  grupo mientras alcancen. Todo se decide al empezar, en la copia del intento
+  (`audience.personal_content`, con la actividad bloqueada para que dos compañeros que empiezan
+  juntos no reciban lo mismo); un nuevo intento y la corrección conservan los mismos ítems. La
+  copia registra lo que no recibió (`left_out`) para que la revisión no agregue sus soluciones. Un
+  grupo que alguna actividad usa no se elimina.
 - **El curso del estudiante, en pestañas** (`courses/_student_head.html`): Actividades
-  (`course_detail`: evaluaciones, actividades y la descripción del curso), Clases (`course_classes`:
+  (`course_detail`: información, evaluaciones, actividades y la descripción del curso), Clases (`course_classes`:
   el repaso de las clases terminadas) y Calificaciones (`my_grades`). Así se ve de entrada todo lo que
   hay, sin bajar hasta el final de una lista de actividades. La clase en vivo va sobre las pestañas,
   en las tres: entrar a ella es lo más urgente.

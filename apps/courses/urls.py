@@ -13,6 +13,7 @@ urlpatterns = [
     path("docente/cursos/<int:pk>/actividades/", views.course_manage, {"tab": "actividades"},
          name="course_activities"),
     path("docente/cursos/<int:pk>/configuracion/", views.course_settings, name="course_settings"),
+    path("docente/cursos/<int:pk>/grupos/", views.course_groups, name="course_groups"),
     path("docente/cursos/<int:pk>/inscripciones/", views.enrollment_decide, name="enrollment_decide"),
     path("docente/cursos/<int:pk>/inscripciones/<int:enrollment_pk>/retirar/",
          views.enrollment_remove, name="enrollment_remove"),

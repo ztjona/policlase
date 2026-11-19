@@ -19,7 +19,7 @@
     <div><dt>{% translate "Atrasos" %}</dt><dd>{% if activity.late_policy == "block" %}{% translate "no se aceptan" %}{% else %}{% blocktranslate with p=activity.late_penalty %}se aceptan con {{ p }} % menos{% endblocktranslate %}{% endif %}</dd></div>
     <div><dt>{% translate "Intentos" %}</dt><dd>{% blocktranslate with used=state.used max=activity.max_attempts %}{{ used }} de {{ max }}; cuenta el último enviado{% endblocktranslate %}</dd></div>
   {% endif %}
-  {% if not activity.is_practice %}<div><dt>{% translate "Puntos" %}</dt><dd>{{ activity.points|floatformat:"-2" }}{% if activity.category %} · {{ activity.category.name }} ({{ activity.category.period.name }}){% endif %}</dd></div>{% endif %}
+  {% if not activity.is_practice %}<div><dt>{% translate "Puntos" %}</dt><dd>{{ points|floatformat:"-2" }}{% if activity.category %} · {{ activity.category.name }} ({{ activity.category.period.name }}){% endif %}</dd></div>{% endif %}
 </dl>
 
 {% include "activities/_timeline.html" %}

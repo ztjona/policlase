@@ -1,0 +1,14 @@
+{% load i18n %}
+{% comment %} Destinatarios (`Activity.groups`): todos los estudiantes o los integrantes de ciertos grupos. Va en el
+   formulario de configuración de cada tipo de actividad. {% endcomment %}
+{% url 'course_groups' course.pk as groups_url %}
+<fieldset class="due audience">
+  <legend>{% translate "Destinatarios" %}</legend>
+  {% if form.groups.field.queryset %}
+    {% for choice in form.groups %}<label class="radio-row">{{ choice.tag }} {{ choice.choice_label }}</label>{% endfor %}
+    {{ form.groups.errors }}
+    <span class="helptext">{% blocktranslate %}Si no marca ningún grupo, la ven todos los estudiantes. Si marca grupos, solo la ven sus integrantes, y los demás no reciben un cero. <a href="{{ groups_url }}">Administrar los grupos</a>{% endblocktranslate %}</span>
+  {% else %}
+    <span class="helptext" style="margin:0">{% blocktranslate %}Todos los estudiantes. Para dirigirla solo a algunos, por ejemplo a los equipos de un proyecto, <a href="{{ groups_url }}">arme los grupos del curso</a>.{% endblocktranslate %}</span>
+  {% endif %}
+</fieldset>

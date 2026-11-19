@@ -124,6 +124,27 @@
   </div>
 {% endif %}
 
+{% if session.status == "ended" %}
+  {% comment %} El título de la clase y hasta dónde llega el repaso de los estudiantes (live/review.py), por
+     ejemplo si proyectó el final sin alcanzar a explicarlo. No se borra nada. {% endcomment %}
+  <h2 id="repaso">{% translate "Título y repaso" %}</h2>
+  <form method="post" action="{% url 'session_review' session.pk %}" class="card stack" data-dirty>
+    {% csrf_token %}
+    <label style="margin:0">{% translate "Título de la clase" %}
+      <input type="text" name="title" value="{{ session.title }}" maxlength="200" required></label>
+    <span class="helptext" style="margin:0">{% translate "Se ve en el repaso, en las calificaciones y en esta página. La presentación no cambia." %}</span>
+    {% if review_options|length >= 2 %}
+      <label style="margin:0">{% translate "El repaso llega hasta" %}
+        <select name="through">
+          {% for o in review_options %}<option value="{{ o.index }}"{% if o.selected %} selected{% endif %}>{{ o.number }} · {{ o.title }}{% if o.last %} ({% translate "la última proyectada" %}){% endif %}</option>{% endfor %}
+        </select></label>
+      <span class="helptext" style="margin:0">{% blocktranslate with shown=review_count total=review_options|length %}El repaso muestra {{ shown }} de las {{ total }} diapositivas proyectadas. Si proyectó el final sin alcanzar a explicarlo, elija la última diapositiva que explicó: las siguientes no se borran y puede volver a incluirlas.{% endblocktranslate %}</span>
+    {% endif %}
+    <div class="row"><button class="small" data-dirty-enable>{% translate "Guardar" %}</button>
+      {% if reviewable %}<a class="small" href="{% url 'class_review' course.pk session.pk %}">{% translate "Ver el repaso que consultan los estudiantes" %}</a>{% endif %}</div>
+  </form>
+{% endif %}
+
 {% if session.status != "live" %}
   {% comment %} Eliminar solo esta clase (por ejemplo, una iniciada por error). La presentación está en la pestaña
      Clases y se elimina allá, aparte. {% endcomment %}
