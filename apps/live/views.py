@@ -11,7 +11,7 @@ from django.db import connection as db_connection
 from django.http import Http404, HttpResponse, HttpResponseForbidden, JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.utils import timezone
+from django.utils import dateformat, timezone
 from django.utils.translation import gettext as _
 from django.utils.translation import ngettext
 from django.views.decorators.http import require_POST
@@ -90,14 +90,21 @@ def deck_move(request, course_pk, pk):
 @teacher_required
 @require_POST
 def session_delete(request, pk):
-    """Eliminar una clase iniciada por error (o una terminada): se borran sus respuestas."""
+    """Eliminar una clase iniciada por error (o una terminada): se borran sus respuestas. La
+    presentación no se toca (eso es `deck_delete`)."""
     session = _own_session(request, pk)
     if session.status == Status.LIVE:
         messages.error(request, _("Termine o pause la clase antes de eliminarla."))
         return redirect("present", pk=session.pk)
     course_pk = session.course_id
+    when = dateformat.format(timezone.localtime(session.started_at or session.created_at), "D d M, H:i")
+    kept_deck = session.deck_id is not None
     session.delete()
-    messages.success(request, _("Clase eliminada."))
+    if kept_deck:
+        messages.success(request, _("Se eliminó la clase del %(when)s. La presentación sigue en la pestaña Clases.")
+                         % {"when": when})
+    else:
+        messages.success(request, _("Se eliminó la clase del %(when)s.") % {"when": when})
     return redirect("course_activities", pk=course_pk)         # donde se listan las clases dictadas
 
 
@@ -259,6 +266,7 @@ def session_results(request, pk):
         "has_survey": any(q["question"].get("survey") for _, q in questions),
         "feedback": engine.feedback_summary(session) if session.has_feedback else None,
         "reviewable": reviewable(session),
+        "answer_count": sum(len(a) for a in by_student.values()),
     })
 
 

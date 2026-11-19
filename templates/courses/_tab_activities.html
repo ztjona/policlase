@@ -50,7 +50,7 @@
                     <td class="actions-col"><div class="row-actions">
                       <a class="icon-btn primary" href="{% url 'session_results' x.pk %}" title="{% translate 'Resultados' %}" aria-label="{% translate 'Resultados' %}">{% icon "results" %}</a>
                       <form method="post" action="{% url 'session_delete' x.pk %}"
-                            onsubmit="return confirm('{% translate "¿Eliminar esta clase y todas sus respuestas? No se puede deshacer." as msg %}{{ msg|escapejs }}')">
+                            onsubmit="return confirm('{% blocktranslate with when=x.started_at|default:x.created_at|date:'D d M, H:i' asvar msg %}¿Eliminar la clase del {{ when }} y todas sus respuestas? La presentación no se elimina. No se puede deshacer.{% endblocktranslate %}{{ msg|escapejs }}')">
                         {% csrf_token %}<button class="icon-btn danger" title="{% translate 'Eliminar clase' %}" aria-label="{% translate 'Eliminar clase' %}">{% icon "trash" %}</button>
                       </form>
                     </div></td>

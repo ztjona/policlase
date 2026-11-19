@@ -287,6 +287,11 @@ cada pregunta tras «Ver la respuesta». Es material de estudio y no una activid
   (con las fechas en que se dictaron, cada una enlazada a sus resultados) y actividades. La pestaña Actividades es todo lo que se
   califica, por parcial y en orden de fecha: clases dictadas, actividades y registros manuales,
   filtrable por fila de la ponderación. El estudiante ve en «Calificaciones» la nota de cada uno.
+- **Una clase y su presentación se eliminan por separado**, y cada confirmación dice cuál de las dos
+  es (muchas presentaciones se titulan «Clase: …»). El ícono de la fila en la pestaña Clases elimina
+  la presentación; las clases dictadas con ella se quedan. Una clase (por ejemplo, una iniciada por
+  error) se elimina desde sus resultados o desde la pestaña Actividades, con su fecha y hora en la
+  confirmación. Dos clases dictadas el mismo día aparecen con su hora en la fila de la presentación.
 - **Unidad y parcial son ejes distintos.** La unidad (sección) organiza el contenido; el parcial
   lo decide la fecha: si una actividad vence en otro parcial que su fila, pasa a la fila del mismo
   nombre de ese parcial (`gradebook.rebind`); si no la hay, se avisa. En los formularios, el parcial

@@ -867,6 +867,35 @@ class CoursePageActionsTests(LiveBase):
         self.assertRedirects(response, reverse("course_activities", args=[self.course.pk]))  # donde se listan
         self.assertFalse(LiveSession.objects.exists())
 
+    def test_eliminar_la_clase_desde_sus_resultados_conserva_la_presentacion(self):
+        session = engine.apply(self.start().pk, "end")
+        page = self.client.get(reverse("session_results", args=[session.pk]))
+        self.assertContains(page, reverse("session_delete", args=[session.pk]))
+        self.assertContains(page, "La presentación «Bisección — clase 1» no se elimina")
+        self.assertContains(page, "No tiene respuestas.")
+        response = self.client.post(reverse("session_delete", args=[session.pk]), follow=True)
+        self.assertContains(response, "La presentación sigue en la pestaña Clases.")
+        self.assertFalse(LiveSession.objects.exists())
+        self.assertTrue(Deck.objects.filter(pk=self.deck.pk).exists())
+
+    def test_una_clase_en_curso_no_ofrece_eliminarse(self):
+        session = self.start()
+        engine.apply(session.pk, "start")
+        page = self.client.get(reverse("session_results", args=[session.pk]))
+        self.assertNotContains(page, reverse("session_delete", args=[session.pk]))
+
+    def test_dos_clases_el_mismo_dia_se_distinguen_por_la_hora(self):
+        first = engine.apply(self.start().pk, "end")
+        self.client.post(reverse("session_start", args=[self.course.pk, self.deck.pk]))
+        second = LiveSession.objects.exclude(pk=first.pk).get()
+        LiveSession.objects.filter(pk=second.pk).update(created_at=first.created_at + timedelta(minutes=30))
+        engine.apply(second.pk, "end")
+        page = self.client.get(reverse("course_manage", args=[self.course.pk]))
+        for s in (first, LiveSession.objects.get(pk=second.pk)):
+            self.assertContains(page, timezone.localtime(s.created_at).strftime("%H:%M") + "</a>")
+        self.assertContains(page, "· 0 participantes")
+        self.assertContains(page, "¿Eliminar la presentación «Bisección — clase 1»?")       # el ícono de la fila es la presentación
+
     def test_no_se_elimina_una_clase_en_curso(self):
         session = self.start()
         engine.apply(session.pk, "start")

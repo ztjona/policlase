@@ -123,5 +123,19 @@
     {% endif %}
   </div>
 {% endif %}
+
+{% if session.status != "live" %}
+  {% comment %} Eliminar solo esta clase (por ejemplo, una iniciada por error). La presentación está en la pestaña
+     Clases y se elimina allá, aparte. {% endcomment %}
+  <h2>{% translate "Eliminar esta clase" %}</h2>
+  <p class="small muted">{% translate "Se eliminan esta clase, sus respuestas y su nota de participación." %}
+    {% if session.deck %}{% blocktranslate with t=session.deck.title %}La presentación «{{ t }}» no se elimina y puede volver a dictarse.{% endblocktranslate %}{% endif %}</p>
+  {% with when=session.started_at|default:session.created_at|date:"D d M, H:i" %}
+  <form method="post" action="{% url 'session_delete' session.pk %}"
+        onsubmit="return confirm('{% if answer_count %}{% blocktranslate count n=answer_count with when=when asvar msg %}¿Eliminar la clase del {{ when }} y su {{ n }} respuesta? No se puede deshacer.{% plural %}¿Eliminar la clase del {{ when }} y sus {{ n }} respuestas? No se puede deshacer.{% endblocktranslate %}{% else %}{% blocktranslate with when=when asvar msg %}¿Eliminar la clase del {{ when }}? No tiene respuestas.{% endblocktranslate %}{% endif %}{{ msg|escapejs }}')">
+    {% csrf_token %}<button class="danger">{% translate "Eliminar esta clase" %}</button>
+  </form>
+  {% endwith %}
+{% endif %}
 {% endblock %}
 {% block scripts %}{% load static %}<script defer src="{% static 'js/results.js' %}"></script>{% endblock %}

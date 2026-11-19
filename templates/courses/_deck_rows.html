@@ -12,7 +12,7 @@
       </div>
       {% if d.taught %}
         <div class="small taught">{% translate "Dictada:" %}
-          {% for s in d.taught %}<a href="{% url 'session_results' s.pk %}" title="{% translate 'Resultados de esa clase' %}">{{ s.started_at|default:s.created_at|date:"D d M" }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}
+          {% for s in d.taught %}{% with when=s.started_at|default:s.created_at %}<a href="{% url 'session_results' s.pk %}" title="{% blocktranslate count n=s.present with when=when|date:'D d M, H:i' %}Resultados de la clase del {{ when }} · {{ n }} participante{% plural %}Resultados de la clase del {{ when }} · {{ n }} participantes{% endblocktranslate %}">{{ when|date:"D d M" }}{% if s.same_day %} {{ when|date:"H:i" }}{% endif %}</a>{% endwith %}{% if not forloop.last %} · {% endif %}{% endfor %}
         </div>
       {% endif %}
     </div>
@@ -26,7 +26,7 @@
       {% endwith %}{% endif %}
       <a class="icon-btn" href="{% url 'deck_edit' course.pk d.pk %}" title="{% translate 'Editar' %}" aria-label="{% translate 'Editar' %}">{% icon "edit" %}</a>
       <form method="post" action="{% url 'deck_delete' course.pk d.pk %}"
-            onsubmit="return confirm('{% if d.github_path %}{% blocktranslate with t=d.title path=d.github_path asvar msg %}¿Eliminar «{{ t }}»? También se borra su archivo en GitHub ({{ path }}). Las clases ya dictadas conservan sus resultados.{% endblocktranslate %}{% else %}{% blocktranslate with t=d.title asvar msg %}¿Eliminar «{{ t }}»? Las clases ya dictadas conservan sus resultados.{% endblocktranslate %}{% endif %}{{ msg|escapejs }}')">
+            onsubmit="return confirm('{% if d.github_path %}{% blocktranslate with t=d.title path=d.github_path asvar msg %}¿Eliminar la presentación «{{ t }}»? También se borra su archivo en GitHub ({{ path }}). Las clases ya dictadas con ella no se eliminan y conservan sus resultados.{% endblocktranslate %}{% else %}{% blocktranslate with t=d.title asvar msg %}¿Eliminar la presentación «{{ t }}»? Las clases ya dictadas con ella no se eliminan y conservan sus resultados.{% endblocktranslate %}{% endif %}{{ msg|escapejs }}')">
         {% csrf_token %}<button class="icon-btn danger" title="{% translate 'Eliminar presentación' %}" aria-label="{% translate 'Eliminar presentación' %}">{% icon "trash" %}</button>
       </form>
     </div>

@@ -206,12 +206,21 @@ def course_manage(request, pk, tab="clases"):
         # Las evaluaciones no son material de una unidad: viven en la pestaña Evaluaciones.
         activities = list(Activity.objects.filter(course=course).exclude(kind=Activity.Kind.EVALUATION)
                           .select_related("category"))
+        from apps.accounts.models import User
+
         taught: dict[int, list] = {}
         for session in (LiveSession.objects.filter(course=course, status=LiveSession.Status.ENDED, deck__isnull=False)
-                        .order_by("started_at", "created_at")):
+                        .order_by("started_at", "created_at")
+                        .annotate(present=Count("participants",
+                                                filter=Q(participants__student__role=User.Role.STUDENT)))):
+            session.day = timezone.localdate(session.started_at or session.created_at)
             taught.setdefault(session.deck_id, []).append(session)
         for d in decks:
             d.taught = taught.get(d.pk, [])
+            # Dos clases el mismo día (una iniciada por error, por ejemplo) se distinguen por la hora.
+            days = [s.day for s in d.taught]
+            for s in d.taught:
+                s.same_day = days.count(s.day) > 1
         key = (lambda d: sync.natural_key(d.github_path)) if link else (lambda d: d.pk)
         sections = ordered_sections(course, linked=bool(link))
         # Las secciones primero y lo que no tiene sección al final: la unidad en curso no queda
