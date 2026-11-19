@@ -288,7 +288,8 @@ class EvaluationSettingsForm(AudienceMixin, ReviewMixin, PeriodRowMixin, forms.M
     class Meta:
         model = Activity
         fields = ["category", "published", "due_milestone", "due_offset_days", "opens_time", "due_time",
-                  "duration_min", "require_code", "shuffle_parts", "allow_correction", *REVIEW_FIELDS, "groups"]
+                  "duration_min", "require_code", "open_by_group", "shuffle_parts", "allow_correction", *REVIEW_FIELDS,
+                  "groups"]
         widgets = {
             "groups": forms.CheckboxSelectMultiple,
             "due_milestone": TaggedSelect(), "opens_time": TIME, "due_time": TIME,

@@ -133,6 +133,14 @@ def _pick(visible: list[str], n: int, had: set, taken: Counter, seed: str) -> se
     return set(kept) | set(pool[:n - len(kept)])
 
 
+def opening_groups(activity) -> list:
+    """Los grupos para los que se abre una evaluación grupo por grupo: sus destinatarios; si no tiene,
+    los grupos de sus secciones; si tampoco, todos los del curso. Con sus integrantes precargados."""
+    groups = StudentGroup.objects.filter(course_id=activity.course_id).prefetch_related("members")
+    wanted = group_ids(activity) or {int(g) for ids in (activity.item_groups or {}).values() for g in ids}
+    return list(groups.filter(pk__in=wanted) if wanted else groups)
+
+
 def visible_content(activity, student) -> dict:
     """Lo que el estudiante puede ver de la actividad sin un intento (por ejemplo, en la revisión de
     quien no entregó): sin las partes de otros grupos."""

@@ -25,6 +25,35 @@
   {% else %}
     <p class="small muted" style="margin:0">{% translate "Esta evaluación no pide código de acceso. Pueden rendirla los estudiantes inscritos, dentro del horario." %}</p>
   {% endif %}
+  {% if openings is not None %}
+    {% comment %} Una evaluación que se abre por grupo (`Activity.open_by_group`): un clic por grupo cuando le corresponde.
+       Los integrantes ven que se abre en su página, que se actualiza sola. {% endcomment %}
+    <div class="stack" id="grupos">
+      <h3 style="margin:0">{% translate "Apertura por grupo" %}</h3>
+      <span class="helptext" style="margin:0">{% translate "Abra la evaluación para cada grupo cuando le corresponda, por ejemplo al terminar su presentación. Sus integrantes la ven abrirse en su página y la empiezan; la duración corre desde que cada uno empieza." %}</span>
+      {% if openings %}
+        <ul class="plain openings">
+          {% for r in openings %}
+            <li class="opening-row">
+              <div class="who"><strong>{{ r.group.name }}</strong>
+                <div class="small muted">{% blocktranslate count n=r.size %}{{ n }} integrante{% plural %}{{ n }} integrantes{% endblocktranslate %}{% if r.opening %} · {% blocktranslate with n=r.started total=r.size %}{{ n }} de {{ total }} empezaron{% endblocktranslate %}{% endif %}</div></div>
+              {% if r.opening %}<span class="chip ok">{% blocktranslate with when=r.opening.opened_at|time:"H:i" %}abierta a las {{ when }}{% endblocktranslate %}</span>{% endif %}
+              <form method="post" action="{% url 'evaluation_group' course.pk activity.pk %}" style="margin:0">{% csrf_token %}
+                <input type="hidden" name="group" value="{{ r.group.pk }}">
+                {% if r.opening %}{% if not r.started %}<button name="action" value="close" class="secondary small">{% translate "Cerrar" %}</button>{% endif %}
+                {% elif window_open %}<button name="action" value="open" class="small">{% translate "Abrir para este grupo" %}</button>
+                {% else %}<span class="small muted">{% translate "sin abrir" %}</span>{% endif %}
+              </form>
+            </li>
+          {% endfor %}
+        </ul>
+        {% if not window_open and activity.opens_at and now < activity.opens_at %}<p class="small muted" style="margin:0">{% translate "Los botones para abrirla aparecen durante el horario de la evaluación." %}</p>{% endif %}
+      {% else %}
+        {% url 'course_groups' course.pk as groups_url %}
+        <p class="small muted" style="margin:0">{% blocktranslate %}El curso todavía no tiene grupos. <a href="{{ groups_url }}">Arme los grupos</a> para abrir la evaluación grupo por grupo.{% endblocktranslate %}</p>
+      {% endif %}
+    </div>
+  {% endif %}
   {% if activity.due_at and now > activity.due_at %}
     <form method="post" action="{% url 'evaluation_publish' course.pk activity.pk %}" class="row" style="margin:0">{% csrf_token %}
       {% if activity.published_at %}

@@ -37,6 +37,7 @@
               {% elif st.counted and st.show_score %}<span class="chip ok">{% translate "nota publicada" %}</span> {{ st.counted.points|floatformat:"-2" }}/{{ st.counted.max_points|floatformat:"-2" }}
               {% elif st.counted %}<span class="chip ok">{% translate "enviada" %}</span>
               {% elif st.can_start %}<span class="chip live">{% translate "disponible" %}</span>
+              {% elif st.waiting_group %}<span class="chip warn">{% translate "se abre para su grupo" %}</span>
               {% elif a.opens_at and a.opens_at > now %}<span class="chip">{% translate "programada" %}</span>
               {% else %}<span class="muted">{% translate "cerrada" %}</span>{% endif %}
             </td>

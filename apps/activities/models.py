@@ -105,6 +105,11 @@ class Activity(models.Model):
     duration_min = models.PositiveSmallIntegerField(_("duración (minutos)"), null=True, blank=True)
     #: Evaluación: el código que el docente proyecta en el aula; sin él no se puede empezar.
     require_code = models.BooleanField(_("pedir un código de acceso para empezar"), default=True, db_default=True)
+    #: Evaluación (una defensa de proyecto): dentro del horario, los integrantes de un grupo empiezan
+    #: solo cuando el docente la abre para su grupo (`GroupOpening`), por ejemplo al terminar su
+    #: presentación. Sin horas por grupo: el orden y las demoras no importan.
+    open_by_group = models.BooleanField(_("abrirla para cada grupo cuando le corresponda"), default=False,
+                                        db_default=False)
     #: Cada estudiante recibe las partes (segmentos) en su propio orden (`outline.shuffle_parts`).
     shuffle_parts = models.BooleanField(_("mostrar las partes en un orden distinto a cada estudiante"),
                                         default=False, db_default=False)
@@ -486,6 +491,21 @@ class SkippedCorrection(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["activity", "student"], name="one_skip_per_correction")]
+
+
+class GroupOpening(models.Model):
+    """El docente abrió la evaluación para este grupo (`Activity.open_by_group`): desde ese momento sus
+    integrantes pueden empezarla, dentro del horario. Mientras ninguno haya empezado, se puede cerrar."""
+
+    activity = models.ForeignKey(Activity, on_delete=models.CASCADE, related_name="openings")
+    group = models.ForeignKey("courses.StudentGroup", on_delete=models.CASCADE, related_name="openings")
+    opened_at = models.DateTimeField(auto_now_add=True)
+    opened_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                  related_name="+")
+
+    class Meta:
+        ordering = ["opened_at"]
+        constraints = [models.UniqueConstraint(fields=["activity", "group"], name="one_opening_per_group")]
 
 
 class Extension(models.Model):

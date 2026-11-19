@@ -25,8 +25,8 @@ Aula virtual autoalojada para cursos universitarios con carga matemática.
 - **Actividades** (deberes y talleres): fechas fijas o relativas a una fecha clave, intentos, atrasos
   bloqueados o penalizados con envío automático al vencer, preguntas con tiempo, entregas de imágenes,
   **debate** entre compañeros, revisión con explicaciones y prórrogas por estudiante.
-- **Evaluaciones**: horario, duración por estudiante, código de acceso proyectado, partes en un orden
-  distinto para cada estudiante, notas que el docente publica, revisión hasta unos días después y
+- **Evaluaciones**: horario, duración por estudiante, código de acceso proyectado o apertura grupo por
+  grupo (para la defensa de un proyecto), partes en un orden distinto para cada estudiante, notas que el docente publica, revisión hasta unos días después y
   **corrección** opcional (volver a resolverla completa, en su propia fila de la ponderación).
 - **Repasos** sin nota, con «Comprobar» por pregunta y explicaciones.
 - **Información**: un documento sin preguntas (el enunciado de un proyecto) se publica para leerlo,

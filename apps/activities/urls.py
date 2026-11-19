@@ -19,6 +19,7 @@ urlpatterns = [
     path(T + "<int:pk>/codigo/", views.evaluation_code, name="evaluation_code"),
     path(T + "<int:pk>/codigo/proyectar/", views.evaluation_projector, name="evaluation_projector"),
     path(T + "<int:pk>/publicar/", views.evaluation_publish, name="evaluation_publish"),
+    path(T + "<int:pk>/grupos/", views.evaluation_group, name="evaluation_group"),
     path(T + "<int:pk>/presentar/", views.activity_present, name="activity_present"),
     path(T + "<int:pk>/presentar/accion/", views.activity_present_action, name="activity_present_action"),
     path(T + "<int:pk>/intentos/<int:attempt_pk>/", views.attempt_review, name="attempt_review"),
@@ -30,6 +31,7 @@ urlpatterns = [
     # estudiante
     path(S, views.activity_student, name="activity_student"),
     path(S + "comenzar/", views.attempt_start, name="attempt_start"),
+    path(S + "espera/", views.attempt_group_wait, name="attempt_group_wait"),
     path(S + "correccion/omitir/", views.correction_skip, name="correction_skip"),
     path(S + "intento/", views.attempt_form, name="attempt_form"),
     path(S + "intento/imagenes/", views.attempt_upload, name="attempt_upload"),

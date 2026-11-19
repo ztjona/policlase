@@ -2301,8 +2301,8 @@ slides:
 """
 
 
-class GroupsTests(ActivityBase):
-    """Grupos: destinatarios de una actividad, secciones de cada grupo y reparto de ítems."""
+class GroupsBase(ActivityBase):
+    """Cuatro estudiantes en dos grupos y la defensa de un proyecto con una sección por grupo."""
 
     def setUp(self):
         super().setUp()
@@ -2335,6 +2335,10 @@ class GroupsTests(ActivityBase):
 
     def text(self, attempt):
         return " ".join(str(b.get("markdown") or b.get("title") or "") for b in attempt.content["items"])
+
+
+class GroupsTests(GroupsBase):
+    """Grupos: destinatarios de una actividad, secciones de cada grupo y reparto de ítems."""
 
     def test_cada_grupo_recibe_solo_su_parte(self):
         ana = engine.start(self.defense, self.ana)
@@ -2451,3 +2455,78 @@ class GroupsTests(ActivityBase):
         self.assertFalse(StudentGroup.objects.filter(pk=created.pk).exists())
         self.client.force_login(self.ana)
         self.assertEqual(self.client.get(url).status_code, 403)
+
+
+class GroupOpeningTests(GroupsBase):
+    """La defensa se abre grupo por grupo: sin horas por grupo, con un clic del docente."""
+
+    def setUp(self):
+        super().setUp()
+        self.defense.open_by_group = True
+        self.defense.save()
+        self.client.force_login(self.teacher)
+
+    def open(self, group, action="open"):
+        return self.client.post(reverse("evaluation_group", args=[self.course.pk, self.defense.pk]),
+                                {"group": group.pk, "action": action})
+
+    def test_espera_a_su_grupo_y_un_clic_la_abre(self):
+        from .models import GroupOpening
+
+        state = engine.state(self.defense, self.ana)
+        self.assertTrue(state.waiting_group)
+        self.assertFalse(state.can_start)
+        with self.assertRaises(engine.ActionError):
+            engine.start(self.defense, self.ana)
+        self.client.force_login(self.ana)
+        page = self.client.get(reverse("activity_student", args=[self.course.pk, self.defense.pk]))
+        self.assertContains(page, "La evaluación se abre cuando su grupo presente.")
+        self.assertContains(page, "group-wait.js")
+        wait = reverse("attempt_group_wait", args=[self.course.pk, self.defense.pk])
+        self.assertEqual(self.client.get(wait).json(), {"open": False})
+        self.assertContains(self.client.get(reverse("course_detail", args=[self.course.pk])), "se abre para su grupo")
+
+        self.client.force_login(self.teacher)
+        panel = self.client.get(reverse("activity_detail", args=[self.course.pk, self.defense.pk]))
+        self.assertContains(panel, "Apertura por grupo")
+        self.assertContains(panel, "Abrir para este grupo", count=2)          # los dos grupos de sus secciones
+        self.open(self.metro)
+        self.assertTrue(GroupOpening.objects.filter(activity=self.defense, group=self.metro).exists())
+        self.client.force_login(self.ana)
+        self.assertEqual(self.client.get(wait).json(), {"open": True})
+        self.defense.refresh_from_db()
+        attempt = engine.start(self.defense, self.ana)
+        self.assertEqual([b["item_id"] for b in attempt.content["items"] if b.get("kind", "item") == "item"],
+                         ["A1", "A2", "A3", "A4", "C1"])
+        self.assertTrue(engine.state(self.defense, self.dario).waiting_group)   # el otro grupo, todavía no
+
+    def test_cerrar_solo_si_nadie_empezo(self):
+        from .models import GroupOpening
+
+        self.open(self.metro)
+        self.open(self.gps)
+        engine.start(self.defense, self.ana)
+        self.open(self.metro, "close")
+        self.assertTrue(GroupOpening.objects.filter(group=self.metro).exists())   # ya empezó Ana
+        self.open(self.gps, "close")
+        self.assertFalse(GroupOpening.objects.filter(group=self.gps).exists())
+
+    def test_solo_en_su_horario_y_la_prorroga_no_espera(self):
+        from .models import Extension, GroupOpening
+
+        Activity.objects.filter(pk=self.defense.pk).update(opens_at=timezone.now() + timedelta(hours=1),
+                                                           due_at=timezone.now() + timedelta(hours=3))
+        self.open(self.metro)
+        self.assertFalse(GroupOpening.objects.exists())
+        Extension.objects.create(activity=self.defense, student=self.dario, opens_at=timezone.now() - timedelta(minutes=1),
+                                 due_at=timezone.now() + timedelta(hours=1))
+        self.defense.refresh_from_db()
+        self.assertFalse(engine.waiting_for_group(self.defense, self.dario))       # presenta otro día: su horario
+        self.assertTrue(engine.state(self.defense, self.dario).can_start)
+
+    def test_sin_la_opcion_no_se_espera(self):
+        Activity.objects.filter(pk=self.defense.pk).update(open_by_group=False)
+        self.defense.refresh_from_db()
+        self.assertTrue(engine.state(self.defense, self.ana).can_start)
+        panel = self.client.get(reverse("activity_detail", args=[self.course.pk, self.defense.pk]))
+        self.assertNotContains(panel, "Apertura por grupo")

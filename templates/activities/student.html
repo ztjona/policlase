@@ -61,6 +61,12 @@
     <span>{% if state.late %}{% blocktranslate with p=activity.late_penalty %}La fecha de entrega pasó: lo que envíe tendrá un {{ p }} % de penalización.{% endblocktranslate %}{% elif state.counted %}{% translate "Puede realizar un nuevo intento; se calificará el último envío." %}{% else %}{% translate "Una vez iniciado el intento, sus respuestas se guardan automáticamente hasta que las envíe." %}{% endif %}</span>
     <button>{% if state.counted %}{% blocktranslate with n=state.used|add:1 %}Comenzar el intento {{ n }}{% endblocktranslate %}{% else %}{% translate "Comenzar" %}{% endif %}</button>
   </form>
+{% elif state.waiting_group %}
+  {# Una evaluación que se abre por grupo: la página consulta sola si ya se abrió para su grupo (js/group-wait.js). #}
+  <div class="card stack" data-group-wait="{% url 'attempt_group_wait' course.pk activity.pk %}" role="status">
+    <p style="margin:0"><strong>{% translate "La evaluación se abre cuando su grupo presente." %}</strong></p>
+    <p class="small muted" style="margin:0">{% translate "Su docente la abrirá para su grupo. Mantenga esta página abierta: se actualiza sola y, cuando se abra, aparecerá el botón para comenzar." %}</p>
+  </div>
 {% elif not state.counted %}
   <div class="notice">{{ state.reason }}</div>
 {% endif %}
@@ -173,4 +179,4 @@
   {% endfor %}
 {% endif %}
 {% endblock %}
-{% block scripts %}{% if debates %}<script defer src="{% static 'js/debate.js' %}"></script>{% endif %}{% endblock %}
+{% block scripts %}{% if debates %}<script defer src="{% static 'js/debate.js' %}"></script>{% endif %}{% if state.waiting_group %}<script defer src="{% static 'js/group-wait.js' %}"></script>{% endif %}{% endblock %}

@@ -309,6 +309,14 @@ cada pregunta tras «Ver la respuesta». Es material de estudio y no una activid
   juntos no reciban lo mismo); un nuevo intento y la corrección conservan los mismos ítems. La
   copia registra lo que no recibió (`left_out`) para que la revisión no agregue sus soluciones. Un
   grupo que alguna actividad usa no se elimina.
+- **Apertura por grupo** (`Activity.open_by_group`, `GroupOpening`, desde 0.29): para la defensa de
+  un proyecto, que se rinde en clase mientras los grupos presentan uno tras otro. No hay horas por
+  grupo, porque las presentaciones se alargan y el orden cambia: dentro del horario, el docente
+  pulsa «Abrir para este grupo» en Entregas cuando le corresponde. Los integrantes esperan con la
+  página abierta, que pregunta cada 5 s (`js/group-wait.js`) y se recarga al abrirse; la duración
+  corre desde que cada uno empieza. Una apertura se deshace mientras nadie del grupo haya empezado.
+  Quien tiene una prórroga (su propio horario) no espera a su grupo. Los grupos de la lista son los
+  destinatarios o, si no hay, los de sus secciones (`audience.opening_groups`).
 - **El curso del estudiante, en pestañas** (`courses/_student_head.html`): Actividades
   (`course_detail`: información, evaluaciones, actividades y la descripción del curso), Clases (`course_classes`:
   el repaso de las clases terminadas) y Calificaciones (`my_grades`). Así se ve de entrada todo lo que

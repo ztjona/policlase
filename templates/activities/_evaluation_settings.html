@@ -36,6 +36,8 @@
   <div>{{ form.duration_min.label_tag }}{{ form.duration_min }}{{ form.duration_min.errors }}
     <span class="helptext">{% translate "Se cuenta desde que cada estudiante empieza, sin pasar de la hora de cierre. Si se deja vacío, cada estudiante dispone hasta la hora de cierre. Al acabarse el tiempo, la evaluación se envía con lo que tenga guardado." %}</span></div>
   <label class="check-toggle">{{ form.require_code }} {{ form.require_code.label|capfirst }}</label>
+  <div><label class="check-toggle">{{ form.open_by_group }} {{ form.open_by_group.label|capfirst }}</label>
+    <span class="helptext">{% translate "Para la defensa de un proyecto: dentro del horario, los integrantes de un grupo pueden empezar solo cuando usted abre la evaluación para su grupo, desde la pestaña Entregas, por ejemplo al terminar su presentación. No hay horas por grupo, así que el orden y las demoras no importan. Con esta opción, el código de acceso deja de ser necesario." %}</span></div>
   <div><label class="check-toggle">{{ form.shuffle_parts }} {{ form.shuffle_parts.label|capfirst }}</label>
     <span class="helptext">{% translate "Cada estudiante recibe las partes de la evaluación (lo que empieza en cada segmento del documento) en su propio orden; dentro de cada parte, el contenido y las preguntas conservan el suyo. El orden se decide al empezar y no cambia." %}</span></div>
 

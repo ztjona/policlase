@@ -33,7 +33,8 @@ SESSION_KEY = "policlase_readonly"
 
 #: Las páginas que se pueden abrir en la vista de solo lectura (nombres de URL).
 ALLOWED = frozenset({
-    "home", "course_detail", "activity_student", "course_classes", "class_review", "my_grades", "upload_file",
+    "home", "course_detail", "activity_student", "attempt_group_wait", "course_classes", "class_review", "my_grades",
+    "upload_file",
     "about", "favicon", "javascript-catalog", "set_language", "set_theme",
     "readonly_open", "readonly_exit",
 })

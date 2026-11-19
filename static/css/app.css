@@ -920,6 +920,10 @@ input.deal-input { width: 4.5em; }
 .member-grid { columns: 15rem; column-gap: 24px; }
 .member-grid .radio-row { break-inside: avoid; padding: 2px 0; }
 .group-chip { background: var(--accent-soft); }
+/* Apertura por grupo de una evaluación (Entregas): una fila por grupo, que se acomoda en una columna angosta. */
+.opening-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 8px 0;
+  border-bottom: 1px solid var(--rule); }
+.opening-row .who { flex: 1 1 11rem; }
 .q-block.timed-open { border: 2px solid var(--warn); border-radius: var(--radius); padding: 10px 12px; }
 .q-block.timed-closed { opacity: .85; }
 .timer-bar { align-items: center; gap: 12px; }

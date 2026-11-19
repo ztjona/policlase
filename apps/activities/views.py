@@ -216,6 +216,8 @@ def activity_detail(request, course_pk, pk):
         "working": sum(1 for r in rows if r["working"]),
         "now": timezone.now(),
         "ai": _ai_panel(request, activity),
+        "openings": _openings(activity, students) if activity.is_evaluation and activity.open_by_group else None,
+        "window_open": activity.window_open(),
     })
 
 
@@ -371,6 +373,42 @@ def evaluation_code(request, course_pk, pk):
     activity.save(update_fields=["access_code"])
     messages.success(request, _("Se generó un nuevo código de acceso, %(code)s; el anterior dejó de ser válido.") % {"code": activity.access_code})
     return redirect(reverse("activity_detail", args=[course.pk, activity.pk]) + "#apply")
+
+
+@teacher_required
+@require_POST
+def evaluation_group(request, course_pk, pk):
+    """Abrir la evaluación para un grupo (por ejemplo, al terminar su presentación) o deshacer una
+    apertura hecha por error, mientras ningún integrante haya empezado."""
+    course, activity = _own_evaluation(request, course_pk, pk)
+    group = get_object_or_404(StudentGroup, pk=request.POST.get("group"), course=course)
+    try:
+        if request.POST.get("action") == "close":
+            engine.close_for_group(activity, group)
+            messages.info(request, _("Se cerró la evaluación para «%(name)s».") % {"name": group.name})
+        else:
+            engine.open_for_group(activity, group, request.user)
+            messages.success(request, _("Se abrió la evaluación para «%(name)s»: sus integrantes ya pueden empezarla.")
+                             % {"name": group.name})
+    except engine.ActionError as exc:
+        messages.error(request, str(exc))
+    return redirect(reverse("activity_detail", args=[course.pk, activity.pk]) + "#grupos")
+
+
+def _openings(activity, students) -> list[dict]:
+    """Cada grupo de una evaluación que se abre por grupo: sus integrantes inscritos, si ya se abrió y
+    cuántos empezaron."""
+    from .models import GroupOpening
+
+    enrolled = {s.pk for s in students}
+    opened = {o.group_id: o for o in GroupOpening.objects.filter(activity=activity)}
+    started = set(Attempt.objects.filter(activity=activity).values_list("student_id", flat=True))
+    rows = []
+    for group in audience.opening_groups(activity):
+        members = [m.pk for m in group.members.all() if m.pk in enrolled]
+        rows.append({"group": group, "size": len(members), "opening": opened.get(group.pk),
+                     "started": sum(1 for m in members if m in started)})
+    return rows
 
 
 @teacher_required
@@ -941,6 +979,14 @@ def attempt_pointer(request, course_pk, pk):
     """Dónde está el docente si está presentando la actividad (la página del intento lo consulta)."""
     activity = _student_activity(request, course_pk, pk)
     return JsonResponse(engine.pointer(activity))
+
+
+@login_required
+def attempt_group_wait(request, course_pk, pk):
+    """¿Ya abrió el docente la evaluación para el grupo del estudiante? La página de espera lo consulta
+    cada pocos segundos y, cuando sí, se recarga para mostrar «Comenzar»."""
+    activity = _student_activity(request, course_pk, pk)
+    return JsonResponse({"open": not engine.waiting_for_group(activity, request.user)})
 
 
 @login_required

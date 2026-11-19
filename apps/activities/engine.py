@@ -23,7 +23,8 @@ futura API digan lo mismo:
   comprobó todo el ítem, su explicación.
 - **Evaluaciones** (`Activity.kind`): un intento, dentro del horario (de `opens_at` a `due_at`), con
   el código que el docente proyecta y, si hay duración, un límite propio desde que se empieza. Al
-  acabarse el tiempo se envía sola. El estudiante no ve su puntaje ni la corrección hasta que el
+  acabarse el tiempo se envía sola. Una que se abre por grupo (`Activity.open_by_group`, para la
+  defensa de un proyecto) se empieza cuando el docente la abre para el grupo del estudiante. El estudiante no ve su puntaje ni la corrección hasta que el
   docente publica las notas (`Activity.published_at`).
 """
 
@@ -39,10 +40,11 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 from django.utils.formats import date_format
 from django.utils.translation import gettext as _
+from django.utils.translation import ngettext
 from policlase_gen.grading import grade
 
 from . import images, outline
-from .models import Activity, Answer, Attempt, Extension, SkippedCorrection, Upload, graded_points
+from .models import Activity, Answer, Attempt, Extension, GroupOpening, SkippedCorrection, Upload, graded_points
 
 REVIEW_TYPES = {"open", "image"}
 #: Tope de texto de una respuesta abierta: un párrafo largo, no un documento.
@@ -80,6 +82,7 @@ class State:
     correction_pending: bool = False  # puede enviar la corrección: la revisión espera
     correction_started: bool = False  # tiene la corrección en curso: ya no la puede omitir
     correction_skipped: bool = False  # la omitió para ver la revisión
+    waiting_group: bool = False       # en su horario, espera que el docente abra la evaluación para su grupo
 
     @property
     def used(self) -> int:
@@ -127,7 +130,11 @@ def state(activity: Activity, student, now=None) -> State:
         # corregir con las soluciones a la vista.
         reveal = solutions = False
     correction = activity.correction_activity if activity.is_evaluation else None
+    opens, due = window(activity, student.pk)
+    waiting = (not ok and draft is None and not submitted and activity.is_evaluation and activity.open_by_group
+               and bool(opens and due) and opens <= now <= due and waiting_for_group(activity, student))
     return State(attempts=attempts, draft=draft, counted=counted, can_start=ok and draft is None,
+                 waiting_group=waiting,
                  reason=reason, late=late, reveal=reveal, solutions=solutions, review_closed=closed,
                  show_score=not activity.is_evaluation or bool(activity.published_at),
                  correction=correction, correction_pending=pending is not None,
@@ -257,6 +264,8 @@ def can_answer(activity: Activity, submitted: int, now, student=None) -> tuple[b
             return False, _("La evaluación comienza el %(when)s.") % {"when": _when(opens)}, False
         if now > due:
             return False, _("La evaluación se cerró el %(when)s.") % {"when": _when(due)}, False
+        if student is not None and waiting_for_group(activity, student):
+            return False, _("Su docente abrirá la evaluación para su grupo cuando le corresponda."), False
         return True, "", False
     if not activity.is_visible(now):
         return False, _("La actividad todavía no está disponible."), False
@@ -279,6 +288,39 @@ def can_answer(activity: Activity, submitted: int, now, student=None) -> tuple[b
     if until and now > until:
         return False, _("Se cerró el plazo para entregas atrasadas."), False
     return True, "", True
+
+
+def waiting_for_group(activity: Activity, student) -> bool:
+    """En una evaluación que se abre grupo por grupo (`Activity.open_by_group`): ¿todavía no la abrió el
+    docente para ninguno de los grupos del estudiante? Quien tiene una prórroga (su propio horario, por
+    ejemplo porque presenta otro día) no espera a su grupo."""
+    if not (activity.is_evaluation and activity.open_by_group) or extension(activity, student.pk) is not None:
+        return False
+    from . import audience
+
+    mine = audience.member_groups(activity.course_id, student.pk)
+    return not GroupOpening.objects.filter(activity=activity, group_id__in=mine).exists()
+
+
+def open_for_group(activity: Activity, group, by, now=None) -> GroupOpening:
+    """El docente abre la evaluación para un grupo, dentro de su horario."""
+    if not activity.open_by_group:
+        raise ActionError(_("Esta evaluación no se abre por grupo; actívelo en su configuración."))
+    if not activity.window_open(now):
+        raise ActionError(_("La evaluación se puede abrir para un grupo solo durante su horario."))
+    opening, _created = GroupOpening.objects.get_or_create(activity=activity, group=group, defaults={"opened_by": by})
+    return opening
+
+
+def close_for_group(activity: Activity, group) -> None:
+    """Deshace una apertura hecha por error, mientras ningún integrante del grupo haya empezado."""
+    started = Attempt.objects.filter(activity=activity, student__in=group.members.all()).count()
+    if started:
+        raise ActionError(ngettext(
+            "Ya empezó %(n)d integrante de «%(name)s»: la evaluación sigue abierta para el grupo.",
+            "Ya empezaron %(n)d integrantes de «%(name)s»: la evaluación sigue abierta para el grupo.", started)
+            % {"n": started, "name": group.name})
+    GroupOpening.objects.filter(activity=activity, group=group).delete()
 
 
 def check_code(activity: Activity, student, code: str | None) -> None:
