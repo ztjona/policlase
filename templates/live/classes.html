@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Clases" %} · {{ course.name }}{% endblock %}
+{% block main %}
+{% comment %} Pestaña Clases de la página del curso (apps/live/review.py): las clases terminadas por unidad, cada una
+   con su repaso (live/review.html). Solo la unidad de la última clase viene desplegada. {% endcomment %}
+{% include "courses/_student_head.html" %}
+
+{% if class_groups %}
+  <p class="small muted">{% translate "Repase las diapositivas de cada clase y consulte la respuesta de sus preguntas. El repaso no se califica." %}</p>
+  {% for g in class_groups %}
+    {% if g.section or class_groups|length > 1 %}
+      <details class="unit" {% if g.current %}open{% endif %}>
+        <summary>
+          <span class="unit-title">{% if g.section %}{{ g.section.title }}{% else %}{% translate "Otras clases" %}{% endif %}</span>
+          <span class="chip">{% blocktranslate count n=g.sessions|length %}{{ n }} clase{% plural %}{{ n }} clases{% endblocktranslate %}</span>
+        </summary>
+        <div class="unit-body review-rows">{% include "live/_review_rows.html" with sessions=g.sessions %}</div>
+      </details>
+    {% else %}
+      <div class="card review-rows">{% include "live/_review_rows.html" with sessions=g.sessions %}</div>
+    {% endif %}
+  {% endfor %}
+{% else %}
+  <p class="muted">{% translate "Aún no hay clases para repasar. Cada clase aparece aquí cuando termina." %}</p>
+{% endif %}
+{% endblock %}

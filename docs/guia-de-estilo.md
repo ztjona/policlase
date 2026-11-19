@@ -195,8 +195,8 @@ desde 0.27; «Compartir en solo lectura», en su menú):
 
 ### Repaso de las clases
 
-Terminada una clase, sus estudiantes la repasan desde la página del curso (`apps/live/review.py`,
-desde 0.28): una diapositiva a la vez, con un índice y las flechas del teclado, y la respuesta de
+Terminada una clase, sus estudiantes la repasan desde la pestaña Clases de la página del curso
+(`apps/live/review.py`, desde 0.28): una diapositiva a la vez, con un índice y las flechas del teclado, y la respuesta de
 cada pregunta tras «Ver la respuesta». Es material de estudio y no una actividad:
 
 - **Sin nota ni registro.** No se responde, no se guarda nada y no se muestran puntos, tiempos, el
@@ -212,7 +212,7 @@ cada pregunta tras «Ver la respuesta». Es material de estudio y no una activid
   (por `item_id`) no muestran la respuesta en ningún repaso, porque podrían estar abiertas.
 - **Preguntas en su versión vigente:** cada una se toma de la presentación actual por su `item_id`,
   para que una clave corregida después de la clase llegue al repaso; el contenido, como se proyectó.
-- La página del curso lista las clases por unidad, con solo la unidad de la última clase
+- La pestaña Clases lista las clases por unidad, con solo la unidad de la última clase
   desplegada. El docente llega al repaso desde los resultados de la clase.
 
 ### Actividades y notas
@@ -287,6 +287,11 @@ cada pregunta tras «Ver la respuesta». Es material de estudio y no una activid
   (con las fechas en que se dictaron, cada una enlazada a sus resultados) y actividades. La pestaña Actividades es todo lo que se
   califica, por parcial y en orden de fecha: clases dictadas, actividades y registros manuales,
   filtrable por fila de la ponderación. El estudiante ve en «Calificaciones» la nota de cada uno.
+- **El curso del estudiante, en pestañas** (`courses/_student_head.html`): Actividades
+  (`course_detail`: evaluaciones, actividades y la descripción del curso), Clases (`course_classes`:
+  el repaso de las clases terminadas) y Calificaciones (`my_grades`). Así se ve de entrada todo lo que
+  hay, sin bajar hasta el final de una lista de actividades. La clase en vivo va sobre las pestañas,
+  en las tres: entrar a ella es lo más urgente.
 - **Una clase y su presentación se eliminan por separado**, y cada confirmación dice cuál de las dos
   es (muchas presentaciones se titulan «Clase: …»). El ícono de la fila en la pestaña Clases elimina
   la presentación; las clases dictadas con ella se quedan. Una clase (por ejemplo, una iniciada por

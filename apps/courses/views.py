@@ -108,10 +108,9 @@ def enrollment_dismiss(request, pk):
 
 @login_required
 def course_detail(request, pk):
-    """Página del curso para estudiantes aprobados (y para su docente)."""
-    from apps.github.models import CourseRepo
+    """Página del curso para estudiantes aprobados (y para su docente): la pestaña Actividades. Las
+    otras dos son Clases (`live.review.course_classes`) y Calificaciones (`grades.my_grades`)."""
     from apps.live.models import LiveSession
-    from apps.live.review import class_groups
 
     course = get_object_or_404(Course.objects.select_related("owner"), pk=pk)
     if not can_view_course(request.user, course):
@@ -121,8 +120,6 @@ def course_detail(request, pk):
     return render(request, "courses/course_detail.html", {
         "course": course,
         "live": LiveSession.objects.active().filter(course=course).first(),
-        # Las clases terminadas, para repasarlas (apps/live/review.py).
-        "class_groups": class_groups(course, linked=CourseRepo.objects.filter(course=course).exists()),
         "activities": [r for r in rows if not r["activity"].is_evaluation],
         "evaluations": sorted([r for r in rows if r["activity"].is_evaluation],
                               key=lambda r: r["activity"].opens_at or timezone.now()),

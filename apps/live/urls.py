@@ -45,6 +45,7 @@ urlpatterns = [
     path("en-vivo/<int:pk>/responder/", views.student_answer, name="student_answer"),
     path("en-vivo/<int:pk>/retroalimentacion/", views.student_feedback, name="student_feedback"),
     # estudiante: repaso de una clase terminada
+    path("cursos/<int:pk>/clases/", review.course_classes, name="course_classes"),
     path("cursos/<int:course_pk>/clases/<int:pk>/", review.class_review, name="class_review"),
     # ambos
     path("en-vivo/<int:pk>/eventos/", views.events, name="live_events"),

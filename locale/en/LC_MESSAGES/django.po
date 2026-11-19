@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: policlase\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-18 16:21-0500\n"
+"POT-Creation-Date: 2026-11-19 11:23-0500\n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -655,7 +655,7 @@ msgstr "Assessment"
 #: templates/activities/attempt.html:22 templates/activities/dates.html:43
 #: templates/activities/student.html:9
 #: templates/courses/_unit_activity_rows.html:10
-#: templates/courses/course_detail.html:58
+#: templates/courses/course_detail.html:43
 msgid "Repaso"
 msgstr "Practice"
 
@@ -1101,7 +1101,7 @@ msgid ""
 msgstr "The practice closes before it opens, so students will not see it."
 
 #: apps/activities/views.py:239 apps/activities/views.py:256
-#: apps/grades/views.py:79 apps/grades/views.py:302
+#: apps/grades/views.py:79 apps/grades/views.py:307
 msgid "Revise los campos marcados."
 msgstr "Check the marked fields."
 
@@ -1487,11 +1487,11 @@ msgstr "Your request to %(course)s is still waiting for approval."
 msgid "Su solicitud a %(course)s fue rechazada. Hable con su docente."
 msgstr "Your request to %(course)s was rejected. Talk to your teacher."
 
-#: apps/courses/views.py:164 apps/courses/views.py:353
+#: apps/courses/views.py:161 apps/courses/views.py:350
 msgid "Ya tiene un curso con ese código."
 msgstr "You already have a course with that code."
 
-#: apps/courses/views.py:166
+#: apps/courses/views.py:163
 #, python-format
 msgid ""
 "Curso creado. Comparta el código de inscripción %(code)s con sus "
@@ -1500,44 +1500,44 @@ msgstr ""
 "Course created. Share the enrollment code %(code)s with your students; "
 "you'll also find it in the course settings."
 
-#: apps/courses/views.py:192
+#: apps/courses/views.py:189
 msgid "Presentaciones y actividades actualizadas desde GitHub."
 msgstr "Presentations and activities updated from GitHub."
 
-#: apps/courses/views.py:355
+#: apps/courses/views.py:352
 msgid "Datos del curso guardados."
 msgstr "Course details saved."
 
-#: apps/courses/views.py:391
+#: apps/courses/views.py:388
 #, python-format
 msgid "Se actualizó %(n)d inscrito."
 msgid_plural "Se actualizaron %(n)d inscritos."
 msgstr[0] "%(n)d enrolled student was updated."
 msgstr[1] "%(n)d enrolled students were updated."
 
-#: apps/courses/views.py:410
+#: apps/courses/views.py:407
 msgid "Acción desconocida."
 msgstr "Unknown action."
 
-#: apps/courses/views.py:423
+#: apps/courses/views.py:420
 msgid "No había solicitudes seleccionadas."
 msgstr "No requests were selected."
 
-#: apps/courses/views.py:425
+#: apps/courses/views.py:422
 #, python-format
 msgid "%(count)d solicitud aprobada."
 msgid_plural "%(count)d solicitudes aprobadas."
 msgstr[0] "%(count)d request approved."
 msgstr[1] "%(count)d requests approved."
 
-#: apps/courses/views.py:428
+#: apps/courses/views.py:425
 #, python-format
 msgid "%(count)d solicitud rechazada."
 msgid_plural "%(count)d solicitudes rechazadas."
 msgstr[0] "%(count)d request rejected."
 msgstr[1] "%(count)d requests rejected."
 
-#: apps/courses/views.py:440
+#: apps/courses/views.py:437
 #, python-format
 msgid ""
 "%(name)s fue retirado del curso. Puede volver a solicitar la inscripción con "
@@ -1546,20 +1546,20 @@ msgstr ""
 "%(name)s was removed from the course. They can request enrollment again with "
 "the course code."
 
-#: apps/courses/views.py:452
+#: apps/courses/views.py:449
 #, python-format
 msgid "Nuevo código: %(code)s. El anterior dejó de funcionar."
 msgstr "New code: %(code)s. The previous one no longer works."
 
-#: apps/courses/views.py:460
+#: apps/courses/views.py:457
 msgid "El curso acepta solicitudes."
 msgstr "The course is accepting requests."
 
-#: apps/courses/views.py:461
+#: apps/courses/views.py:458
 msgid "El curso ya no acepta solicitudes."
 msgstr "The course no longer accepts requests."
 
-#: apps/courses/views.py:466
+#: apps/courses/views.py:463
 msgid "Fecha de cierre de la inscripción guardada."
 msgstr "Enrollment closing date saved."
 
@@ -1840,7 +1840,8 @@ msgid "Último día para entregas atrasadas."
 msgstr "Last day for late submissions."
 
 #: apps/grades/models.py:68 templates/courses/_course_tabs.html:8
-#: templates/courses/course_detail.html:48
+#: templates/courses/_student_head.html:24
+#: templates/courses/course_detail.html:33
 msgid "Actividades"
 msgstr "Activities"
 
@@ -1852,7 +1853,7 @@ msgstr "Live classes"
 msgid "peso (%)"
 msgstr "weight (%)"
 
-#: apps/grades/models.py:74 templates/courses/course_detail.html:55
+#: apps/grades/models.py:74 templates/courses/course_detail.html:40
 #: templates/grades/gradebook.html:23 templates/grades/mine.html:25
 #: templates/grades/mine.html:36
 msgid "opcional"
@@ -1915,7 +1916,7 @@ msgstr "The course needs at least one term."
 msgid "Se eliminó «%(name)s». Sus actividades quedaron sin ponderación."
 msgstr "Deleted “%(name)s”. Its activities no longer have a weighting."
 
-#: apps/grades/views.py:333
+#: apps/grades/views.py:338
 #, python-format
 msgid ""
 "Hay notas fuera de rango (deben estar entre 0 y el puntaje máximo, %(top)s): "
@@ -1924,38 +1925,38 @@ msgstr ""
 "Some grades are out of range (they must be between 0 and the maximum score, "
 "%(top)s): %(names)s."
 
-#: apps/grades/views.py:346
+#: apps/grades/views.py:351
 #, python-format
 msgid "«%(title)s» guardado: %(n)d nota."
 msgid_plural "«%(title)s» guardado: %(n)d notas."
 msgstr[0] "“%(title)s” saved: %(n)d grade."
 msgstr[1] "“%(title)s” saved: %(n)d grades."
 
-#: apps/grades/views.py:349
+#: apps/grades/views.py:354
 #, python-format
 msgid "La fecha corresponde a otro parcial; el registro cuenta en «%(row)s»."
 msgstr "The date falls in another term; the record counts in “%(row)s”."
 
-#: apps/grades/views.py:353
+#: apps/grades/views.py:358
 #, python-format
 msgid "%(n)d asignación sin confirmar pasó a «Sin asignar»."
 msgid_plural "%(n)d asignaciones sin confirmar pasaron a «Sin asignar»."
 msgstr[0] "%(n)d unconfirmed assignment moved to “Unassigned”."
 msgstr[1] "%(n)d unconfirmed assignments moved to “Unassigned”."
 
-#: apps/grades/views.py:356
+#: apps/grades/views.py:361
 #, python-format
 msgid "Queda %(n)d nombre sin asignar."
 msgid_plural "Quedan %(n)d nombres sin asignar."
 msgstr[0] "%(n)d name is still unassigned."
 msgstr[1] "%(n)d names are still unassigned."
 
-#: apps/grades/views.py:368
+#: apps/grades/views.py:373
 #, python-format
 msgid "«%(title)s» eliminado, con sus notas."
 msgstr "“%(title)s” deleted, with its grades."
 
-#: apps/live/engine.py:53 apps/live/review.py:60
+#: apps/live/engine.py:53 apps/live/review.py:61
 #: templates/activities/_answer.html:31 templates/activities/_answer.html:32
 #: templates/activities/_debate_value.html:6
 #: templates/activities/_question_static.html:17
@@ -1964,7 +1965,7 @@ msgctxt "inicial de verdadero"
 msgid "V"
 msgstr "T"
 
-#: apps/live/engine.py:53 apps/live/review.py:61
+#: apps/live/engine.py:53 apps/live/review.py:62
 #: templates/activities/_answer.html:31 templates/activities/_answer.html:32
 #: templates/activities/_debate_value.html:6
 #: templates/activities/_question_static.html:17
@@ -2303,7 +2304,9 @@ msgstr "End or pause the class before deleting it."
 #, python-format
 msgid ""
 "Se eliminó la clase del %(when)s. La presentación sigue en la pestaña Clases."
-msgstr "The class of %(when)s was deleted. The presentation is still in the Classes tab."
+msgstr ""
+"The class of %(when)s was deleted. The presentation is still in the Classes "
+"tab."
 
 #: apps/live/views.py:107
 #, python-format
@@ -2872,9 +2875,9 @@ msgstr "incorrect"
 #: templates/activities/_answer.html:12
 #: templates/activities/_evaluation_apply.html:10
 #: templates/activities/attempt_review.html:38
-#: templates/activities/dates.html:25 templates/courses/course_detail.html:33
-#: templates/courses/course_detail.html:59
-#: templates/courses/course_detail.html:60
+#: templates/activities/dates.html:25 templates/courses/course_detail.html:18
+#: templates/courses/course_detail.html:44
+#: templates/courses/course_detail.html:45
 msgid "en curso"
 msgstr "in progress"
 
@@ -4001,8 +4004,7 @@ msgid "Los comentarios de cada pregunta se escriben junto a su nota."
 msgstr "Comments on each question are written next to its grade."
 
 #: templates/activities/dates.html:3 templates/activities/dates.html:8
-#: templates/courses/_course_tabs.html:7
-#: templates/courses/course_detail.html:23
+#: templates/courses/_course_tabs.html:7 templates/courses/course_detail.html:8
 msgid "Evaluaciones"
 msgstr "Assessments"
 
@@ -4038,11 +4040,11 @@ msgstr "day of “%(name)s”"
 
 #: templates/activities/dates.html:22 templates/activities/dates.html:51
 #: templates/activities/student.html:13 templates/activities/student.html:14
-#: templates/courses/course_detail.html:31
+#: templates/courses/course_detail.html:16
 msgid "por definir"
 msgstr "to be defined"
 
-#: templates/activities/dates.html:24 templates/courses/course_detail.html:37
+#: templates/activities/dates.html:24 templates/courses/course_detail.html:22
 msgid "programada"
 msgstr "scheduled"
 
@@ -4163,7 +4165,7 @@ msgstr "fixed date"
 #: templates/activities/dates.html:115 templates/activities/student.html:18
 #: templates/courses/_tab_activities.html:73
 #: templates/courses/_unit_activity_rows.html:16
-#: templates/courses/course_detail.html:56
+#: templates/courses/course_detail.html:41
 msgid "sin fecha"
 msgstr "no date"
 
@@ -5539,18 +5541,18 @@ msgid "Configuración del curso"
 msgstr "Course settings"
 
 #: templates/courses/_course_tabs.html:5
+#: templates/courses/_student_head.html:23
 msgid "Secciones del curso"
 msgstr "Course sections"
 
 #: templates/courses/_course_tabs.html:6
-#: templates/courses/course_detail.html:78
+#: templates/courses/_student_head.html:25 templates/live/classes.html:3
 msgid "Clases"
 msgstr "Classes"
 
 #: templates/courses/_course_tabs.html:9
-#: templates/courses/course_detail.html:48
-#: templates/courses/course_detail.html:73 templates/grades/gradebook.html:3
-#: templates/grades/mine.html:3 templates/grades/mine.html:6
+#: templates/courses/_student_head.html:26 templates/grades/gradebook.html:3
+#: templates/grades/mine.html:3
 msgid "Calificaciones"
 msgstr "Grades"
 
@@ -5617,14 +5619,18 @@ msgid ""
 "¿Eliminar la presentación «%(t)s»? También se borra su archivo en GitHub "
 "(%(path)s). Las clases ya dictadas con ella no se eliminan y conservan sus "
 "resultados."
-msgstr "Delete the presentation “%(t)s”? Its file on GitHub (%(path)s) is deleted too. Classes already taught with it are not deleted and keep their results."
+msgstr ""
+"Delete the presentation “%(t)s”? Its file on GitHub (%(path)s) is deleted "
+"too. Classes already taught with it are not deleted and keep their results."
 
 #: templates/courses/_deck_rows.html:29 templates/live/deck_view.html:20
 #, python-format
 msgid ""
 "¿Eliminar la presentación «%(t)s»? Las clases ya dictadas con ella no se "
 "eliminan y conservan sus resultados."
-msgstr "Delete the presentation “%(t)s”? Classes already taught with it are not deleted and keep their results."
+msgstr ""
+"Delete the presentation “%(t)s”? Classes already taught with it are not "
+"deleted and keep their results."
 
 #: templates/courses/_deck_rows.html:30 templates/live/deck_view.html:21
 msgid "Eliminar presentación"
@@ -5633,6 +5639,29 @@ msgstr "Delete presentation"
 #: templates/courses/_join_form.html:8
 msgid "Solicitar inscripción"
 msgstr "Request enrollment"
+
+#: templates/courses/_student_head.html:12
+#: templates/courses/course_manage.html:27
+msgid "EN PAUSA"
+msgstr "PAUSED"
+
+#: templates/courses/_student_head.html:12
+#: templates/courses/course_manage.html:34
+#: templates/courses/student_home.html:44
+msgid "EN VIVO"
+msgstr "LIVE"
+
+#: templates/courses/_student_head.html:14
+msgid "Ir al proyector"
+msgstr "Go to projector"
+
+#: templates/courses/_student_head.html:16 templates/live/guest_join.html:16
+msgid "Entrar a la clase"
+msgstr "Join the class"
+
+#: templates/courses/_student_head.html:20
+msgid "No hay ninguna clase en vivo en este momento."
+msgstr "There's no live class right now."
 
 #: templates/courses/_sync_issues.html:6
 msgid "tiene errores y no se actualizó:"
@@ -5705,7 +5734,9 @@ msgstr "no graded questions"
 msgid ""
 "¿Eliminar la clase del %(when)s y todas sus respuestas? La presentación no "
 "se elimina. No se puede deshacer."
-msgstr "Delete the class of %(when)s and all its answers? The presentation is not deleted. This cannot be undone."
+msgstr ""
+"Delete the class of %(when)s and all its answers? The presentation is not "
+"deleted. This cannot be undone."
 
 #: templates/courses/_tab_activities.html:55
 msgid "Eliminar clase"
@@ -5853,7 +5884,7 @@ msgid "%(p)s puntos"
 msgstr "%(p)s points"
 
 #: templates/courses/_unit_activity_rows.html:15
-#: templates/courses/course_detail.html:59
+#: templates/courses/course_detail.html:44
 msgid "sin nota"
 msgstr "not graded"
 
@@ -5862,88 +5893,59 @@ msgstr "not graded"
 msgid "disponible desde el %(when)s"
 msgstr "available from %(when)s"
 
-#: templates/courses/course_detail.html:11
-#: templates/courses/course_manage.html:27
-msgid "EN PAUSA"
-msgstr "PAUSED"
-
-#: templates/courses/course_detail.html:11
-#: templates/courses/course_manage.html:34
-#: templates/courses/student_home.html:44
-msgid "EN VIVO"
-msgstr "LIVE"
-
-#: templates/courses/course_detail.html:13
-msgid "Ir al proyector"
-msgstr "Go to projector"
-
-#: templates/courses/course_detail.html:15 templates/live/guest_join.html:16
-msgid "Entrar a la clase"
-msgstr "Join the class"
-
 #: templates/courses/course_detail.html:19
-msgid "No hay ninguna clase en vivo en este momento."
-msgstr "There's no live class right now."
-
-#: templates/courses/course_detail.html:34
 msgid "nota publicada"
 msgstr "grade published"
 
-#: templates/courses/course_detail.html:35
+#: templates/courses/course_detail.html:20
 msgid "enviada"
 msgstr "submitted"
 
-#: templates/courses/course_detail.html:36
+#: templates/courses/course_detail.html:21
 msgid "disponible"
 msgstr "available"
 
-#: templates/courses/course_detail.html:38
-#: templates/courses/course_detail.html:64
+#: templates/courses/course_detail.html:23
+#: templates/courses/course_detail.html:49
 msgid "cerrada"
 msgstr "closed"
 
-#: templates/courses/course_detail.html:59
+#: templates/courses/course_detail.html:44
 #, python-format
 msgid "%(n)s intento"
 msgid_plural "%(n)s intentos"
 msgstr[0] "%(n)s attempt"
 msgstr[1] "%(n)s attempts"
 
-#: templates/courses/course_detail.html:61
+#: templates/courses/course_detail.html:46
 msgid "entregada"
 msgstr "submitted"
 
-#: templates/courses/course_detail.html:62
+#: templates/courses/course_detail.html:47
 msgid "atrasada"
 msgstr "late"
 
-#: templates/courses/course_detail.html:63
+#: templates/courses/course_detail.html:48
 msgid "pendiente"
 msgstr "pending"
 
-#: templates/courses/course_detail.html:65
+#: templates/courses/course_detail.html:50
 msgid ""
 "Puede leer y comentar las respuestas de sus compañeros en las preguntas de "
 "debate."
 msgstr ""
 "You can read and comment on your classmates' answers to the debate questions."
 
-#: templates/courses/course_detail.html:65
+#: templates/courses/course_detail.html:50
 msgid "debate abierto"
 msgstr "debate open"
 
-#: templates/courses/course_detail.html:83
-msgid "Otras clases"
-msgstr "Other classes"
+#: templates/courses/course_detail.html:58
+#
+msgid "Aún no hay actividades publicadas."
+msgstr "No activities have been published yet."
 
-#: templates/courses/course_detail.html:84
-#, python-format
-msgid "%(n)s clase"
-msgid_plural "%(n)s clases"
-msgstr[0] "%(n)s class"
-msgstr[1] "%(n)s classes"
-
-#: templates/courses/course_detail.html:95
+#: templates/courses/course_detail.html:62
 msgid "Acerca del curso"
 msgstr "About the course"
 
@@ -7291,6 +7293,27 @@ msgstr ""
 msgid "Tu total: <strong>%(total)s</strong>"
 msgstr "Your total: <strong>%(total)s</strong>"
 
+#: templates/live/classes.html:11
+msgid ""
+"Repase las diapositivas de cada clase y consulte la respuesta de sus "
+"preguntas. El repaso no se califica."
+msgstr "Review the slides of each class and check the answers to its questions. The review is not graded."
+
+#: templates/live/classes.html:16
+msgid "Otras clases"
+msgstr "Other classes"
+
+#: templates/live/classes.html:17
+#, python-format
+msgid "%(n)s clase"
+msgid_plural "%(n)s clases"
+msgstr[0] "%(n)s class"
+msgstr[1] "%(n)s classes"
+
+#: templates/live/classes.html:26
+msgid "Aún no hay clases para repasar. Cada clase aparece aquí cuando termina."
+msgstr "There are no classes to review yet. Each class appears here when it ends."
+
 #: templates/live/guest_closed.html:8
 msgid "Esta clase ya terminó."
 msgstr "This class has ended."
@@ -7537,8 +7560,10 @@ msgid ""
 "¿Eliminar la clase del %(when)s y su %(n)s respuesta? No se puede deshacer."
 msgid_plural ""
 "¿Eliminar la clase del %(when)s y sus %(n)s respuestas? No se puede deshacer."
-msgstr[0] "Delete the class of %(when)s and its %(n)s answer? This cannot be undone."
-msgstr[1] "Delete the class of %(when)s and its %(n)s answers? This cannot be undone."
+msgstr[0] ""
+"Delete the class of %(when)s and its %(n)s answer? This cannot be undone."
+msgstr[1] ""
+"Delete the class of %(when)s and its %(n)s answers? This cannot be undone."
 
 #: templates/live/results.html:136
 #, python-format

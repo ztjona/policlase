@@ -2,8 +2,8 @@
 {% load i18n %}
 {% block title %}{% translate "Calificaciones" %} · {{ course.name }}{% endblock %}
 {% block main %}
-<div class="muted small"><a href="{% url 'course_detail' course.pk %}">← {{ course.name }}</a></div>
-<h1>{% translate "Calificaciones" %}</h1>
+{% include "courses/_student_head.html" with tab="calificaciones" %}
+
 <p class="muted">{% blocktranslate with max=rules.period_max|floatformat:"-2" %}Cada parcial se califica sobre {{ max }} puntos. Los componentes opcionales se suman a los obligatorios y permiten compensar los puntos no obtenidos; la nota del parcial no excede {{ max }} puntos.{% endblocktranslate %}</p>
 <p class="muted small">{% translate "Abra un componente para ver la nota de cada clase, actividad o registro que cuenta en él." %}</p>
 

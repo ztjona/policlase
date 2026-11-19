@@ -2,22 +2,7 @@
 {% load i18n policlase %}
 {% block title %}{{ course.name }}{% endblock %}
 {% block main %}
-<div class="muted small mono">{{ course.code }}</div>
-<h1>{{ course.name }}</h1>
-<p class="muted">{{ course.owner.display_name }}</p>
-
-{% if live %}
-  <div class="card spread" style="border-color:var(--danger)">
-    <div>{% if live.status == "paused" %}<span class="chip warn">❚❚ {% translate "EN PAUSA" %}</span>{% else %}<span class="chip live">{% translate "EN VIVO" %}</span>{% endif %} <strong>{{ live.title }}</strong></div>
-    {% if user == course.owner %}
-      <a class="btn" href="{% url 'present' live.pk %}">{% translate "Ir al proyector" %}</a>
-    {% else %}
-      <a class="btn big" href="{% url 'live_student' live.pk %}">{% translate "Entrar a la clase" %}</a>
-    {% endif %}
-  </div>
-{% else %}
-  <div class="card muted">{% translate "No hay ninguna clase en vivo en este momento." %}</div>
-{% endif %}
+{% include "courses/_student_head.html" with tab="actividades" %}
 
 {% if evaluations %}
   <h2>{% translate "Evaluaciones" %}</h2>
@@ -45,7 +30,7 @@
 {% endif %}
 
 {% if activities %}
-  <div class="spread"><h2>{% translate "Actividades" %}</h2><a class="small" href="{% url 'my_grades' course.pk %}">{% translate "Calificaciones" %}</a></div>
+  {% if evaluations %}<h2>{% translate "Actividades" %}</h2>{% endif %}
   <div class="card table-wrap">
     <table>
       <tbody>
@@ -69,26 +54,8 @@
       </tbody>
     </table>
   </div>
-{% else %}
-  <p class="small"><a href="{% url 'my_grades' course.pk %}">{% translate "Calificaciones" %}</a></p>
-{% endif %}
-
-{% if class_groups %}
-  {# Las clases terminadas, para repasarlas (live/review.html). Solo la unidad de la última clase viene desplegada. #}
-  <h2>{% translate "Clases" %}</h2>
-  {% for g in class_groups %}
-    {% if g.section or class_groups|length > 1 %}
-      <details class="unit" {% if g.current %}open{% endif %}>
-        <summary>
-          <span class="unit-title">{% if g.section %}{{ g.section.title }}{% else %}{% translate "Otras clases" %}{% endif %}</span>
-          <span class="chip">{% blocktranslate count n=g.sessions|length %}{{ n }} clase{% plural %}{{ n }} clases{% endblocktranslate %}</span>
-        </summary>
-        <div class="unit-body review-rows">{% include "live/_review_rows.html" with sessions=g.sessions %}</div>
-      </details>
-    {% else %}
-      <div class="card review-rows">{% include "live/_review_rows.html" with sessions=g.sessions %}</div>
-    {% endif %}
-  {% endfor %}
+{% elif not evaluations %}
+  <p class="muted">{% translate "Aún no hay actividades publicadas." %}</p>
 {% endif %}
 
 {% if course.description %}

@@ -275,6 +275,8 @@ svg.i { display: inline-block; vertical-align: -4px; }
   color: var(--ink-soft); text-decoration: none; font-weight: 600; margin-bottom: -1px; }
 .tabs a[aria-current=page] { background: var(--surface); border-color: var(--rule); color: var(--accent); }
 .tabs a:hover { color: var(--accent); }
+/* Lo primero bajo las pestañas del estudiante (un título o una explicación) va pegado a ellas. */
+.tabs + h2, .tabs + p { margin-top: 0; }
 .tabs a { white-space: nowrap; flex: none; }
 /* En un teléfono las cuatro pestañas no caben: la barra se desplaza de lado, sin mover la página. */
 @media (max-width: 600px) {

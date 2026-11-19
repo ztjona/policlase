@@ -22,7 +22,7 @@
   </nav>
 
   <div class="attempt-main">
-    <div class="small"><a class="muted" href="{% url 'course_detail' course.pk %}">← {{ course.name }}</a></div>
+    <div class="small"><a class="muted" href="{% url 'course_classes' course.pk %}">← {{ course.name }}</a></div>
     <h1>{{ session.title }}</h1>
     <p class="muted">{% blocktranslate with when=session.started_at|default:session.created_at|date:"DATE_FORMAT" %}Clase del {{ when }}{% endblocktranslate %}{% if section %} · {{ section.title }}{% endif %}
       · {% blocktranslate count n=slides|length %}{{ n }} diapositiva{% plural %}{{ n }} diapositivas{% endblocktranslate %}{% if questions %} · {% blocktranslate count n=questions %}{{ n }} pregunta{% plural %}{{ n }} preguntas{% endblocktranslate %}{% endif %}</p>

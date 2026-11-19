@@ -20,7 +20,7 @@ Aula virtual autoalojada para cursos universitarios con carga matemática.
 - **Clases en vivo**: el docente proyecta y los estudiantes responden desde el teléfono, sin cuenta
   regresiva a la vista; pausar y retomar, reabrir, bono por rapidez solo en el marcador, invitados por
   enlace o QR y retroalimentación anónima. Las notas del docente se ven solo en un tooltip de sus controles.
-  Terminada la clase, los estudiantes la **repasan** desde la página del curso: las diapositivas que se
+  Terminada la clase, los estudiantes la **repasan** desde la pestaña Clases del curso: las diapositivas que se
   proyectaron y la respuesta de cada pregunta, sin nota.
 - **Actividades** (deberes y talleres): fechas fijas o relativas a una fecha clave, intentos, atrasos
   bloqueados o penalizados con envío automático al vencer, preguntas con tiempo, entregas de imágenes,

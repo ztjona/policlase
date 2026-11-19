@@ -1,0 +1,26 @@
+{% load i18n %}
+{% comment %} Encabezado del curso para el estudiante, igual en sus tres pestañas: el curso, la clase en vivo y las
+   pestañas Actividades (courses/course_detail.html), Clases (live/classes.html) y Calificaciones
+   (grades/mine.html). `tab` dice cuál está abierta; `live`, la clase en vivo o en pausa. {% endcomment %}
+<div class="muted small mono">{{ course.code }}</div>
+<h1>{{ course.name }}</h1>
+<p class="muted">{{ course.owner.display_name }}</p>
+
+{% if live %}
+  <div class="card spread" style="border-color:var(--danger)">
+    <div>{% if live.status == "paused" %}<span class="chip warn">❚❚ {% translate "EN PAUSA" %}</span>{% else %}<span class="chip live">{% translate "EN VIVO" %}</span>{% endif %} <strong>{{ live.title }}</strong></div>
+    {% if user == course.owner %}
+      <a class="btn" href="{% url 'present' live.pk %}">{% translate "Ir al proyector" %}</a>
+    {% else %}
+      <a class="btn big" href="{% url 'live_student' live.pk %}">{% translate "Entrar a la clase" %}</a>
+    {% endif %}
+  </div>
+{% else %}
+  <div class="card muted">{% translate "No hay ninguna clase en vivo en este momento." %}</div>
+{% endif %}
+
+<nav class="tabs" aria-label="{% translate 'Secciones del curso' %}">
+  <a href="{% url 'course_detail' course.pk %}" {% if tab == "actividades" %}aria-current="page"{% endif %}>{% translate "Actividades" %}</a>
+  <a href="{% url 'course_classes' course.pk %}" {% if tab == "clases" %}aria-current="page"{% endif %}>{% translate "Clases" %}</a>
+  <a href="{% url 'my_grades' course.pk %}" {% if tab == "calificaciones" %}aria-current="page"{% endif %}>{% translate "Calificaciones" %}</a>
+</nav>

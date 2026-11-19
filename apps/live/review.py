@@ -11,7 +11,8 @@ no se muestran puntos, tiempos ni lo que respondió cada uno.
 - **Ninguna respuesta durante una clase:** mientras una clase del curso esté en la sala de espera, en
   curso o en pausa, las preguntas que contiene no muestran su respuesta en ningún repaso, porque podría
   estar abierta en ese momento.
-- Ven el repaso los estudiantes aprobados del curso y su docente; los invitados, no.
+- Ven el repaso los estudiantes aprobados del curso y su docente; los invitados, no. Las clases se
+  listan en la pestaña Clases de la página del curso (`course_classes`).
 """
 
 from django.contrib.auth.decorators import login_required
@@ -111,6 +112,21 @@ def class_groups(course, linked: bool) -> list[dict]:
     if None in by_section:
         groups.append({"section": None, "sessions": by_section[None], "current": latest is None})
     return groups
+
+
+@login_required
+def course_classes(request, pk):
+    """La pestaña Clases de la página del curso: las clases terminadas, para repasarlas."""
+    from apps.github.models import CourseRepo
+
+    course = get_object_or_404(Course.objects.select_related("owner"), pk=pk)
+    if not can_view_course(request.user, course):
+        raise Http404
+    return render(request, "live/classes.html", {
+        "course": course, "tab": "clases",
+        "live": LiveSession.objects.active().filter(course=course).first(),
+        "class_groups": class_groups(course, linked=CourseRepo.objects.filter(course=course).exists()),
+    })
 
 
 @login_required

@@ -1334,11 +1334,22 @@ class ClassReviewTests(LiveBase):
         self.assertNotIn(" pt ", html)
         self.assertNotIn("¿Cómo estuvo la clase?", html)
 
-    def test_aparece_en_la_pagina_del_curso(self):
+    def test_aparece_en_la_pestana_clases_del_curso(self):
+        self.client.force_login(self.ana)
+        classes = reverse("course_classes", args=[self.course.pk])
+        self.assertContains(self.client.get(classes), "Aún no hay clases para repasar.")
         session = self.taught()
         self.client.force_login(self.ana)
+        # Las tres pestañas están en la página del curso: no hay que bajar para encontrar las clases.
         page = self.client.get(reverse("course_detail", args=[self.course.pk]))
+        self.assertContains(page, f'href="{classes}"')
+        self.assertContains(page, f'href="{reverse("my_grades", args=[self.course.pk])}"')
+        page = self.client.get(classes)
+        self.assertContains(page, 'aria-current="page">Clases<')
         self.assertContains(page, reverse("class_review", args=[self.course.pk, session.pk]))
+        self.assertContains(self.review(session), f'href="{classes}"')            # «←» vuelve a la pestaña
+        self.assertContains(self.client.get(reverse("my_grades", args=[self.course.pk])),
+                            'aria-current="page">Calificaciones<')
         # El docente lo encuentra en los resultados de la clase.
         self.client.force_login(self.teacher)
         page = self.client.get(reverse("session_results", args=[session.pk]))
@@ -1349,7 +1360,7 @@ class ClassReviewTests(LiveBase):
         engine.apply(session.pk, "start")
         engine.apply(session.pk, "end")
         self.assertEqual(self.review(session).status_code, 404)
-        page = self.client.get(reverse("course_detail", args=[self.course.pk]))
+        page = self.client.get(reverse("course_classes", args=[self.course.pk]))
         self.assertNotContains(page, reverse("class_review", args=[self.course.pk, session.pk]))
 
     def test_una_clase_sin_terminar_no_se_repasa(self):
@@ -1389,6 +1400,7 @@ class ClassReviewTests(LiveBase):
         self.assertEqual(self.review(session, self.teacher).status_code, 200)   # su docente
         for user in (self.outsider, make_user("otra", User.Role.TEACHER)):
             self.assertEqual(self.review(session, user).status_code, 404, user.username)
+            self.assertEqual(self.client.get(reverse("course_classes", args=[self.course.pk])).status_code, 404)
         # Un invitado vuelve a su clase o sale (accounts.middleware), nunca ve el repaso.
         self.assertEqual(self.review(session, make_user("visita", User.Role.GUEST)).status_code, 302)
         other = Course.objects.create(owner=self.teacher, name="Otro", code="OT-1")
@@ -1404,6 +1416,8 @@ class ClassReviewTests(LiveBase):
         link = ReadOnlyLink.objects.create(student=self.ana)
         self.client.logout()
         self.client.get(reverse("readonly_open", args=[link.token]))
+        page = self.client.get(reverse("course_classes", args=[self.course.pk]))
+        self.assertContains(page, reverse("class_review", args=[self.course.pk, session.pk]))
         page = self.client.get(reverse("class_review", args=[self.course.pk, session.pk]))
         self.assertContains(page, "Ver la respuesta")
 

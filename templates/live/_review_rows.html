@@ -1,5 +1,5 @@
 {% load i18n %}
-{# Las clases que se pueden repasar, en orden de fecha (página del curso). #}
+{# Las clases que se pueden repasar, en orden de fecha (pestaña Clases de la página del curso). #}
 {% for s in sessions %}
   <div class="deck-row">
     <div class="deck-info"><a href="{% url 'class_review' course.pk s.pk %}"><strong>{{ s.title }}</strong></a></div>

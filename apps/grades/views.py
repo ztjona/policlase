@@ -166,8 +166,13 @@ def my_grades(request, pk):
     course = get_object_or_404(Course.objects.select_related("owner"), pk=pk)
     if not can_view_course(request.user, course):
         raise Http404
+    from apps.live.models import LiveSession
+
     mine = gradebook.course_grades(course, [request.user], published_only=True)[0]
-    return render(request, "grades/mine.html", {"course": course, "grades": mine, "rules": mine.rules})
+    return render(request, "grades/mine.html", {
+        "course": course, "grades": mine, "rules": mine.rules, "tab": "calificaciones",
+        "live": LiveSession.objects.active().filter(course=course).first(),
+    })
 
 
 # ------------------------------------------------------------------------ registros manuales
